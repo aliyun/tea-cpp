@@ -33,6 +33,7 @@ public:
 
 protected:
   map<string, string> _name;
+  map<string, boost::any> _default;
   map<string, boost::any> _config;
 };
 class Request {
@@ -54,7 +55,7 @@ public:
   Response();
   ~Response();
 
-  concurrency::streams::ostream body;
+  concurrency::streams::istream body;
   int statusCode;
 };
 class Core {
