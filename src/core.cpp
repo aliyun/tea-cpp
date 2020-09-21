@@ -91,9 +91,9 @@ bool Darabonba::Core::allowRetry(boost::any *retry, int *retry_times,
   return false;
 }
 
-Darabonba::Response Darabonba::Core::doRequest(const Darabonba::Request &req) {
+Darabonba::Response Darabonba::Core::doAction(const Darabonba::Request &req) {
   map<string, boost::any> runtime;
-  return Darabonba::Core::doRequest(req, runtime);
+  return Darabonba::Core::doAction(req, runtime);
 }
 
 string lowercase(string str) {
@@ -174,7 +174,7 @@ string compose_url(const string &host, const map<string, string> &params,
 }
 
 Darabonba::Response
-Darabonba::Core::doRequest(const Darabonba::Request &req,
+Darabonba::Core::doAction(const Darabonba::Request &req,
                            map<string, boost::any> runtime) {
   string protocol = req.protocol;
   string port = to_string(req.port);
