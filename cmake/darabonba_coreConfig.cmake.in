@@ -1,0 +1,4 @@
+@PACKAGE_INIT@
+
+include("${CMAKE_CURRENT_LIST_DIR}/darabonba_coreTargets.cmake")
+check_required_components("darabonba_core")
