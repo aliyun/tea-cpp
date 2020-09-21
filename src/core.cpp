@@ -218,7 +218,7 @@ Darabonba::Core::doAction(const Darabonba::Request &req,
   Darabonba::Response dara_response;
   concurrency::streams::stringstreambuf buffer;
   response.body().read_to_end(buffer).get();
-  Concurrency::streams::basic_ostream<unsigned char> outStringBuffer(buffer);
+  Concurrency::streams::basic_istream<unsigned char> outStringBuffer(buffer);
   dara_response.body = outStringBuffer;
   dara_response.statusCode = response.status_code();
   return dara_response;
