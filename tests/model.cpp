@@ -1,16 +1,18 @@
 #include "gtest/gtest.h"
-#include "mock.h"
 #include <boost/exception/current_exception_cast.hpp>
 #include <darabonba/core.hpp>
 #include <memory>
 #include <regex>
+
+#include "mock/model.h"
 
 using namespace Darabonba;
 using namespace std;
 
 TEST(tests_model, test_construct) {
   map<string, boost::any> config;
-  config.insert(pair<string, boost::any>(string("stringfield"), boost::any(string("test"))));
+  config.insert(pair<string, boost::any>(string("stringfield"),
+                                         boost::any(string("test"))));
   MockModel model(config);
   ASSERT_EQ(string("test"), *model.stringfield);
 }

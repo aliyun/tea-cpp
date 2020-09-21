@@ -13,7 +13,7 @@ class Model {
 public:
   Model();
   ~Model();
-  Model(const std::map<string, boost::any> &config);
+  Model(const map<string, boost::any> &config);
   static void validateRequired(const string &field_name, boost::any *field,
                                bool val = false);
   static void validateMaxLength(const string &field_name, string *field,
@@ -65,18 +65,95 @@ public:
   static bool allowRetry(boost::any *retry, int *retry_times, int *now);
   static int getBackoffTime(boost::any *backoff, int *retry_times);
   static void sleep(int *sleep_time);
-  static bool isRetryable(std::exception *ex);
+  static bool isRetryable(exception *ex);
   static bool isRetryable(boost::exception *ex);
 };
 class Converter {
 public:
-  static map<string, string> *mapPointer(map<string, string> m);
-  static map<string, boost::any> *mapPointer(map<string, boost::any> m);
-  static map<string, string> merge(map<string, string> *m, ...);
-  static map<string, boost::any> merge(map<string, boost::any> *m, ...);
-  static string toString(boost::any val);
+  static map<string, string> *mapPointer(map<string, string> m) {
+    auto *_m = new map<string, string>();
+    if (m.empty()) {
+      return _m;
+    }
+    for (auto it : m) {
+      _m->insert(pair<string, string>(it.first, it.second));
+    }
+    return _m;
+  }
+  static map<string, boost::any> *mapPointer(map<string, boost::any> m) {
+    auto *_m = new map<string, boost::any>();
+    if (m.empty()) {
+      return _m;
+    }
+    for (auto it : m) {
+      _m->insert(pair<string, boost::any>(it.first, it.second));
+    }
+    return _m;
+  }
+  template <typename... Params>
+  static map<string, string> merge(map<string, string> *m,
+                                   Params... parameters) {
+    if (m == nullptr) {
+      m = new std::map<std::string, string>();
+    }
+    mergeMap(m, parameters...);
+    return *m;
+  }
+  template <typename... Params>
+  static map<string, boost::any> merge(map<string, boost::any> *m,
+                                       Params... parameters) {
+    if (m == nullptr) {
+      m = new std::map<std::string, boost::any>();
+    }
+    mergeMap(m, parameters...);
+    return *m;
+  }
+  static string toString(boost::any val) {
+    if (typeid(string) == val.type()) {
+      return boost::any_cast<string>(val);
+    }
+    return string("");
+  }
+
+private:
+  template <typename... Params>
+  static void mergeMap(std::map<std::string, string> *m,
+                       std::map<std::string, string> value,
+                       Params... parameters) {
+    assignMap(m, value);
+    mergeMap(m, parameters...);
+  }
+  static void mergeMap(std::map<std::string, string> *m,
+                       std::map<std::string, string> value) {
+    assert(m != nullptr);
+    assignMap(m, value);
+  }
+  static void assignMap(std::map<std::string, string> *m,
+                        std::map<std::string, string> value) {
+    for (auto it : value) {
+      m->insert(pair<string, string>(it.first, it.second));
+    }
+  }
+  template <typename... Params>
+  static void mergeMap(std::map<std::string, boost::any> *m,
+                       std::map<std::string, boost::any> value,
+                       Params... parameters) {
+    assignMap(m, value);
+    mergeMap(m, parameters...);
+  }
+  static void mergeMap(std::map<std::string, boost::any> *m,
+                       std::map<std::string, boost::any> value) {
+    assert(m != nullptr);
+    assignMap(m, value);
+  }
+  static void assignMap(std::map<std::string, boost::any> *m,
+                        std::map<std::string, boost::any> value) {
+    for (auto it : value) {
+      m->insert(pair<string, boost::any>(it.first, it.second));
+    }
+  }
 };
-struct Error : virtual std::exception, virtual boost::exception {
+struct Error : virtual exception, virtual boost::exception {
 public:
   Error();
   Error(map<string, string> error_info);

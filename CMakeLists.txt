@@ -73,7 +73,7 @@ if (ENABLE_UNIT_TESTS)
             tests/main.cpp
             tests/model.cpp
             tests/core.cpp
-            tests/mock.h)
+            tests/converter.cpp)
     target_include_directories(tests
             PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}/include)
