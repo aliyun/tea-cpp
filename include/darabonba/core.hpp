@@ -59,9 +59,9 @@ public:
 };
 class Core {
 public:
-  static Response doRequest(const Request &req,
+  static Response doAction(const Request &req,
                             map<string, boost::any> runtime);
-  static Response doRequest(const Request &req);
+  static Response doAction(const Request &req);
   static bool allowRetry(boost::any *retry, int *retry_times, int *now);
   static int getBackoffTime(boost::any *backoff, int *retry_times);
   static void sleep(int *sleep_time);

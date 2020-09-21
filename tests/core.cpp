@@ -93,11 +93,11 @@ TEST(tests_core, test_doRequset) {
   req.headers["x-foo"] = string("x-bar");
   req.headers["host"] = "example.com";
 
-  Response res = Darabonba::Core::doRequest(req);
+  Response res = Darabonba::Core::doAction(req);
   ASSERT_EQ(200, res.statusCode);
 }
 
-TEST(tests_core, test_doRequest_with_runtime) {
+TEST(tests_core, test_doAction_with_runtime) {
   map<string, boost::any> runtime;
   runtime["readTimeout"] = boost::any(10);
   runtime["connectTimeout"] = boost::any(10);
@@ -108,6 +108,6 @@ TEST(tests_core, test_doRequest_with_runtime) {
   req.headers["x-foo"] = string("x-bar");
   req.headers["host"] = "example.com";
 
-  Response res = Darabonba::Core::doRequest(req, runtime);
+  Response res = Darabonba::Core::doAction(req, runtime);
   ASSERT_EQ(200, res.statusCode);
 }
