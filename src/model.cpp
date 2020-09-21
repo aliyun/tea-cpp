@@ -96,9 +96,7 @@ void Model::validatePattern(const string &field_name, string *field,
   }
 }
 
-Model::Model(const std::map<string, boost::any> &config) {
-  _config = config;
-}
+Model::Model(const std::map<string, boost::any> &config) { _config = config; }
 
 Model::~Model() = default;
 Model::Model() = default;

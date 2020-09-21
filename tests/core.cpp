@@ -73,16 +73,20 @@ TEST(tests_core, test_isRetryable) {
 
 TEST(tests_core, test_allowRetry) {
   map<string, boost::any> retry;
-  ASSERT_FALSE(Darabonba::Core::allowRetry(new boost::any(retry), new int(3), new int(0)));
+  ASSERT_FALSE(Darabonba::Core::allowRetry(new boost::any(retry), new int(3),
+                                           new int(0)));
 
   retry["maxAttempts"] = boost::any(0);
-  ASSERT_FALSE(Darabonba::Core::allowRetry(new boost::any(retry), new int(3), new int(0)));
+  ASSERT_FALSE(Darabonba::Core::allowRetry(new boost::any(retry), new int(3),
+                                           new int(0)));
 
   retry["maxAttempts"] = boost::any("");
-  ASSERT_FALSE(Darabonba::Core::allowRetry(new boost::any(retry), new int(3), new int(0)));
+  ASSERT_FALSE(Darabonba::Core::allowRetry(new boost::any(retry), new int(3),
+                                           new int(0)));
 
   retry["maxAttempts"] = boost::any(5);
-  ASSERT_TRUE(Darabonba::Core::allowRetry(new boost::any(retry), new int(3), new int(0)));
+  ASSERT_TRUE(Darabonba::Core::allowRetry(new boost::any(retry), new int(3),
+                                          new int(0)));
 }
 
 TEST(tests_core, test_doRequset) {
