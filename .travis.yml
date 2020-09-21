@@ -1,0 +1,20 @@
+dist: bionic
+sudo: required
+language: cpp
+compiler: gcc
+
+install:
+  - sudo add-apt-repository ppa:mhier/libboost-latest -y
+  - sudo apt-get update
+  - aptitude search boost
+  - sudo apt-get install libboost-all-dev
+  - sudo apt-get install lcov libcpprest-dev libcurl4-openssl-dev libssl-dev uuid-dev libjson-c-dev libjsoncpp-dev
+
+env:
+  - CPLUS_INCLUDE_PATH="/usr/local/include/:/usr/include/jsoncpp/:/usr/lib/"
+
+script:
+  - sh scripts/codecov.sh
+
+after_success:
+  - cd cmake_build && bash <(curl -s https://codecov.io/bash)
