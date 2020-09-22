@@ -9,7 +9,7 @@ TEST(tests_converter, merge_string_string) {
   map<string, string> m2 = {{"a", string("b")}};
   map<string, string> m3 = {{"c", string("d")}};
   map<string, string> m4 = {{"e", string("f")}};
-  map<string, string> res = Darabonba::Converter::merge(&m1, m2, m3, m4);
+  map<string, string> res = Darabonba::Converter::merge(m1, m2, m3, m4);
 
   map<string, string> expect = {{"foo", string("bar")},
                                 {"a", string("b")},
@@ -26,7 +26,7 @@ TEST(tests_converter, merge_string_any) {
   map<string, boost::any> m2 = {{"a", boost::any(string("b"))}};
   map<string, boost::any> m3 = {{"c", boost::any(string("d"))}};
   map<string, boost::any> m4 = {{"e", boost::any(string("f"))}};
-  map<string, boost::any> res = Darabonba::Converter::merge(&m1, m2, m3, m4);
+  map<string, boost::any> res = Darabonba::Converter::merge(m1, m2, m3, m4);
 
   map<string, boost::any> expect = {{"foo", boost::any(string("bar"))},
                                     {"a", boost::any(string("b"))},

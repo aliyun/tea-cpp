@@ -115,3 +115,22 @@ TEST(tests_core, test_doAction_with_runtime) {
   Response res = Darabonba::Core::doAction(req, runtime);
   ASSERT_EQ(200, res.statusCode);
 }
+
+TEST(tests_core, test_error) {
+  map<string, boost::any> data = {
+      {"requestId", "123456"}
+  };
+  map<string, boost::any> m = {
+      {"code", string("success")},
+      {"message", string("msg")},
+      {"data", data},
+  };
+  try {
+    BOOST_THROW_EXCEPTION(Darabonba::Error(m));
+    assert(false);
+  } catch (Darabonba::Error &e) {
+    ASSERT_EQ(string("msg"), e.message);
+    ASSERT_EQ(string("success"), e.code);
+    ASSERT_EQ(string("{\"requestId\":\"123456\"}"), e.data);
+  }
+}
