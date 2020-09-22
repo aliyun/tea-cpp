@@ -92,22 +92,16 @@ public:
     return _m;
   }
   template <typename... Params>
-  static map<string, string> merge(map<string, string> *m,
+  static map<string, string> merge(map<string, string> m,
                                    Params... parameters) {
-    if (m == nullptr) {
-      m = new std::map<std::string, string>();
-    }
-    mergeMap(m, parameters...);
-    return *m;
+    mergeMap(&m, parameters...);
+    return m;
   }
   template <typename... Params>
-  static map<string, boost::any> merge(map<string, boost::any> *m,
+  static map<string, boost::any> merge(map<string, boost::any> m,
                                        Params... parameters) {
-    if (m == nullptr) {
-      m = new std::map<std::string, boost::any>();
-    }
-    mergeMap(m, parameters...);
-    return *m;
+    mergeMap(&m, parameters...);
+    return m;
   }
   static string toString(boost::any val) {
     if (typeid(string) == val.type()) {
@@ -158,7 +152,7 @@ struct Error : virtual exception, virtual boost::exception {
 public:
   Error();
   Error(map<string, string> error_info);
-  Error(boost::any error_info);
+  Error(map<string, boost::any> error_info);
   string message;
   string code;
   string data;
