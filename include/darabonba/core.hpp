@@ -11,9 +11,11 @@ using namespace std;
 namespace Darabonba {
 class Model {
 public:
-  Model();
-  ~Model();
-  Model(const map<string, boost::any> &config);
+  Model() = default;
+  ~Model() = default;
+  Model(const map<string, boost::any> &config) {
+      _config = config;
+  };
   static void validateRequired(const string &field_name, boost::any *field,
                                bool val = false);
   static void validateMaxLength(const string &field_name, string *field,
