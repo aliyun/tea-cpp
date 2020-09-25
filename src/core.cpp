@@ -82,16 +82,17 @@ void json_encode(boost::any val, std::stringstream &ss) {
   }
 }
 
-void Darabonba::Core::sleep(int *sleep_time) {
-  int s = nullptr == sleep_time ? 0 : *sleep_time;
+void Darabonba::Core::sleep(const shared_ptr<int>& sleep_time) {
+  int s = !sleep_time ? 0 : *sleep_time;
   boost::this_thread::sleep_for(boost::chrono::seconds(s));
 }
 
-int Darabonba::Core::getBackoffTime(boost::any *backoff, int *retry_times) {
-  if (nullptr == backoff) {
+int Darabonba::Core::getBackoffTime(const shared_ptr<boost::any>& backoff,
+                                    const shared_ptr<int>& retry_times) {
+  if (!backoff) {
     return 0;
   }
-  int rt = nullptr == retry_times ? 0 : *retry_times;
+  int rt = !retry_times ? 0 : *retry_times;
   int back_off_time = 0;
   map<string, boost::any> backoff_val =
       boost::any_cast<map<string, boost::any>>(*backoff);
@@ -113,7 +114,7 @@ int Darabonba::Core::getBackoffTime(boost::any *backoff, int *retry_times) {
   return back_off_time;
 }
 
-bool Darabonba::Core::isRetryable(exception *ex) {
+bool Darabonba::Core::isRetryable(const exception& ex) {
   try {
     auto *e = boost::current_exception_cast<Darabonba::Error>();
     return e != nullptr;
@@ -122,7 +123,7 @@ bool Darabonba::Core::isRetryable(exception *ex) {
   }
 }
 
-bool Darabonba::Core::isRetryable(boost::exception *ex) {
+bool Darabonba::Core::isRetryable(const boost::exception& ex) {
   try {
     auto *e = boost::current_exception_cast<Darabonba::Error>();
     return e != nullptr;
@@ -131,12 +132,13 @@ bool Darabonba::Core::isRetryable(boost::exception *ex) {
   }
 }
 
-bool Darabonba::Core::allowRetry(boost::any *retry, int *retry_times,
-                                 int *now) {
-  if (retry == nullptr) {
+bool Darabonba::Core::allowRetry(const shared_ptr<boost::any>& retry,
+                                 const shared_ptr<int>& retry_times,
+                                 const shared_ptr<int>& now) {
+  if (!retry) {
     return false;
   }
-  int r = nullptr == retry_times ? 0 : *retry_times;
+  int r = !retry_times ? 0 : *retry_times;
   map<string, boost::any> retry_val =
       boost::any_cast<map<string, boost::any>>(*retry);
   if (retry_val.empty()) {
@@ -150,8 +152,6 @@ bool Darabonba::Core::allowRetry(boost::any *retry, int *retry_times,
     }
     return maxAttempts >= r;
   }
-  delete now;
-
   return false;
 }
 
@@ -280,10 +280,7 @@ Darabonba::Core::doAction(const Darabonba::Request &req,
     printf("response : %s\n", response.to_string().c_str());
   }
   Darabonba::Response dara_response;
-  concurrency::streams::stringstreambuf buffer;
-  response.body().read_to_end(buffer).get();
-  Concurrency::streams::basic_istream<unsigned char> outStringBuffer(buffer);
-  dara_response.body = outStringBuffer;
+  dara_response.body = response.body();
   dara_response.statusCode = response.status_code();
   return dara_response;
 }

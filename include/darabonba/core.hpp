@@ -16,17 +16,22 @@ public:
   Model(const map<string, boost::any> &config) {
       _config = config;
   };
-  static void validateRequired(const string &field_name, boost::any *field,
-                               bool val = false);
-  static void validateMaxLength(const string &field_name, string *field,
+  static void validateRequired(const string &field_name,
+                               const shared_ptr<boost::any>& field);
+  static void validateMaxLength(const string &field_name,
+                                const shared_ptr<string>& field,
                                 int val);
-  static void validateMinLength(const string &field_name, string *field,
+  static void validateMinLength(const string &field_name,
+                                const shared_ptr<string>& field,
                                 int val);
-  static void validateMaximum(const string &field_name, boost::any *field,
+  static void validateMaximum(const string &field_name,
+                              shared_ptr<boost::any> field,
                               boost::any val);
-  static void validateMinimum(const string &field_name, boost::any *field,
+  static void validateMinimum(const string &field_name,
+                              shared_ptr<boost::any> field,
                               boost::any val);
-  static void validatePattern(const string &field_name, string *field,
+  static void validatePattern(const string &field_name,
+                              const shared_ptr<string>& field,
                               const string &val);
   virtual void validate(){};
 
@@ -65,11 +70,14 @@ public:
   static Response doAction(const Request &req,
                             map<string, boost::any> runtime);
   static Response doAction(const Request &req);
-  static bool allowRetry(boost::any *retry, int *retry_times, int *now);
-  static int getBackoffTime(boost::any *backoff, int *retry_times);
-  static void sleep(int *sleep_time);
-  static bool isRetryable(exception *ex);
-  static bool isRetryable(boost::exception *ex);
+  static bool allowRetry(const shared_ptr<boost::any>& retry,
+                         const shared_ptr<int>& retry_times,
+                         const shared_ptr<int>& now);
+  static int getBackoffTime(const shared_ptr<boost::any>& backoff,
+                            const shared_ptr<int>& retry_times);
+  static void sleep(const shared_ptr<int>& sleep_time);
+  static bool isRetryable(const exception& ex);
+  static bool isRetryable(const boost::exception& ex);
 };
 class Converter {
 public:
@@ -83,6 +91,7 @@ public:
     }
     return _m;
   }
+
   static map<string, boost::any> *mapPointer(map<string, boost::any> m) {
     auto *_m = new map<string, boost::any>();
     if (m.empty()) {
@@ -93,18 +102,7 @@ public:
     }
     return _m;
   }
-  template <typename... Params>
-  static map<string, string> merge(map<string, string> m,
-                                   Params... parameters) {
-    mergeMap(&m, parameters...);
-    return m;
-  }
-  template <typename... Params>
-  static map<string, boost::any> merge(map<string, boost::any> m,
-                                       Params... parameters) {
-    mergeMap(&m, parameters...);
-    return m;
-  }
+
   static string toString(boost::any val) {
     if (typeid(string) == val.type()) {
       return boost::any_cast<string>(val);
@@ -112,41 +110,55 @@ public:
     return string("");
   }
 
+  template <typename... Params>
+  static map<string, string> merge(map<string, string> m,
+                                   Params... parameters) {
+    mergeMap(m, parameters...);
+    return m;
+  }
+
+  template <typename... Params>
+  static map<string, boost::any> merge(map<string, boost::any> m,
+                                       Params... parameters) {
+    mergeMap(m, parameters...);
+    return m;
+  }
 private:
   template <typename... Params>
-  static void mergeMap(std::map<std::string, string> *m,
-                       std::map<std::string, string> value,
+  static void mergeMap(map<string, string>& m,
+                       map<string, string> value,
                        Params... parameters) {
     assignMap(m, value);
     mergeMap(m, parameters...);
   }
-  static void mergeMap(std::map<std::string, string> *m,
-                       std::map<std::string, string> value) {
-    assert(m != nullptr);
+  static void mergeMap(map<string, string>& m,
+                       map<string, string> value) {
     assignMap(m, value);
   }
-  static void assignMap(std::map<std::string, string> *m,
-                        std::map<std::string, string> value) {
+
+  static void assignMap(map<string, string>& m,
+                        map<string, string> value) {
     for (auto it : value) {
-      m->insert(pair<string, string>(it.first, it.second));
+      m.insert(pair<string, string>(it.first, it.second));
     }
   }
+
   template <typename... Params>
-  static void mergeMap(std::map<std::string, boost::any> *m,
-                       std::map<std::string, boost::any> value,
+  static void mergeMap(map<string, boost::any>& m,
+                       map<string, boost::any> value,
                        Params... parameters) {
     assignMap(m, value);
     mergeMap(m, parameters...);
   }
-  static void mergeMap(std::map<std::string, boost::any> *m,
-                       std::map<std::string, boost::any> value) {
-    assert(m != nullptr);
+  static void mergeMap(map<string, boost::any>& m,
+                       map<string, boost::any> value) {
     assignMap(m, value);
   }
-  static void assignMap(std::map<std::string, boost::any> *m,
-                        std::map<std::string, boost::any> value) {
+
+  static void assignMap(map<string, boost::any>& m,
+                        map<string, boost::any> value) {
     for (auto it : value) {
-      m->insert(pair<string, boost::any>(it.first, it.second));
+      m.insert(pair<string, boost::any>(it.first, it.second));
     }
   }
 };
