@@ -21,7 +21,7 @@ main() {
         error_exit "Failed to make."
     }
 
-    ./tests || {
+    ./bin/tests || {
         error_exit "Failed to test."
     }
 }

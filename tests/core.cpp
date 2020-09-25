@@ -103,7 +103,7 @@ TEST(tests_core, test_doAction) {
   req.body = "test";
   req.query["foo"] = string("bar");
   req.headers["x-foo"] = string("x-bar");
-  req.headers["host"] = "www.aliyun.com";
+  req.headers["host"] = string("www.aliyun.com");
 
   Response res = Darabonba::Core::doAction(req);
   ASSERT_EQ(200, res.statusCode);
