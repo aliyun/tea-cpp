@@ -20,20 +20,17 @@ TEST(tests_model, test_construct) {
 TEST(tests_model, test_validateRequired) {
   string field_name = "foo";
   boost::any field_value;
-  try {
-    string f;
-    field_value = f;
-    Model::validateRequired(field_name, &field_value, true);
-    ASSERT_TRUE(false);
-  } catch (boost::exception &e) {
-    string err = boost::current_exception_cast<exception>()->what();
-    ASSERT_EQ("foo is required.", err);
-  }
+
+  string f;
+  field_value = f;
+  Model::validateRequired(field_name, make_shared<boost::any>(field_value));
+
+  field_value = string("");
+  Model::validateRequired(field_name, make_shared<boost::any>(field_value));
 
   try {
-    field_value = string("");
-    Model::validateRequired(field_name, &field_value, true);
-    ASSERT_TRUE(false);
+    Model::validateRequired(field_name, shared_ptr<boost::any>());
+    assert(false);
   } catch (boost::exception &e) {
     string err = boost::current_exception_cast<exception>()->what();
     ASSERT_EQ("foo is required.", err);
@@ -42,9 +39,8 @@ TEST(tests_model, test_validateRequired) {
 
 TEST(tests_model, test_validateMaxLength) {
   string field_name = "foo";
-  auto *field_value = new string("test");
   try {
-    Model::validateMaxLength(field_name, field_value, 3);
+    Model::validateMaxLength(field_name, make_shared<string>("test"), 3);
     ASSERT_TRUE(false);
   } catch (boost::exception &e) {
     string err = boost::current_exception_cast<exception>()->what();
@@ -54,9 +50,8 @@ TEST(tests_model, test_validateMaxLength) {
 
 TEST(tests_model, test_validateMinLength) {
   string field_name = "foo";
-  auto *field_value = new string("test");
   try {
-    Model::validateMinLength(field_name, field_value, 5);
+    Model::validateMinLength(field_name, make_shared<string>("test"), 5);
     ASSERT_TRUE(false);
   } catch (boost::exception &e) {
     string err = boost::current_exception_cast<exception>()->what();
@@ -69,7 +64,7 @@ TEST(tests_model, test_validateMaximum) {
   boost::any field_value;
   field_value = 101;
   try {
-    Model::validateMaximum(field_name, &field_value, 100);
+    Model::validateMaximum(field_name, make_shared<boost::any>(field_value), 100);
     ASSERT_TRUE(false);
   } catch (boost::exception &e) {
     string err = boost::current_exception_cast<exception>()->what();
@@ -78,7 +73,7 @@ TEST(tests_model, test_validateMaximum) {
 
   field_value = LONG_MAX;
   try {
-    Model::validateMaximum(field_name, &field_value, LONG_MAX - 1);
+    Model::validateMaximum(field_name, make_shared<boost::any>(field_value), LONG_MAX - 1);
     ASSERT_TRUE(false);
   } catch (boost::exception &e) {
     string err = boost::current_exception_cast<exception>()->what();
@@ -91,7 +86,7 @@ TEST(tests_model, test_validateMinimum) {
   boost::any field_value;
   field_value = 99;
   try {
-    Model::validateMinimum(field_name, &field_value, 100);
+    Model::validateMinimum(field_name, make_shared<boost::any>(field_value), 100);
     ASSERT_TRUE(false);
   } catch (boost::exception &e) {
     string err = boost::current_exception_cast<exception>()->what();
@@ -100,7 +95,7 @@ TEST(tests_model, test_validateMinimum) {
 
   field_value = LONG_MAX - 1;
   try {
-    Model::validateMinimum(field_name, &field_value, LONG_MAX);
+    Model::validateMinimum(field_name, make_shared<boost::any>(field_value), LONG_MAX);
     ASSERT_TRUE(false);
   } catch (boost::exception &e) {
     string err = boost::current_exception_cast<exception>()->what();
@@ -112,11 +107,11 @@ TEST(tests_model, test_validatePattern) {
   string field_name = "foo";
   string field_value =
       "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  Model::validatePattern(field_name, &field_value,
+  Model::validatePattern(field_name, make_shared<string>(field_value),
                          "[a-z0-9A-Z]+"); // No exception is OK
   try {
     field_value = "@test#";
-    Model::validatePattern(field_name, &field_value, "[a-z0-9A-Z]+");
+    Model::validatePattern(field_name, make_shared<string>(field_value), "[a-z0-9A-Z]+");
     ASSERT_TRUE(false); // should not be here
   } catch (boost::exception &e) {
     string err = boost::current_exception_cast<exception>()->what();
