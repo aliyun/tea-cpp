@@ -10,12 +10,12 @@
 #include <fstream>
 #include <json/json.h>
 
-#include <cpprest/containerstream.h> // Async streams backed by STL containers
-#include <cpprest/interopstream.h> // Bridges for integrating Async streams with STL and WinRT streams
+#include <cpprest/containerstream.h>        // Async streams backed by STL containers
+#include <cpprest/interopstream.h>          // Bridges for integrating Async streams with STL and WinRT streams
 #include <cpprest/producerconsumerstream.h> // Async streams for producer consumer scenarios
-#include <cpprest/rawptrstream.h> // Async streams backed by raw pointer to memory
-#include <cpprest/uri.h>          // URI library
-#include <cpprest/ws_client.h>    // WebSocket client
+#include <cpprest/rawptrstream.h>           // Async streams backed by raw pointer to memory
+#include <cpprest/uri.h>                    // URI library
+#include <cpprest/ws_client.h>              // WebSocket client
 
 using namespace std;
 
