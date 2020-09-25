@@ -3,8 +3,6 @@ cmake_minimum_required(VERSION 3.5 FATAL_ERROR)
 
 project(darabonba_core VERSION "0.1.0")
 
-find_package(cpprestsdk REQUIRED)
-
 # <<< General set up >>>
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -73,8 +71,9 @@ set(INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR} CACHE PATH "Installation dire
 
 add_subdirectory(external)
 
-find_package(Boost REQUIRED COMPONENTS thread chrono)
-target_link_libraries(${PROJECT_NAME} PRIVATE cpprestsdk::cpprest jsoncpp ${Boost_LIBRARIES})
+find_package(Boost REQUIRED COMPONENTS random system thread filesystem chrono atomic date_time regex)
+find_library(CPPREST_LIB cpprest)
+target_link_libraries(${PROJECT_NAME} PRIVATE crypto jsoncpp ${Boost_LIBRARIES} ${CPPREST_LIB})
 
 if (ENABLE_UNIT_TESTS)
     include(CTest)
@@ -92,7 +91,10 @@ if (ENABLE_UNIT_TESTS)
             ${PROJECT_NAME}
             gtest_main
             gmock_main
-            cpprestsdk::cpprest)
+            crypto
+            jsoncpp
+            ${Boost_LIBRARIES}
+            ${CPPREST_LIB})
     add_test(NAME google_test
             COMMAND $<TARGET_FILE:tests>)
 endif ()

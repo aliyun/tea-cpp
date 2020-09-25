@@ -106,7 +106,7 @@ TEST(tests_core, test_doAction) {
   req.headers["host"] = string("www.aliyun.com");
 
   Response res = Darabonba::Core::doAction(req);
-  ASSERT_EQ(200, res.statusCode);
+  ASSERT_TRUE(res.statusCode == 200 || res.statusCode == 302);
 }
 
 TEST(tests_core, test_doAction_with_runtime) {
