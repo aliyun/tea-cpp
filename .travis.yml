@@ -9,11 +9,15 @@ install:
   - aptitude search boost
   - sudo apt-get install libboost-all-dev
   - sudo apt-get install lcov libcpprest-dev libcurl4-openssl-dev libssl-dev uuid-dev libjson-c-dev libjsoncpp-dev
+  - sudo apt-get install nodejs
+  - npm install -g anywhere
+  - node -v && npm -v
 
 env:
   - CPLUS_INCLUDE_PATH="/usr/local/include/:/usr/include/jsoncpp/:/usr/lib/"
 
 script:
+  - nohup anywhere 8088 >/dev/null 2>log &
   - sh scripts/codecov.sh
 
 after_success:
