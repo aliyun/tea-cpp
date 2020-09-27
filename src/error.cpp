@@ -1,6 +1,6 @@
 #include <darabonba/core.hpp>
 
-std::exception Darabonba::UnretryableError::getLastException() {
+Darabonba::Error Darabonba::UnretryableError::getLastException() {
   return _last_exception;
 }
 

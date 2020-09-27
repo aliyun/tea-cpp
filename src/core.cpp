@@ -10,15 +10,14 @@
 #include <fstream>
 #include <json/json.h>
 
-#include <cpprest/containerstream.h>        // Async streams backed by STL containers
-#include <cpprest/interopstream.h>          // Bridges for integrating Async streams with STL and WinRT streams
+#include <cpprest/containerstream.h> // Async streams backed by STL containers
+#include <cpprest/interopstream.h> // Bridges for integrating Async streams with STL and WinRT streams
 #include <cpprest/producerconsumerstream.h> // Async streams for producer consumer scenarios
-#include <cpprest/rawptrstream.h>           // Async streams backed by raw pointer to memory
-#include <cpprest/uri.h>                    // URI library
-#include <cpprest/ws_client.h>              // WebSocket client
+#include <cpprest/rawptrstream.h> // Async streams backed by raw pointer to memory
+#include <cpprest/uri.h>          // URI library
+#include <cpprest/ws_client.h>    // WebSocket client
 
 using namespace std;
-
 
 template <typename T> bool can_cast(const boost::any &v) {
   return typeid(T) == v.type();
@@ -82,13 +81,13 @@ void json_encode(boost::any val, std::stringstream &ss) {
   }
 }
 
-void Darabonba::Core::sleep(const shared_ptr<int>& sleep_time) {
+void Darabonba::Core::sleep(const shared_ptr<int> &sleep_time) {
   int s = !sleep_time ? 0 : *sleep_time;
   boost::this_thread::sleep_for(boost::chrono::seconds(s));
 }
 
-int Darabonba::Core::getBackoffTime(const shared_ptr<boost::any>& backoff,
-                                    const shared_ptr<int>& retry_times) {
+int Darabonba::Core::getBackoffTime(const shared_ptr<boost::any> &backoff,
+                                    const shared_ptr<int> &retry_times) {
   if (!backoff) {
     return 0;
   }
@@ -114,7 +113,7 @@ int Darabonba::Core::getBackoffTime(const shared_ptr<boost::any>& backoff,
   return back_off_time;
 }
 
-bool Darabonba::Core::isRetryable(const exception& ex) {
+bool Darabonba::Core::isRetryable(const exception &ex) {
   try {
     auto *e = boost::current_exception_cast<Darabonba::Error>();
     return e != nullptr;
@@ -123,7 +122,7 @@ bool Darabonba::Core::isRetryable(const exception& ex) {
   }
 }
 
-bool Darabonba::Core::isRetryable(const boost::exception& ex) {
+bool Darabonba::Core::isRetryable(const boost::exception &ex) {
   try {
     auto *e = boost::current_exception_cast<Darabonba::Error>();
     return e != nullptr;
@@ -132,9 +131,9 @@ bool Darabonba::Core::isRetryable(const boost::exception& ex) {
   }
 }
 
-bool Darabonba::Core::allowRetry(const shared_ptr<boost::any>& retry,
-                                 const shared_ptr<int>& retry_times,
-                                 const shared_ptr<int>& now) {
+bool Darabonba::Core::allowRetry(const shared_ptr<boost::any> &retry,
+                                 const shared_ptr<int> &retry_times,
+                                 const shared_ptr<int> &now) {
   if (!retry) {
     return false;
   }
@@ -237,9 +236,8 @@ string compose_url(const string &host, const map<string, string> &params,
   return url;
 }
 
-Darabonba::Response
-Darabonba::Core::doAction(const Darabonba::Request &req,
-                           map<string, boost::any> runtime) {
+Darabonba::Response Darabonba::Core::doAction(const Darabonba::Request &req,
+                                              map<string, boost::any> runtime) {
   string protocol = req.protocol;
   string port = to_string(req.port);
   string method = uppercase(req.method);
@@ -310,8 +308,10 @@ Darabonba::Error::Error(map<string, boost::any> error_info) {
   if (error_info.find("data") != error_info.end()) {
     if (typeid(string) == error_info.at("data").type()) {
       data = boost::any_cast<string>(error_info.at("data"));
-    } else if (typeid(map<string, boost::any>) == error_info.at("data").type()) {
-      map<string, boost::any> m = boost::any_cast<map<string, boost::any>>(error_info.at("data"));
+    } else if (typeid(map<string, boost::any>) ==
+               error_info.at("data").type()) {
+      map<string, boost::any> m =
+          boost::any_cast<map<string, boost::any>>(error_info.at("data"));
       std::stringstream s;
       json_encode(m, s);
       data = s.str();

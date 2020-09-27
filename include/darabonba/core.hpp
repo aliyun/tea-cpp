@@ -13,27 +13,21 @@ class Model {
 public:
   Model() = default;
   ~Model() = default;
-  Model(const map<string, boost::any> &config) {
-      _config = config;
-  };
+  Model(const map<string, boost::any> &config) { _config = config; };
   static void validateRequired(const string &field_name,
-                               const shared_ptr<boost::any>& field);
+                               const shared_ptr<boost::any> &field);
   static void validateMaxLength(const string &field_name,
-                                const shared_ptr<string>& field,
-                                int val);
+                                const shared_ptr<string> &field, int val);
   static void validateMinLength(const string &field_name,
-                                const shared_ptr<string>& field,
-                                int val);
+                                const shared_ptr<string> &field, int val);
   static void validateMaximum(const string &field_name,
-                              shared_ptr<boost::any> field,
-                              boost::any val);
+                              shared_ptr<boost::any> field, boost::any val);
   static void validateMinimum(const string &field_name,
-                              shared_ptr<boost::any> field,
-                              boost::any val);
+                              shared_ptr<boost::any> field, boost::any val);
   static void validatePattern(const string &field_name,
-                              const shared_ptr<string>& field,
+                              const shared_ptr<string> &field,
                               const string &val);
-  virtual void validate(){};
+  virtual void validate() = 0;
 
   virtual map<string, boost::any> toMap() = 0;
   virtual void fromMap(map<string, boost::any> m) = 0;
@@ -67,40 +61,26 @@ public:
 };
 class Core {
 public:
-  static Response doAction(const Request &req,
-                            map<string, boost::any> runtime);
+  static Response doAction(const Request &req, map<string, boost::any> runtime);
   static Response doAction(const Request &req);
-  static bool allowRetry(const shared_ptr<boost::any>& retry,
-                         const shared_ptr<int>& retry_times,
-                         const shared_ptr<int>& now);
-  static int getBackoffTime(const shared_ptr<boost::any>& backoff,
-                            const shared_ptr<int>& retry_times);
-  static void sleep(const shared_ptr<int>& sleep_time);
-  static bool isRetryable(const exception& ex);
-  static bool isRetryable(const boost::exception& ex);
+  static bool allowRetry(const shared_ptr<boost::any> &retry,
+                         const shared_ptr<int> &retry_times,
+                         const shared_ptr<int> &now);
+  static int getBackoffTime(const shared_ptr<boost::any> &backoff,
+                            const shared_ptr<int> &retry_times);
+  static void sleep(const shared_ptr<int> &sleep_time);
+  static bool isRetryable(const exception &ex);
+  static bool isRetryable(const boost::exception &ex);
 };
 class Converter {
 public:
-  static map<string, string> *mapPointer(map<string, string> m) {
-    auto *_m = new map<string, string>();
-    if (m.empty()) {
-      return _m;
-    }
-    for (auto it : m) {
-      _m->insert(pair<string, string>(it.first, it.second));
-    }
-    return _m;
+  static shared_ptr<map<string, string>> mapPointer(map<string, string> m) {
+    return make_shared<map<string, string>>(m);
   }
 
-  static map<string, boost::any> *mapPointer(map<string, boost::any> m) {
-    auto *_m = new map<string, boost::any>();
-    if (m.empty()) {
-      return _m;
-    }
-    for (auto it : m) {
-      _m->insert(pair<string, boost::any>(it.first, it.second));
-    }
-    return _m;
+  static shared_ptr<map<string, boost::any>>
+  mapPointer(map<string, boost::any> m) {
+    return make_shared<map<string, boost::any>>(m);
   }
 
   static string toString(boost::any val) {
@@ -123,39 +103,36 @@ public:
     mergeMap(m, parameters...);
     return m;
   }
+
 private:
   template <typename... Params>
-  static void mergeMap(map<string, string>& m,
-                       map<string, string> value,
+  static void mergeMap(map<string, string> &m, map<string, string> value,
                        Params... parameters) {
     assignMap(m, value);
     mergeMap(m, parameters...);
   }
-  static void mergeMap(map<string, string>& m,
-                       map<string, string> value) {
+  static void mergeMap(map<string, string> &m, map<string, string> value) {
     assignMap(m, value);
   }
 
-  static void assignMap(map<string, string>& m,
-                        map<string, string> value) {
+  static void assignMap(map<string, string> &m, map<string, string> value) {
     for (auto it : value) {
       m.insert(pair<string, string>(it.first, it.second));
     }
   }
 
   template <typename... Params>
-  static void mergeMap(map<string, boost::any>& m,
-                       map<string, boost::any> value,
-                       Params... parameters) {
+  static void mergeMap(map<string, boost::any> &m,
+                       map<string, boost::any> value, Params... parameters) {
     assignMap(m, value);
     mergeMap(m, parameters...);
   }
-  static void mergeMap(map<string, boost::any>& m,
+  static void mergeMap(map<string, boost::any> &m,
                        map<string, boost::any> value) {
     assignMap(m, value);
   }
 
-  static void assignMap(map<string, boost::any>& m,
+  static void assignMap(map<string, boost::any> &m,
                         map<string, boost::any> value) {
     for (auto it : value) {
       m.insert(pair<string, boost::any>(it.first, it.second));
@@ -171,20 +148,34 @@ public:
   string code;
   string data;
   string name;
+  const char *what() const noexcept override { return message.c_str(); }
 };
 struct UnretryableError : public Error {
 public:
   UnretryableError(const Request &last_request,
                    const std::exception &last_exception) {
     _last_request = last_request;
+    Error error;
+    error.message = last_exception.what();
+    _last_exception = error;
+  }
+  UnretryableError(const Request &last_request, const Error &last_exception) {
+    _last_request = last_request;
     _last_exception = last_exception;
   }
+  UnretryableError(const Request &last_request,
+                   const boost::exception &last_exception) {
+    _last_request = last_request;
+    Error error;
+    error.message = boost::diagnostic_information(last_exception);
+    _last_exception = error;
+  }
   Darabonba::Request getLastRequest();
-  std::exception getLastException();
+  Error getLastException();
 
 private:
   Request _last_request;
-  std::exception _last_exception;
+  Error _last_exception;
 };
 } // namespace Darabonba
 
