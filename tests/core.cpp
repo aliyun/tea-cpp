@@ -23,11 +23,14 @@ TEST(tests_core, test_sleep) {
 }
 
 TEST(tests_core, test_getBackoffTime) {
+  int res = Core::getBackoffTime(nullptr, make_shared<int>(3));
+  ASSERT_EQ(0, res);
+
   string policy = "no";
   map<string, boost::any> backoff;
   backoff["policy"] = boost::any(policy);
-  int res = Core::getBackoffTime(make_shared<boost::any>(backoff),
-                                 make_shared<int>(3));
+  res = Core::getBackoffTime(make_shared<boost::any>(backoff),
+                             make_shared<int>(3));
   ASSERT_EQ(0, res);
 
   policy = "yes";
@@ -78,7 +81,13 @@ TEST(tests_core, test_isRetryable) {
 }
 
 TEST(tests_core, test_allowRetry) {
+  ASSERT_FALSE(Darabonba::Core::allowRetry(nullptr, make_shared<int>(3),
+                                           make_shared<int>(0)));
   map<string, boost::any> retry;
+  ASSERT_FALSE(Darabonba::Core::allowRetry(make_shared<boost::any>(retry),
+                                           make_shared<int>(3),
+                                           make_shared<int>(0)));
+  retry["foo"] = boost::any(string("bar"));
   ASSERT_FALSE(Darabonba::Core::allowRetry(make_shared<boost::any>(retry),
                                            make_shared<int>(3),
                                            make_shared<int>(0)));
@@ -104,11 +113,14 @@ TEST(tests_core, test_doAction) {
   req.method = "get";
   req.body = "test";
   req.query["foo"] = string("bar");
+  req.query["complex"] = string("evX6fNf^_lUdV#b$_w)B#4>:3|~#]f");
   req.headers["x-foo"] = string("x-bar");
   req.headers["host"] = string("www.aliyun.com");
 
+  setenv("DEBUG", "1", 1);
   Response res = Darabonba::Core::doAction(req);
   ASSERT_TRUE(res.statusCode == 200 || res.statusCode == 302);
+  setenv("DEBUG", "", 1);
 }
 
 TEST(tests_core, test_doAction_with_runtime) {
@@ -188,6 +200,42 @@ TEST(tests_error, test_UnretryableError2) {
     ASSERT_EQ(string("msg"), ex.message);
     ASSERT_EQ(string("test"), ex.data);
     ASSERT_EQ(string("foo"), ex.name);
-    ASSERT_STREQ(string("msg").c_str(),ex.what());
+    ASSERT_STREQ(string("msg").c_str(), ex.what());
+  }
+}
+
+TEST(tests_error, test_complex_error_info) {
+  Darabonba::Request req;
+  req.host = "fake host";
+  try {
+    try {
+      const char *c = "const char*";
+      char *f = "char*";
+      float fl = 2.345;
+      map<string, boost::any> m = {
+          {"data", boost::any(map<string, boost::any>(
+                       {{"foo", string("bar")},
+                        {"vector", boost::any(vector<boost::any>({"a", "b"}))},
+                        {"int", 123},
+                        {"long", LONG_MAX},
+                        {"double", 1.123},
+                        {"float", fl},
+                        {"bool", true},
+                        {"const_char*", c},
+                        {"char*", f}}))},
+      };
+      BOOST_THROW_EXCEPTION(Darabonba::Error(m));
+    } catch (Darabonba::Error &e) {
+      BOOST_THROW_EXCEPTION(Darabonba::UnretryableError(req, e));
+    }
+  } catch (Darabonba::UnretryableError &e) {
+    Darabonba::Request r = e.getLastRequest();
+    Darabonba::Error ex = e.getLastException();
+    ASSERT_EQ(
+        string("{\"bool\":true,\"char*\":\"char*\",\"const_char*\":\"const "
+               "char*\",\"double\":1.123000,\"float\":2.345000,\"foo\":bar,"
+               "\"int\":123,\"long\":9223372036854775807,\"vector\":[\"a\","
+               "\"b\"]}"),
+        ex.data);
   }
 }
