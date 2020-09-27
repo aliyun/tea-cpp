@@ -228,8 +228,8 @@ TEST(tests_error, test_complex_error_info) {
   try {
     try {
       const char *c = "const char*";
-      char *f = "char*";
       float fl = 2.345;
+      char ch[] = "char*";
       map<string, boost::any> m = {
           {"data", boost::any(map<string, boost::any>(
                        {{"foo", string("bar")},
@@ -240,7 +240,7 @@ TEST(tests_error, test_complex_error_info) {
                         {"float", fl},
                         {"bool", true},
                         {"const_char*", c},
-                        {"char*", f}}))},
+                        {"char*", ch}}))},
       };
       BOOST_THROW_EXCEPTION(Darabonba::Error(m));
     } catch (Darabonba::Error &e) {
