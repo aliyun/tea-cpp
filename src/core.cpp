@@ -114,21 +114,13 @@ int Darabonba::Core::getBackoffTime(const shared_ptr<boost::any> &backoff,
 }
 
 bool Darabonba::Core::isRetryable(const exception &ex) {
-  try {
-    auto *e = boost::current_exception_cast<Darabonba::Error>();
-    return e != nullptr;
-  } catch (exception &e) {
-    return false;
-  }
+  auto *e = boost::current_exception_cast<Darabonba::Error>();
+  return e != nullptr;
 }
 
 bool Darabonba::Core::isRetryable(const boost::exception &ex) {
-  try {
-    auto *e = boost::current_exception_cast<Darabonba::Error>();
-    return e != nullptr;
-  } catch (exception &e) {
-    return false;
-  }
+  auto *e = boost::current_exception_cast<Darabonba::Error>();
+  return e != nullptr;
 }
 
 bool Darabonba::Core::allowRetry(const shared_ptr<boost::any> &retry,
