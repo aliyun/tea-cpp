@@ -5,11 +5,12 @@
 using namespace Darabonba;
 using namespace std;
 
-
-template <typename T> bool can_cast(shared_ptr<boost::any>& a) { return typeid(T) == a->type(); }
+template <typename T> bool can_cast(shared_ptr<boost::any> &a) {
+  return typeid(T) == a->type();
+}
 
 void Model::validateRequired(const string &field_name,
-                             const shared_ptr<boost::any>& field) {
+                             const shared_ptr<boost::any> &field) {
   if (!field) {
     BOOST_THROW_EXCEPTION(boost::enable_error_info(
         std::runtime_error(field_name + " is required.")));
@@ -17,8 +18,7 @@ void Model::validateRequired(const string &field_name,
 }
 
 void Model::validateMaxLength(const string &field_name,
-                              const shared_ptr<string>& field,
-                              int val) {
+                              const shared_ptr<string> &field, int val) {
   if (!field) {
     return;
   }
@@ -29,8 +29,7 @@ void Model::validateMaxLength(const string &field_name,
   }
 }
 void Model::validateMinLength(const string &field_name,
-                              const shared_ptr<string>& field,
-                              int val) {
+                              const shared_ptr<string> &field, int val) {
   if (!field) {
     return;
   }
@@ -42,8 +41,7 @@ void Model::validateMinLength(const string &field_name,
 }
 
 void Model::validateMaximum(const string &field_name,
-                            shared_ptr<boost::any> field,
-                            boost::any val) {
+                            shared_ptr<boost::any> field, boost::any val) {
   if (!field) {
     return;
   }
@@ -64,8 +62,7 @@ void Model::validateMaximum(const string &field_name,
   }
 }
 void Model::validateMinimum(const string &field_name,
-                            shared_ptr<boost::any> field,
-                            boost::any val) {
+                            shared_ptr<boost::any> field, boost::any val) {
   if (!field) {
     return;
   }
@@ -87,7 +84,7 @@ void Model::validateMinimum(const string &field_name,
 }
 
 void Model::validatePattern(const string &field_name,
-                            const shared_ptr<string>& field,
+                            const shared_ptr<string> &field,
                             const string &val) {
   if (!field) {
     return;
@@ -102,5 +99,3 @@ void Model::validatePattern(const string &field_name,
         std::runtime_error(field_name + " is not match " + val)));
   }
 }
-
-

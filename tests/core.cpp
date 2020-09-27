@@ -26,22 +26,26 @@ TEST(tests_core, test_getBackoffTime) {
   string policy = "no";
   map<string, boost::any> backoff;
   backoff["policy"] = boost::any(policy);
-  int res = Core::getBackoffTime(make_shared<boost::any>(backoff), make_shared<int>(3));
+  int res = Core::getBackoffTime(make_shared<boost::any>(backoff),
+                                 make_shared<int>(3));
   ASSERT_EQ(0, res);
 
   policy = "yes";
   backoff["policy"] = boost::any(policy);
-  res = Core::getBackoffTime(make_shared<boost::any>(backoff), make_shared<int>(3));
+  res = Core::getBackoffTime(make_shared<boost::any>(backoff),
+                             make_shared<int>(3));
   ASSERT_EQ(0, res);
 
   int period = 1;
   backoff["period"] = period;
-  res = Core::getBackoffTime(make_shared<boost::any>(backoff), make_shared<int>(3));
+  res = Core::getBackoffTime(make_shared<boost::any>(backoff),
+                             make_shared<int>(3));
   ASSERT_EQ(1, res);
 
   period = -1;
   backoff["period"] = period;
-  res = Core::getBackoffTime(make_shared<boost::any>(backoff), make_shared<int>(3));
+  res = Core::getBackoffTime(make_shared<boost::any>(backoff),
+                             make_shared<int>(3));
   ASSERT_EQ(3, res);
 }
 
@@ -75,11 +79,9 @@ TEST(tests_core, test_isRetryable) {
 
 TEST(tests_core, test_allowRetry) {
   map<string, boost::any> retry;
-  ASSERT_FALSE(Darabonba::Core::allowRetry(
-      make_shared<boost::any>(retry),
-      make_shared<int>(3),
-      make_shared<int>(0)
-      ));
+  ASSERT_FALSE(Darabonba::Core::allowRetry(make_shared<boost::any>(retry),
+                                           make_shared<int>(3),
+                                           make_shared<int>(0)));
 
   retry["maxAttempts"] = boost::any(0);
   ASSERT_FALSE(Darabonba::Core::allowRetry(make_shared<boost::any>(retry),
@@ -125,9 +127,7 @@ TEST(tests_core, test_doAction_with_runtime) {
 }
 
 TEST(tests_core, test_error) {
-  map<string, boost::any> data = {
-      {"requestId", "123456"}
-  };
+  map<string, boost::any> data = {{"requestId", "123456"}};
   map<string, boost::any> m = {
       {"code", string("success")},
       {"message", string("msg")},
@@ -140,5 +140,54 @@ TEST(tests_core, test_error) {
     ASSERT_EQ(string("msg"), e.message);
     ASSERT_EQ(string("success"), e.code);
     ASSERT_EQ(string("{\"requestId\":\"123456\"}"), e.data);
+  }
+}
+
+TEST(tests_error, test_UnretryableError) {
+  Darabonba::Request req;
+  req.host = "fake host";
+  try {
+    try {
+      map<string, boost::any> m = {{"code", string("success")},
+                                   {"message", string("msg")},
+                                   {"data", string("test")},
+                                   {"name", string("foo")}};
+      BOOST_THROW_EXCEPTION(Darabonba::Error(m));
+    } catch (Darabonba::Error &e) {
+      BOOST_THROW_EXCEPTION(Darabonba::UnretryableError(req, e));
+    }
+  } catch (Darabonba::UnretryableError &e) {
+    Darabonba::Request r = e.getLastRequest();
+    Darabonba::Error ex = e.getLastException();
+    ASSERT_EQ(string("fake host"), r.host);
+    ASSERT_EQ(string("success"), ex.code);
+    ASSERT_EQ(string("msg"), ex.message);
+    ASSERT_EQ(string("test"), ex.data);
+    ASSERT_EQ(string("foo"), ex.name);
+  }
+}
+
+TEST(tests_error, test_UnretryableError2) {
+  Darabonba::Request req;
+  req.host = "fake host";
+  try {
+    try {
+      map<string, string> m = {{"code", string("success")},
+                               {"message", string("msg")},
+                               {"data", string("test")},
+                               {"name", string("foo")}};
+      BOOST_THROW_EXCEPTION(Darabonba::Error(m));
+    } catch (Darabonba::Error &e) {
+      BOOST_THROW_EXCEPTION(Darabonba::UnretryableError(req, e));
+    }
+  } catch (Darabonba::UnretryableError &e) {
+    Darabonba::Request r = e.getLastRequest();
+    Darabonba::Error ex = e.getLastException();
+    ASSERT_EQ(string("fake host"), r.host);
+    ASSERT_EQ(string("success"), ex.code);
+    ASSERT_EQ(string("msg"), ex.message);
+    ASSERT_EQ(string("test"), ex.data);
+    ASSERT_EQ(string("foo"), ex.name);
+    ASSERT_STREQ(string("msg").c_str(),ex.what());
   }
 }
