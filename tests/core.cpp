@@ -156,6 +156,30 @@ TEST(tests_core, test_doAction_with_special_url) {
   ASSERT_TRUE(res.statusCode == 200 || res.statusCode == 302);
 }
 
+TEST(tests_core, test_http_config) {
+  Darabonba::Request req;
+  req.host = "a.com";
+  map<string, boost::any> runtime = {
+      {"noProxy", boost::any(string("example.com,a.com"))},
+  };
+  web::http::client::http_client_config cfg =
+      Darabonba::Core::httpConfig(req, runtime);
+  ASSERT_EQ(2, cfg.proxy().disabled);
+
+  req.host = "b.com";
+  req.protocol = "http";
+  runtime["httpProxy"] = boost::any(string("http://127.0.0.1:1888"));
+  cfg = Darabonba::Core::httpConfig(req, runtime);
+  ASSERT_EQ(string("http://127.0.0.1:1888/"),
+            cfg.proxy().address().to_string());
+
+  req.protocol = "https";
+  runtime["httpsProxy"] = boost::any(string("http://127.0.0.1:1666"));
+  cfg = Darabonba::Core::httpConfig(req, runtime);
+  ASSERT_EQ(string("http://127.0.0.1:1666/"),
+            cfg.proxy().address().to_string());
+}
+
 TEST(tests_core, test_error) {
   map<string, boost::any> data = {{"requestId", "123456"}};
   map<string, boost::any> m = {
