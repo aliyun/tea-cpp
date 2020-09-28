@@ -8,6 +8,7 @@
 #include <cpprest/http_client.h>
 #include <fstream>
 #include <json/json.h>
+#include <utility>
 
 #include <cpprest/interopstream.h> // Bridges for integrating Async streams with STL and WinRT streams
 #include <cpprest/uri.h> // URI library
@@ -223,7 +224,76 @@ string compose_url(const string &host, const map<string, string> &params,
   return url;
 }
 
-Darabonba::Response Darabonba::Core::doAction(const Darabonba::Request &req,
+std::vector<std::string> explode(const std::string &str,
+                                 const std::string &delimiter) {
+  int pos = str.find(delimiter, 0);
+  int pos_start = 0;
+  int split_n = pos;
+  string line_text(delimiter);
+
+  std::vector<std::string> dest;
+
+  while (pos > -1) {
+    line_text = str.substr(pos_start, split_n);
+    pos_start = pos + 1;
+    pos = str.find(delimiter, pos + 1);
+    split_n = pos - pos_start;
+    dest.push_back(line_text);
+  }
+  line_text = str.substr(pos_start, str.length() - pos_start);
+  dest.push_back(line_text);
+  return dest;
+}
+
+template <typename T> T get(map<string, boost::any> m, string k, T _default) {
+  if (m.find(k) != m.end()) {
+    if (can_cast<T>(m[k])) {
+      return boost::any_cast<T>(m.at(k));
+    }
+  }
+  return _default;
+}
+
+web::http::client::http_client_config
+Darabonba::Core::httpConfig(const Darabonba::Request &req,
+                            map<string, boost::any> runtime) {
+  web::http::client::http_client_config cfg;
+  int timeout = get<int>(runtime, "readTimeout", 0);
+  timeout += get<int>(runtime, "connectTimeout", 0);
+  if (timeout == 0) {
+    timeout = 30;
+  }
+  std::chrono::microseconds t(timeout);
+  cfg.set_timeout(utility::seconds(timeout));
+  string noProxy = get<string>(runtime, "noProxy", "");
+  bool use_proxy = true;
+  if (!noProxy.empty()) {
+    vector<string> no_proxy_list = explode(noProxy, ",");
+    for (const auto &no_proxy_item : no_proxy_list) {
+      if (req.host == no_proxy_item) {
+        use_proxy = false;
+      }
+    }
+  }
+  if (use_proxy) {
+    if (req.protocol == "http") {
+      string httpProxy = get<string>(runtime, "httpProxy", "");
+      if (!httpProxy.empty()) {
+        web::web_proxy http_proxy(httpProxy);
+        cfg.set_proxy(http_proxy);
+      }
+    } else if (req.protocol == "https") {
+      string httpsProxy = get<string>(runtime, "httpsProxy", "");
+      if (!httpsProxy.empty()) {
+        web::web_proxy https_proxy(httpsProxy);
+        cfg.set_proxy(https_proxy);
+      }
+    }
+  }
+  return cfg;
+}
+
+Darabonba::Response Darabonba::Core::doAction(Darabonba::Request req,
                                               map<string, boost::any> runtime) {
   string protocol = req.protocol;
   string port = to_string(req.port);
@@ -240,22 +310,11 @@ Darabonba::Response Darabonba::Core::doAction(const Darabonba::Request &req,
   string host = req.host;
   if (headers.find("host") != headers.end()) {
     host = headers["host"];
+    req.host = host;
   }
   string url = compose_url(host, query, pathname, protocol, port);
-  web::http::client::http_client_config cfg;
-  int timeout = 0;
-  if (runtime.find("readTimeout") != runtime.end()) {
-    timeout = boost::any_cast<int>(runtime.at("readTimeout"));
-  }
-  if (runtime.find("connectTimeout") != runtime.end()) {
-    timeout += boost::any_cast<int>(runtime.at("connectTimeout"));
-  }
-  if (timeout == 0) {
-    timeout = 30;
-  }
-  std::chrono::microseconds t(timeout);
-  cfg.set_timeout(utility::seconds(timeout));
-
+  web::http::client::http_client_config cfg =
+      httpConfig(req, std::move(runtime));
   web::http::client::http_client client(
       web::uri(utility::conversions::to_string_t(url)), cfg);
   web::http::http_response response;

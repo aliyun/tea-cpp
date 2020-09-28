@@ -3,8 +3,10 @@
 
 #include <boost/any.hpp>
 #include <boost/exception/all.hpp>
+#include <cpprest/http_client.h>
 #include <cpprest/streams.h>
 #include <iostream>
+#include <utility>
 
 using namespace std;
 
@@ -61,7 +63,7 @@ public:
 };
 class Core {
 public:
-  static Response doAction(const Request &req, map<string, boost::any> runtime);
+  static Response doAction(Request req, map<string, boost::any> runtime);
   static Response doAction(const Request &req);
   static bool allowRetry(const shared_ptr<boost::any> &retry,
                          const shared_ptr<int> &retry_times,
@@ -71,6 +73,8 @@ public:
   static void sleep(const shared_ptr<int> &sleep_time);
   static bool isRetryable(const exception &ex);
   static bool isRetryable(const boost::exception &ex);
+  static web::http::client::http_client_config
+  httpConfig(const Darabonba::Request &req, map<string, boost::any> runtime);
 };
 class Converter {
 public:
