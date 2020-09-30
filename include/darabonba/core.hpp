@@ -50,7 +50,7 @@ public:
   string method = "GET";
   string pathname;
   map<string, string> query;
-  string body;
+  shared_ptr<iostream> body;
   map<string, string> headers;
 };
 class Response {
@@ -78,6 +78,10 @@ public:
 };
 class Converter {
 public:
+  static shared_ptr<stringstream> toStream(string str){
+    return make_shared<stringstream>(str);
+  }
+
   static shared_ptr<map<string, string>> mapPointer(map<string, string> m) {
     return make_shared<map<string, string>>(m);
   }

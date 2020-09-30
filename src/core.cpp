@@ -305,7 +305,7 @@ Darabonba::Response Darabonba::Core::doAction(Darabonba::Request req,
     string val = param.second;
     query.insert(pair<string, string>(key, val));
   }
-  string body = req.body;
+
   map<string, string> headers = req.headers;
   string host = req.host;
   if (headers.find("host") != headers.end()) {
@@ -318,7 +318,28 @@ Darabonba::Response Darabonba::Core::doAction(Darabonba::Request req,
   web::http::client::http_client client(
       web::uri(utility::conversions::to_string_t(url)), cfg);
   web::http::http_response response;
-  response = client.request(method).get();
+
+  // set headers
+  web::http::http_request request;
+  for (const auto& i: headers) {
+    request.headers().add(i.first, i.second);
+  }
+  // set body
+  if (req.body) {
+    req.body->seekg(0, ios::end);
+    streamsize size = req.body->tellg();
+    req.body->seekg(0, ios::beg);
+    char * buf = new char[size];
+    req.body->read(buf, size);
+    string body(buf, size);
+    delete [] buf;
+
+    request.set_body(body);
+  }
+
+  request.set_method(method);
+
+  response = client.request(request).get();
   if (nullptr != getenv("DEBUG")) {
     printf("status_code : %hu\n", response.status_code());
     printf("response : %s\n", response.to_string().c_str());
@@ -367,3 +388,4 @@ Darabonba::Error::Error(map<string, boost::any> error_info) {
     name = boost::any_cast<string>(error_info.at("name"));
   }
 }
+

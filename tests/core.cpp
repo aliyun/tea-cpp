@@ -111,12 +111,12 @@ TEST(tests_core, test_allowRetry) {
 TEST(tests_core, test_doAction) {
   Darabonba::Request req;
   req.method = "get";
-  req.body = "test";
+  req.body = make_shared<stringstream>("test");
   req.query["empty"] = string("");
   req.query["foo"] = string("bar");
   req.query["complex"] = string("evX6fNf^_lUdV#b$_w)B#4>:3|~#]f");
   req.headers["x-foo"] = string("x-bar");
-  req.headers["host"] = string("www.example.com");
+  req.headers["host"] = string("www.aliyun.com");
 
   setenv("DEBUG", "1", 1);
   Response res = Darabonba::Core::doAction(req);
@@ -130,13 +130,13 @@ TEST(tests_core, test_doAction_with_runtime) {
   runtime["connectTimeout"] = boost::any(10);
   Darabonba::Request req;
   req.method = "get";
-  req.body = "test";
+  req.body = Darabonba::Converter::toStream("test");
   req.query["foo"] = string("bar");
   req.headers["x-foo"] = string("x-bar");
-  req.headers["host"] = "example.com";
+  req.headers["host"] = "www.aliyun.com";
 
   Response res = Darabonba::Core::doAction(req, runtime);
-  ASSERT_EQ(200, res.statusCode);
+  ASSERT_TRUE(res.statusCode == 200 || res.statusCode == 302);
 }
 
 TEST(tests_core, test_doAction_with_special_url) {
