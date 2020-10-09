@@ -326,14 +326,7 @@ Darabonba::Response Darabonba::Core::doAction(Darabonba::Request req,
   }
   // set body
   if (req.body) {
-    req.body->seekg(0, ios::end);
-    streamsize size = req.body->tellg();
-    req.body->seekg(0, ios::beg);
-    char * buf = new char[size];
-    req.body->read(buf, size);
-    string body(buf, size);
-    delete [] buf;
-
+    string body = req.body->read();
     request.set_body(body);
   }
 
