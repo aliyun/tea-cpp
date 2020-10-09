@@ -111,7 +111,7 @@ TEST(tests_core, test_allowRetry) {
 TEST(tests_core, test_doAction) {
   Darabonba::Request req;
   req.method = "get";
-  req.body = make_shared<stringstream>("test");
+  req.body = Darabonba::Converter::toStream("test");
   req.query["empty"] = string("");
   req.query["foo"] = string("bar");
   req.query["complex"] = string("evX6fNf^_lUdV#b$_w)B#4>:3|~#]f");
@@ -279,5 +279,18 @@ TEST(tests_error, test_complex_error_info) {
                "\"int\":123,\"long\":9223372036854775807,\"vector\":[\"a\","
                "\"b\"]}"),
         ex.data);
+  }
+}
+
+TEST(tests_stream, test_daraStream) {
+  Darabonba::DaraStream fs(make_shared<fstream>("test.txt", ios::in));
+  Darabonba::DaraStream ss(make_shared<stringstream>("test stringstream"));
+  shared_ptr<boost::any> s;
+  s = shared_ptr<boost::any>(new boost::any(ss));
+  if (typeid(DaraStream) == s->type()){
+    Darabonba::DaraStream st = boost::any_cast<Darabonba::DaraStream>(*s);
+    ASSERT_EQ("test stringstream", st.read());
+  } else {
+    assert(false);
   }
 }

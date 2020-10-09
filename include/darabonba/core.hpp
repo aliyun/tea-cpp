@@ -39,6 +39,47 @@ protected:
   map<string, boost::any> _default;
   map<string, boost::any> _config;
 };
+
+class DaraStream{
+public:
+  DaraStream() = default;
+  explicit DaraStream(const shared_ptr<fstream>& stream) {
+    f_stream = stream;
+  }
+  explicit DaraStream(const shared_ptr<stringstream>& stream) {
+    string_stream = stream;
+  }
+  ~DaraStream() = default;
+
+  virtual string read(){
+    if (f_stream) {
+      f_stream->seekg(0, ios::end);
+      streamsize size = f_stream->tellg();
+      f_stream->seekg(0, ios::beg);
+      char * buf = new char[size];
+
+      f_stream->read(buf, size);
+      string str(buf, size);
+      delete [] buf;
+      return str;
+    } else if (string_stream) {
+      string_stream->seekg(0, ios::end);
+      streamsize size = string_stream->tellg();
+      string_stream->seekg(0, ios::beg);
+      char * buf = new char[size];
+
+      string_stream->read(buf, size);
+      string str(buf, size);
+      delete [] buf;
+      return str;
+    }
+    throw "Not found fstream or stringstream";
+  };
+private:
+  shared_ptr<fstream> f_stream;
+  shared_ptr<stringstream> string_stream;
+};
+
 class Request {
 public:
   Request();
@@ -50,7 +91,7 @@ public:
   string method = "GET";
   string pathname;
   map<string, string> query;
-  shared_ptr<iostream> body;
+  shared_ptr<DaraStream> body;
   map<string, string> headers;
 };
 class Response {
@@ -78,8 +119,8 @@ public:
 };
 class Converter {
 public:
-  static shared_ptr<stringstream> toStream(string str){
-    return make_shared<stringstream>(str);
+  static shared_ptr<DaraStream> toStream(const string& str){
+    return make_shared<DaraStream>(make_shared<stringstream>(str));
   }
 
   static shared_ptr<map<string, string>> mapPointer(map<string, string> m) {
