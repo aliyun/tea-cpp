@@ -282,13 +282,13 @@ TEST(tests_error, test_complex_error_info) {
   }
 }
 
-TEST(tests_stream, test_daraStream) {
-  Darabonba::DaraStream fs(make_shared<fstream>("test.txt", ios::in));
-  Darabonba::DaraStream ss(make_shared<stringstream>("test stringstream"));
+TEST(tests_stream, test_Stream) {
+  Darabonba::Stream fs(make_shared<fstream>("test.txt", ios::in));
+  Darabonba::Stream ss(make_shared<stringstream>("test stringstream"));
   shared_ptr<boost::any> s;
   s = shared_ptr<boost::any>(new boost::any(ss));
-  if (typeid(DaraStream) == s->type()){
-    Darabonba::DaraStream st = boost::any_cast<Darabonba::DaraStream>(*s);
+  if (typeid(Stream) == s->type()) {
+    Darabonba::Stream st = boost::any_cast<Darabonba::Stream>(*s);
     ASSERT_EQ("test stringstream", st.read());
   } else {
     assert(false);

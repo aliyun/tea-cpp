@@ -40,41 +40,40 @@ protected:
   map<string, boost::any> _config;
 };
 
-class DaraStream{
+class Stream {
 public:
-  DaraStream() = default;
-  explicit DaraStream(const shared_ptr<fstream>& stream) {
-    f_stream = stream;
-  }
-  explicit DaraStream(const shared_ptr<stringstream>& stream) {
+  Stream() = default;
+  explicit Stream(const shared_ptr<fstream> &stream) { f_stream = stream; }
+  explicit Stream(const shared_ptr<stringstream> &stream) {
     string_stream = stream;
   }
-  ~DaraStream() = default;
+  ~Stream() = default;
 
-  virtual string read(){
+  virtual string read() {
     if (f_stream) {
       f_stream->seekg(0, ios::end);
       streamsize size = f_stream->tellg();
       f_stream->seekg(0, ios::beg);
-      char * buf = new char[size];
+      char *buf = new char[size];
 
       f_stream->read(buf, size);
       string str(buf, size);
-      delete [] buf;
+      delete[] buf;
       return str;
     } else if (string_stream) {
       string_stream->seekg(0, ios::end);
       streamsize size = string_stream->tellg();
       string_stream->seekg(0, ios::beg);
-      char * buf = new char[size];
+      char *buf = new char[size];
 
       string_stream->read(buf, size);
       string str(buf, size);
-      delete [] buf;
+      delete[] buf;
       return str;
     }
     throw "Not found fstream or stringstream";
   };
+
 private:
   shared_ptr<fstream> f_stream;
   shared_ptr<stringstream> string_stream;
@@ -91,7 +90,7 @@ public:
   string method = "GET";
   string pathname;
   map<string, string> query;
-  shared_ptr<DaraStream> body;
+  shared_ptr<Stream> body;
   map<string, string> headers;
 };
 class Response {
@@ -119,8 +118,8 @@ public:
 };
 class Converter {
 public:
-  static shared_ptr<DaraStream> toStream(const string& str){
-    return make_shared<DaraStream>(make_shared<stringstream>(str));
+  static shared_ptr<Stream> toStream(const string &str) {
+    return make_shared<Stream>(make_shared<stringstream>(str));
   }
 
   static shared_ptr<map<string, string>> mapPointer(map<string, string> m) {
