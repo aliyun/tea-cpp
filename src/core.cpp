@@ -321,7 +321,7 @@ Darabonba::Response Darabonba::Core::doAction(Darabonba::Request req,
 
   // set headers
   web::http::http_request request;
-  for (const auto& i: headers) {
+  for (const auto &i : headers) {
     request.headers().add(i.first, i.second);
   }
   // set body
@@ -381,4 +381,3 @@ Darabonba::Error::Error(map<string, boost::any> error_info) {
     name = boost::any_cast<string>(error_info.at("name"));
   }
 }
-
