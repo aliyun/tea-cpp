@@ -338,7 +338,7 @@ Darabonba::Response Darabonba::Core::doAction(Darabonba::Request req,
     printf("response : %s\n", response.to_string().c_str());
   }
   Darabonba::Response dara_response;
-  dara_response.body = response.body();
+  dara_response.body = Darabonba::Stream(response.body());
   dara_response.statusCode = response.status_code();
   return dara_response;
 }

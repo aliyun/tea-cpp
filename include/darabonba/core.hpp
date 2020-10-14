@@ -52,6 +52,10 @@ public:
     rest_stream = stream;
   }
 
+  explicit Stream(concurrency::streams::istream stream) {
+    rest_stream = make_shared<concurrency::streams::istream>(stream);
+  }
+
   bool empty() {
     if (f_stream || string_stream || rest_stream) {
       return false;
@@ -112,7 +116,7 @@ public:
   Response();
   ~Response();
 
-  concurrency::streams::istream body;
+  Stream body;
   int statusCode;
 };
 class Core {

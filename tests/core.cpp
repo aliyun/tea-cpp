@@ -1,8 +1,8 @@
 #include "gtest/gtest.h"
 #include <boost/date_time.hpp>
-#include <darabonba/core.hpp>
 #include <cpprest/http_client.h>
 #include <cpprest/streams.h>
+#include <darabonba/core.hpp>
 
 using namespace std;
 using namespace Darabonba;
