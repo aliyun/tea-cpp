@@ -43,6 +43,7 @@ protected:
 class Stream {
 public:
   Stream() = default;
+  ~Stream() = default;
   explicit Stream(const shared_ptr<fstream> &stream) { f_stream = stream; }
   explicit Stream(const shared_ptr<stringstream> &stream) {
     string_stream = stream;
@@ -50,9 +51,16 @@ public:
   explicit Stream(const shared_ptr<concurrency::streams::istream> &stream) {
     rest_stream = stream;
   }
-  ~Stream() = default;
+
+  bool empty() {
+    if (f_stream || string_stream || rest_stream) {
+      return false;
+    }
+    return true;
+  }
 
   virtual string read() {
+    string resp;
     if (f_stream) {
       f_stream->seekg(0, ios::end);
       streamsize size = f_stream->tellg();
@@ -60,9 +68,8 @@ public:
       char *buf = new char[size];
 
       f_stream->read(buf, size);
-      string str(buf, size);
+      resp = string(buf, size);
       delete[] buf;
-      return str;
     } else if (string_stream) {
       string_stream->seekg(0, ios::end);
       streamsize size = string_stream->tellg();
@@ -70,16 +77,14 @@ public:
       char *buf = new char[size];
 
       string_stream->read(buf, size);
-      string str(buf, size);
+      resp = string(buf, size);
       delete[] buf;
-      return str;
     } else if (rest_stream) {
       concurrency::streams::stringstreambuf stream_buf;
       rest_stream->read_to_end(stream_buf).get();
-      return stream_buf.collection();
+      resp = stream_buf.collection();
     }
-    BOOST_THROW_EXCEPTION(boost::enable_error_info(
-        std::runtime_error("Not found fstream or stringstream")));
+    return resp;
   };
 
 private:
@@ -99,7 +104,7 @@ public:
   string method = "GET";
   string pathname;
   map<string, string> query;
-  shared_ptr<Stream> body;
+  Stream body;
   map<string, string> headers;
 };
 class Response {
@@ -127,8 +132,8 @@ public:
 };
 class Converter {
 public:
-  static shared_ptr<Stream> toStream(const string &str) {
-    return make_shared<Stream>(make_shared<stringstream>(str));
+  static Stream toStream(const string &str) {
+    return Stream(make_shared<stringstream>(str));
   }
 
   static shared_ptr<map<string, string>> mapPointer(map<string, string> m) {
