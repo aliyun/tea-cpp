@@ -325,8 +325,8 @@ Darabonba::Response Darabonba::Core::doAction(Darabonba::Request req,
     request.headers().add(i.first, i.second);
   }
   // set body
-  if (req.body) {
-    string body = req.body->read();
+  if (!req.body.empty()) {
+    string body = req.body.read();
     request.set_body(body);
   }
 
