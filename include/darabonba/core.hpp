@@ -108,7 +108,7 @@ public:
   string method = "GET";
   string pathname;
   map<string, string> query;
-  Stream body;
+  shared_ptr<Stream> body;
   map<string, string> headers;
 };
 class Response {
@@ -116,7 +116,7 @@ public:
   Response();
   ~Response();
 
-  Stream body;
+  shared_ptr<Stream> body;
   int statusCode;
 };
 class Core {
@@ -136,8 +136,8 @@ public:
 };
 class Converter {
 public:
-  static Stream toStream(const string &str) {
-    return Stream(make_shared<stringstream>(str));
+  static shared_ptr<Stream> toStream(const string &str) {
+    return make_shared<Stream>(make_shared<stringstream>(str));
   }
 
   static shared_ptr<map<string, string>> mapPointer(map<string, string> m) {

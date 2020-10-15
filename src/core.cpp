@@ -325,8 +325,8 @@ Darabonba::Response Darabonba::Core::doAction(Darabonba::Request req,
     request.headers().add(i.first, i.second);
   }
   // set body
-  if (!req.body.empty()) {
-    string body = req.body.read();
+  if (req.body && !req.body->empty()) {
+    string body = req.body->read();
     request.set_body(body);
   }
 
@@ -338,7 +338,7 @@ Darabonba::Response Darabonba::Core::doAction(Darabonba::Request req,
     printf("response : %s\n", response.to_string().c_str());
   }
   Darabonba::Response dara_response;
-  dara_response.body = Darabonba::Stream(response.body());
+  dara_response.body = make_shared<Darabonba::Stream>(response.body());
   dara_response.statusCode = response.status_code();
   return dara_response;
 }
