@@ -41,3 +41,11 @@ TEST(tests_converter, merge_string_any) {
   ASSERT_EQ(boost::any_cast<string>(expect["e"]),
             boost::any_cast<string>(res["e"]));
 }
+
+TEST(tests_converter, toGenericMap) {
+  map<string, string> m = {
+      {"key", "value"}
+  };
+  map<string, boost::any> res = Darabonba::Converter::toGenericMap(m);
+  ASSERT_EQ("value", boost::any_cast<string>(res["key"]));
+}
