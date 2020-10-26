@@ -138,6 +138,14 @@ public:
 };
 class Converter {
 public:
+  static map<string, boost::any> toGenericMap(const map<string, string>& m) {
+    map<string, boost::any> data;
+    for (const auto &it : m) {
+      data[it.first] = boost::any(it.second);
+    }
+    return data;
+  }
+
   static shared_ptr<Stream> toStream(const string &str) {
     return make_shared<Stream>(make_shared<stringstream>(str));
   }
