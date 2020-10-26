@@ -73,7 +73,7 @@ add_subdirectory(external)
 
 find_package(Boost REQUIRED COMPONENTS random system thread filesystem chrono atomic date_time regex)
 find_library(CPPREST_LIB cpprest)
-target_link_libraries(${PROJECT_NAME} PRIVATE crypto jsoncpp ${Boost_LIBRARIES} ${CPPREST_LIB})
+target_link_libraries(${PROJECT_NAME} PRIVATE crypto ${Boost_LIBRARIES} ${CPPREST_LIB})
 
 if (ENABLE_UNIT_TESTS)
     include(CTest)
@@ -92,7 +92,6 @@ if (ENABLE_UNIT_TESTS)
             gtest_main
             gmock_main
             crypto
-            jsoncpp
             ${Boost_LIBRARIES}
             ${CPPREST_LIB})
     add_test(NAME google_test

@@ -7,7 +7,6 @@
 
 #include <cpprest/http_client.h>
 #include <fstream>
-#include <json/json.h>
 #include <utility>
 
 #include <cpprest/interopstream.h> // Bridges for integrating Async streams with STL and WinRT streams
