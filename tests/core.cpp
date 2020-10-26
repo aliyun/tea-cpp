@@ -139,6 +139,7 @@ TEST(tests_core, test_doAction_with_runtime) {
 
   Response res = Darabonba::Core::doAction(req, runtime);
   ASSERT_TRUE(res.statusCode == 200 || res.statusCode == 302);
+  ASSERT_FALSE(res.statusMessage.empty() || res.headers.empty());
 }
 
 TEST(tests_core, test_doAction_with_special_url) {

@@ -118,6 +118,8 @@ public:
 
   shared_ptr<Stream> body;
   int statusCode;
+  string statusMessage;
+  map<string, string> headers;
 };
 class Core {
 public:
