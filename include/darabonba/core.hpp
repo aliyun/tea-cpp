@@ -56,7 +56,7 @@ public:
     rest_stream = make_shared<concurrency::streams::istream>(stream);
   }
 
-  bool empty() {
+  virtual bool empty() {
     if (f_stream || string_stream || rest_stream) {
       return false;
     }
