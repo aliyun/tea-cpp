@@ -93,8 +93,7 @@ void Model::validatePattern(const string &field_name,
     return;
   }
   regex pattern(val, regex::icase);
-  smatch result;
-  if (!regex_match(*field, result, pattern)) {
+  if (!regex_search(*field, pattern)) {
     BOOST_THROW_EXCEPTION(boost::enable_error_info(
         std::runtime_error(field_name + " is not match " + val)));
   }

@@ -113,20 +113,20 @@ TEST(tests_model, test_validateMinimum) {
 
 TEST(tests_model, test_validatePattern) {
   string field_name = "foo";
-  Model::validatePattern(field_name, nullptr, "[a-z0-9A-Z]+");
+  Model::validatePattern(field_name, nullptr, "^[a-z0-9A-Z]+$");
   Model::validatePattern(field_name, make_shared<string>(string("")),
-                         "[a-z0-9A-Z]+");
+                         "^[a-z0-9A-Z]+$");
   string field_value =
       "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
   Model::validatePattern(field_name, make_shared<string>(field_value),
-                         "[a-z0-9A-Z]+"); // No exception is OK
+                         "^[a-z0-9A-Z]+$"); // No exception is OK
   try {
     field_value = "@test#";
     Model::validatePattern(field_name, make_shared<string>(field_value),
-                           "[a-z0-9A-Z]+");
+                           "^[a-z0-9A-Z]+$");
     ASSERT_TRUE(false); // should not be here
   } catch (boost::exception &e) {
     string err = boost::current_exception_cast<exception>()->what();
-    ASSERT_EQ("foo is not match [a-z0-9A-Z]+", err);
+    ASSERT_EQ("foo is not match ^[a-z0-9A-Z]+$", err);
   }
 }
