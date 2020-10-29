@@ -30,9 +30,12 @@ public:
                               const shared_ptr<string> &field,
                               const string &val);
   virtual void validate() = 0;
-
   virtual map<string, boost::any> toMap() = 0;
   virtual void fromMap(map<string, boost::any> m) = 0;
+
+  void call_validate() { validate(); };
+  map<string, boost::any> call_toMap() { return toMap(); };
+  void call_fromMap(map<string, boost::any> m) { fromMap(m); };
 
 protected:
   map<string, string> _name;
@@ -138,7 +141,7 @@ public:
 };
 class Converter {
 public:
-  static map<string, boost::any> toGenericMap(const map<string, string>& m) {
+  static map<string, boost::any> toGenericMap(const map<string, string> &m) {
     map<string, boost::any> data;
     for (const auto &it : m) {
       data[it.first] = boost::any(it.second);
