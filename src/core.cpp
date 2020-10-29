@@ -339,7 +339,7 @@ Darabonba::Response Darabonba::Core::doAction(Darabonba::Request req,
   Darabonba::Response dara_response;
   dara_response.body = make_shared<Darabonba::Stream>(response.body());
   dara_response.statusCode = response.status_code();
-  for (const auto& it: response.headers()) {
+  for (const auto &it : response.headers()) {
     dara_response.headers[it.first] = it.second;
   }
   dara_response.statusMessage = response.reason_phrase();
