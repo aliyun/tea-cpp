@@ -43,9 +43,7 @@ TEST(tests_converter, merge_string_any) {
 }
 
 TEST(tests_converter, toGenericMap) {
-  map<string, string> m = {
-      {"key", "value"}
-  };
+  map<string, string> m = {{"key", "value"}};
   map<string, boost::any> res = Darabonba::Converter::toGenericMap(m);
   ASSERT_EQ("value", boost::any_cast<string>(res["key"]));
 }
