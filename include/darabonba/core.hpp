@@ -126,8 +126,9 @@ public:
 };
 class Core {
 public:
-  static Response doAction(Request req, map<string, boost::any> runtime);
-  static Response doAction(const Request &req);
+  static Response doAction(const boost::any &request,
+                           const boost::any &runtime);
+  static Response doAction(const boost::any &request);
   static bool allowRetry(const shared_ptr<boost::any> &retry,
                          const shared_ptr<int> &retry_times,
                          const shared_ptr<int> &now);
@@ -221,33 +222,42 @@ private:
 struct Error : virtual exception, virtual boost::exception {
 public:
   Error();
-  Error(map<string, string> error_info);
-  Error(map<string, boost::any> error_info);
+  Error(const boost::any &error_info);
   string message;
   string code;
   string data;
   string name;
   const char *what() const noexcept override { return message.c_str(); }
+
+private:
+  void resolve(map<string, string> error_info);
+  void resolve(map<string, boost::any> error_info);
 };
 struct UnretryableError : public Error {
 public:
-  UnretryableError(const Request &last_request,
-                   const std::exception &last_exception) {
-    _last_request = last_request;
-    Error error;
-    error.message = last_exception.what();
-    _last_exception = error;
-  }
-  UnretryableError(const Request &last_request, const Error &last_exception) {
-    _last_request = last_request;
-    _last_exception = last_exception;
-  }
-  UnretryableError(const Request &last_request,
-                   const boost::exception &last_exception) {
-    _last_request = last_request;
-    Error error;
-    error.message = boost::diagnostic_information(last_exception);
-    _last_exception = error;
+  UnretryableError(const boost::any &last_request,
+                   const boost::any &last_exception) {
+    if (typeid(Request) == last_request.type()) {
+      _last_request = boost::any_cast<Request>(last_request);
+    } else if (typeid(shared_ptr<Request>) == last_request.type()) {
+      shared_ptr<Request> req =
+          boost::any_cast<shared_ptr<Request>>(last_request);
+      _last_request = *req;
+    }
+
+    if (typeid(std::exception) == last_exception.type()) {
+      std::exception e = boost::any_cast<std::exception>(last_exception);
+      Error error;
+      error.message = e.what();
+      _last_exception = error;
+    } else if (typeid(Error) == last_exception.type()) {
+      Error e = boost::any_cast<Error>(last_exception);
+      _last_exception = e;
+    } else if (typeid(boost::exception) == last_exception.type()) {
+      Error error;
+      error.message = boost::diagnostic_information(last_exception);
+      _last_exception = error;
+    }
   }
   Darabonba::Request getLastRequest();
   Error getLastException();
