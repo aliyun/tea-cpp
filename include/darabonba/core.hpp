@@ -167,6 +167,14 @@ public:
     if (typeid(string) == val.type()) {
       return boost::any_cast<string>(val);
     }
+
+    if (typeid(shared_ptr<boost::any>) == val.type()) {
+      shared_ptr<boost::any> val_ptr = boost::any_cast<shared_ptr<boost::any>>(val);
+      if (val_ptr) {
+        return boost::any_cast<string>(*val_ptr);
+      }
+    }
+
     return string("");
   }
 
