@@ -47,3 +47,11 @@ TEST(tests_converter, toGenericMap) {
   map<string, boost::any> res = Darabonba::Converter::toGenericMap(m);
   ASSERT_EQ("value", boost::any_cast<string>(res["key"]));
 }
+
+TEST(tests_converter, toString) {
+  boost::any str1 = string("string1");
+  boost::any str2 = make_shared<boost::any>(string("string2"));
+
+  ASSERT_EQ("string1", Darabonba::Converter::toString(str1));
+  ASSERT_EQ("string2", Darabonba::Converter::toString(str2));
+}
