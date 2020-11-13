@@ -278,7 +278,7 @@ TEST(tests_error, test_complex_error_info) {
     Darabonba::Error ex = e.getLastException();
     ASSERT_EQ(
         string("{\"bool\":true,\"char*\":\"char*\",\"const_char*\":\"const "
-               "char*\",\"double\":1.123000,\"float\":2.345000,\"foo\":bar,"
+               "char*\",\"double\":1.123000,\"float\":2.345000,\"foo\":\"bar\","
                "\"int\":123,\"long\":9223372036854775807,\"vector\":[\"a\","
                "\"b\"]}"),
         ex.data);

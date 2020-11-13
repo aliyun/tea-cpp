@@ -1,6 +1,6 @@
 #include <darabonba/core.hpp>
 
-#include <boost/algorithm/string/join.hpp>
+#include <boost/algorithm/string.hpp>
 #include <boost/chrono.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/thread/thread.hpp>
@@ -301,7 +301,8 @@ Darabonba::Response Darabonba::Core::doAction(const boost::any &request,
   dara_response.body = make_shared<Darabonba::Stream>(response.body());
   dara_response.statusCode = response.status_code();
   for (const auto &it : response.headers()) {
-    dara_response.headers[it.first] = it.second;
+    string key = boost::to_lower_copy(it.first);
+    dara_response.headers[key] = it.second;
   }
   dara_response.statusMessage = response.reason_phrase();
   return dara_response;
