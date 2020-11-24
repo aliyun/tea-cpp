@@ -124,7 +124,6 @@ string url_encode(const string &str) {
 
 string http_query_str(map<string, string> query) {
   string str;
-  typedef map<string, string>::iterator MapIterator;
   if (!query.empty()) {
     vector<string> keys;
     keys.reserve(query.size());

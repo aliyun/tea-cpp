@@ -46,7 +46,7 @@ protected:
 class Stream {
 public:
   Stream() = default;
-  ~Stream() = default;
+  virtual ~Stream() = default;
   explicit Stream(const shared_ptr<fstream> &stream) { f_stream = stream; }
   explicit Stream(const shared_ptr<stringstream> &stream) {
     string_stream = stream;
@@ -93,7 +93,6 @@ public:
     }
     return resp;
   };
-
 private:
   shared_ptr<fstream> f_stream;
   shared_ptr<stringstream> string_stream;
