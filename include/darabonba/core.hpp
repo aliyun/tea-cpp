@@ -149,6 +149,11 @@ public:
     return data;
   }
 
+  static shared_ptr<Stream> toStream(const vector<uint8_t> &val){
+    string str(val.begin(), val.end());
+    return make_shared<Stream>(make_shared<stringstream>(str));
+  }
+
   static shared_ptr<Stream> toStream(const string &str) {
     return make_shared<Stream>(make_shared<stringstream>(str));
   }
