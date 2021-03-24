@@ -52,7 +52,7 @@ Detailed changes for each version are recorded in the [Release Notes](/CHANGELOG
 
 ## Related
 
-* [OpenAPI Explorer][open-api]
+* [OpenAPI Developer Portal][open-api]
 * [Latest Release][latest-release]
 * [Alibabacloud Console System][console]
 * [Alibaba Cloud Home Page][aliyun]
@@ -63,7 +63,7 @@ Detailed changes for each version are recorded in the [Release Notes](/CHANGELOG
 
 Copyright (c) 2009-present, Alibaba Cloud All rights reserved.
 
-[open-api]: https://api.aliyun.com
+[open-api]: https://next.api.aliyun.com
 [latest-release]: https://github.com/aliyun/tea-cpp/releases
 [console]: https://home.console.aliyun.com
 [aliyun]: https://www.aliyun.com
