@@ -8,6 +8,7 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++11")
+set(CMAKE_INSTALL_PREFIX "${PROJECT_SOURCE_DIR}/${PROJECT_NAME}_build")
 message("C++ compiler flags: ${CMAKE_CXX_FLAGS}")
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 option(ENABLE_UNIT_TESTS "Enable unit tests" OFF)
@@ -31,19 +32,24 @@ if (NOT CMAKE_BUILD_TYPE)
 endif ()
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
-add_library(${PROJECT_NAME} SHARED "")
+#add_library(${PROJECT_NAME} SHARED "" src/httpClient.cpp src/url.cpp)
 
-set(headers
-        include/darabonba/core.hpp)
+set(core_headers include/darabonba/core.hpp)
+set(json_header include/json.hpp)
 
-target_sources(${PROJECT_NAME}
-        PRIVATE
+add_library(${PROJECT_NAME}
+        SHARED
         src/model.cpp
         src/core.cpp
         src/error.cpp
         src/response.cpp
         src/request.cpp
-        ${headers})
+        src/url.cpp
+        src/httpClient.cpp
+        src/runtimeOptions.cpp
+        ${core_headers}
+        ${json_header})
+
 
 target_include_directories(${PROJECT_NAME}
         PRIVATE
@@ -55,7 +61,6 @@ set_target_properties(${PROJECT_NAME}
         SOVERSION ${PROJECT_VERSION_MAJOR}
         OUTPUT_NAME ${PROJECT_NAME}
         DEBUG_POSTFIX "_d"
-        PUBLIC_HEADER "${headers}"
         MACOSX_RPATH ON
         WINDOWS_EXPORT_ALL_SYMBOLS ON)
 
@@ -65,15 +70,41 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR}
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR})
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/${CMAKE_INSTALL_BINDIR})
 
-set(INSTALL_LIBDIR ${CMAKE_INSTALL_LIBDIR} CACHE PATH "Installation directory for libraries")
-set(INSTALL_BINDIR ${CMAKE_INSTALL_BINDIR} CACHE PATH "Installation directory for executables")
-set(INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR} CACHE PATH "Installation directory for header files")
 
-add_subdirectory(external)
+set(INSTALL_LIBDIR ./build/lib CACHE PATH "Installation directory for libraries")
+set(INSTALL_BINDIR ./build/bin CACHE PATH "Installation directory for executables")
+set(INSTALL_INCLUDEDIR ./build/include CACHE PATH "Installation directory for header files")
 
-find_package(Boost REQUIRED COMPONENTS random system thread filesystem chrono atomic date_time regex)
-find_library(CPPREST_LIB cpprest)
-target_link_libraries(${PROJECT_NAME} PRIVATE crypto ${Boost_LIBRARIES} ${CPPREST_LIB})
+#add_subdirectory(external)
+
+if(CMAKE_HOST_WIN32)
+    ExternalProject_Get_Property(curl INSTALL_DIR)
+    set(curl_install_dir ${INSTALL_DIR})
+    add_dependencies(${PROJECT_NAME}
+            curl)
+    target_include_directories(${PROJECT_NAME}
+            PRIVATE	${curl_install_dir}/include)
+    target_link_libraries(${PROJECT_NAME}
+            Crypt32
+            Rpcrt4
+            Ws2_32
+            debug ${curl_install_dir}/lib/libcurl-d.lib
+            optimized ${curl_install_dir}/lib/libcurl.lib
+            )
+    target_compile_definitions(${PROJECT_NAME}
+            PRIVATE CURL_STATICLIB
+            _CRT_SECURE_NO_WARNINGS)
+elseif(APPLE)
+    find_library(CURL_LIB curl)
+    find_library(CFLIB CoreFoundation)
+    target_link_libraries(${PROJECT_NAME} ${CFLIB} ${CURL_LIB})
+    target_compile_definitions(${PROJECT_NAME} PRIVATE GUID_CFUUID)
+else()
+    find_library(CURL_LIB curl)
+    target_link_libraries(${PROJECT_NAME} PRIVATE ${CURL_LIB} uuid)
+endif()
+
+
 
 if (ENABLE_UNIT_TESTS)
     include(CTest)
@@ -90,10 +121,7 @@ if (ENABLE_UNIT_TESTS)
             PRIVATE
             ${PROJECT_NAME}
             gtest_main
-            gmock_main
-            crypto
-            ${Boost_LIBRARIES}
-            ${CPPREST_LIB})
+            gmock_main)
     add_test(NAME google_test
             COMMAND $<TARGET_FILE:tests>)
 endif ()
@@ -157,7 +185,7 @@ install(
         NAMESPACE
           "darabonba_core::"
         DESTINATION
-          ${INSTALL_CMAKEDIR}
+          ./build
         COMPONENT
           dev
 )
@@ -180,3 +208,7 @@ install(
         DESTINATION
         ${INSTALL_CMAKEDIR}
 )
+install(FILES ${core_headers}
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/darabonba)
+install(FILES ${json_header}
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
