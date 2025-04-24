@@ -1,214 +1,32 @@
+cmake_minimum_required(VERSION 3.12)
+project(DarbonbaCore)
 
-cmake_minimum_required(VERSION 3.5 FATAL_ERROR)
-
-project(darabonba_core VERSION "0.1.0")
-
-# <<< General set up >>>
+# set c++ version
 set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++11")
-set(CMAKE_INSTALL_PREFIX "${PROJECT_SOURCE_DIR}/${PROJECT_NAME}_build")
-message("C++ compiler flags: ${CMAKE_CXX_FLAGS}")
-set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
-option(ENABLE_UNIT_TESTS "Enable unit tests" OFF)
-message(STATUS "Enable testing: ${ENABLE_UNIT_TESTS}")
+set(CMAKE_CXX_EXTENSIONS OFF)
 
-OPTION(ENABLE_COVERAGE "Use gcov" OFF)
-message(STATUS "Enable coverage: ${ENABLE_COVERAGE}")
-if (ENABLE_COVERAGE AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-    set(CMAKE_BUILD_TYPE "Coverage")
-    include(CodeCoverage)
-    setup_target_for_coverage(${PROJECT_NAME}_coverage ${PROJECT_NAME}_test coverage)
-endif ()
-
-if (CMAKE_CXX_COMPILER_LOADED)
-    message(STATUS "The C++ compiler ID is: ${CMAKE_CXX_COMPILER_ID}")
-    message(STATUS "The C++ compiler version is: ${CMAKE_CXX_COMPILER_VERSION}")
-endif ()
-
-if (NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
-endif ()
-message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
-
-#add_library(${PROJECT_NAME} SHARED "" src/httpClient.cpp src/url.cpp)
-
-set(core_headers include/darabonba/core.hpp)
-set(json_header include/json.hpp)
-
-add_library(${PROJECT_NAME}
-        SHARED
-        src/model.cpp
-        src/core.cpp
-        src/error.cpp
-        src/response.cpp
-        src/request.cpp
-        src/url.cpp
-        src/httpClient.cpp
-        src/runtimeOptions.cpp
-        ${core_headers}
-        ${json_header})
-
-
-target_include_directories(${PROJECT_NAME}
-        PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/include)
-
-set_target_properties(${PROJECT_NAME}
-        PROPERTIES
-        POSITION_INDEPENDENT_CODE 1
-        SOVERSION ${PROJECT_VERSION_MAJOR}
-        OUTPUT_NAME ${PROJECT_NAME}
-        DEBUG_POSTFIX "_d"
-        MACOSX_RPATH ON
-        WINDOWS_EXPORT_ALL_SYMBOLS ON)
-
-include(GNUInstallDirs)
-
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR})
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR})
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/${CMAKE_INSTALL_BINDIR})
-
-
-set(INSTALL_LIBDIR ./build/lib CACHE PATH "Installation directory for libraries")
-set(INSTALL_BINDIR ./build/bin CACHE PATH "Installation directory for executables")
-set(INSTALL_INCLUDEDIR ./build/include CACHE PATH "Installation directory for header files")
-
-#add_subdirectory(external)
-
-if(CMAKE_HOST_WIN32)
-    ExternalProject_Get_Property(curl INSTALL_DIR)
-    set(curl_install_dir ${INSTALL_DIR})
-    add_dependencies(${PROJECT_NAME}
-            curl)
-    target_include_directories(${PROJECT_NAME}
-            PRIVATE	${curl_install_dir}/include)
-    target_link_libraries(${PROJECT_NAME}
-            Crypt32
-            Rpcrt4
-            Ws2_32
-            debug ${curl_install_dir}/lib/libcurl-d.lib
-            optimized ${curl_install_dir}/lib/libcurl.lib
-            )
-    target_compile_definitions(${PROJECT_NAME}
-            PRIVATE CURL_STATICLIB
-            _CRT_SECURE_NO_WARNINGS)
-elseif(APPLE)
-    find_library(CURL_LIB curl)
-    find_library(CFLIB CoreFoundation)
-    target_link_libraries(${PROJECT_NAME} ${CFLIB} ${CURL_LIB})
-    target_compile_definitions(${PROJECT_NAME} PRIVATE GUID_CFUUID)
+# compiler warning
+if(MSVC)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4 /w44265 /w44061 /w44062")
 else()
-    find_library(CURL_LIB curl)
-    target_link_libraries(${PROJECT_NAME} PRIVATE ${CURL_LIB} uuid)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic")
 endif()
 
+# test
+option(ENABLE_UNIT_TESTS "Enable unit tests" ON)
 
+# dependency openssl
+find_package(OpenSSL REQUIRED)
+# curl
+find_package(CURL REQUIRED)
+add_subdirectory(external)
 
-if (ENABLE_UNIT_TESTS)
-    include(CTest)
-    enable_testing()
-    add_executable(tests
-            tests/main.cpp
-            tests/model.cpp
-            tests/core.cpp
-            tests/converter.cpp)
-    target_include_directories(tests
-            PRIVATE
-            ${CMAKE_CURRENT_SOURCE_DIR}/include)
-    target_link_libraries(tests
-            PRIVATE
-            ${PROJECT_NAME}
-            gtest_main
-            gmock_main)
-    add_test(NAME google_test
-            COMMAND $<TARGET_FILE:tests>)
-endif ()
+# include directory for src and tests
+include_directories(include)
 
-message(STATUS "Project will be installed to ${CMAKE_INSTALL_PREFIX}")
+add_subdirectory(src)
 
-if (WIN32 AND NOT CYGWIN)
-    set(DEF_INSTALL_CMAKEDIR CMake)
-else ()
-    set(DEF_INSTALL_CMAKEDIR share/cmake/${PROJECT_NAME})
-endif ()
-# set(INSTALL_CMAKEDIR ${DEF_INSTALL_CMAKEDIR} CACHE PATH "Installation directory for CMake files")
-set(INSTALL_CMAKEDIR ${DEF_INSTALL_CMAKEDIR})
-
-foreach (p LIB BIN INCLUDE CMAKE)
-    file(TO_NATIVE_PATH ${CMAKE_INSTALL_PREFIX}/${INSTALL_${p}DIR} _path)
-    message(STATUS "Installing ${p} components to ${_path}")
-    unset(_path)
-endforeach ()
-
-# Prepare RPATH
-file(RELATIVE_PATH _rel ${CMAKE_INSTALL_PREFIX}/${INSTALL_BINDIR} ${CMAKE_INSTALL_PREFIX})
-if (APPLE)
-    set(_rpath "@loader_path/${_rel}")
-else ()
-    set(_rpath "\$ORIGIN/${_rel}")
-endif ()
-file(TO_NATIVE_PATH "${_rpath}/${INSTALL_LIBDIR}" install_RPATH)
-
-set_target_properties(${PROJECT_NAME}
-        PROPERTIES
-        MACOSX_RPATH ON
-        SKIP_BUILD_RPATH OFF
-        BUILD_WITH_INSTALL_RPATH OFF
-        INSTALL_RPATH "${install_RPATH}"
-        INSTALL_RPATH_USE_LINK_PATH ON)
-
-install(
-        TARGETS
-          ${PROJECT_NAME}
-        EXPORT
-          darabonba_coreTargets
-        ARCHIVE
-          DESTINATION ${INSTALL_LIBDIR}
-          COMPONENT lib
-        RUNTIME
-          DESTINATION ${INSTALL_BINDIR}
-          COMPONENT bin
-        LIBRARY
-          DESTINATION ${INSTALL_LIBDIR}
-          COMPONENT lib
-        PUBLIC_HEADER
-          DESTINATION ${INSTALL_INCLUDEDIR}/darabonba
-          COMPONENT dev
-)
-
-# install cmake config
-install(
-        EXPORT
-          darabonba_coreTargets
-        NAMESPACE
-          "darabonba_core::"
-        DESTINATION
-          ./build
-        COMPONENT
-          dev
-)
-include(CMakePackageConfigHelpers)
-
-write_basic_package_version_file(
-        ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake
-        VERSION ${PROJECT_VERSION}
-        COMPATIBILITY SameMajorVersion
-)
-configure_package_config_file(
-        ${PROJECT_SOURCE_DIR}/cmake/${PROJECT_NAME}Config.cmake.in
-        ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake
-        INSTALL_DESTINATION ${INSTALL_CMAKEDIR}
-)
-install(
-        FILES
-        ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake
-        ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake
-        DESTINATION
-        ${INSTALL_CMAKEDIR}
-)
-install(FILES ${core_headers}
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/darabonba)
-install(FILES ${json_header}
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+if(ENABLE_UNIT_TESTS)
+  add_subdirectory(tests)
+endif()
