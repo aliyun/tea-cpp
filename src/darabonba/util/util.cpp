@@ -11,6 +11,14 @@ using std::string;
 
 namespace Darabonba {
 
+std::shared_ptr<Stream> Util::toFileForm(const Json &form,
+                                              const std::string &boundary) {
+
+  auto p = new FileFormStream;
+  p->emplace_back(FileField(form));
+  return std::shared_ptr<Stream>(p);
+}
+
 string Util::getDateUTCString() {
   char buf[80];
   time_t t = time(nullptr);
