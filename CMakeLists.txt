@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.10)
 project(DarbonbaCore)
 
 # set c++ version
@@ -21,8 +21,9 @@ find_package(OpenSSL REQUIRED)
 # curl
 find_package(CURL REQUIRED)
 add_subdirectory(external)
+# dependency nlohmann_json
+find_package(nlohmann_json REQUIRED)
 
-# include directory for src and tests
 include_directories(include)
 
 add_subdirectory(src)

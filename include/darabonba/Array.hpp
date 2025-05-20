@@ -46,10 +46,16 @@ public:
   static std::string join(ForwardIter first, ForwardIter last,
                           const std::string &delim) {
     std::string ret;
-    while (first != last) {
-      ret += (*first++) + delim;
+    if (first == last) {
+        return ""; // Return empty string if the range is empty
     }
-    ret.resize(ret.size() - delim.size());
+    while (first != last) {
+        ret += (*first++);
+        if (first != last) {
+            ret += delim;
+        }
+    }
+    
     return ret;
   }
   static std::string join(const std::vector<std::string> &array,
@@ -78,6 +84,46 @@ public:
   static void append(std::vector<T> &array, const T &item) {
     array.emplace_back(item);
   }
+
+
+  // Shift: Removes the first element from an array and returns that removed element.
+  static std::string shift(std::vector<std::string>& arr) {
+    if (arr.empty()) {
+      return ""; // Or throw an exception, depending on desired behavior
+    }
+    std::string first = arr.front();
+    arr.erase(arr.begin());
+    return first;
+  }
+
+  // Pop: Removes the last element from an array and returns that element.
+  static std::string pop(std::vector<std::string>& arr) {
+    if (arr.empty()) {
+      return ""; // Or throw an exception, depending on desired behavior
+    }
+    std::string last = arr.back();
+    arr.pop_back();
+    return last;
+  }
+
+  // Unshift: Adds one or more elements to the beginning of an array and returns the new length of the array.
+  static int32_t unshift(std::vector<std::string>& arr, const std::string& element) {
+    arr.insert(arr.begin(), element);
+    return arr.size();
+  }
+
+  // Push: Adds one or more elements to the end of an array and returns the new length of the array.
+  static int32_t push(std::vector<std::string>& arr, const std::string& element) {
+    arr.push_back(element);
+    return arr.size();
+  }
+
+  // Ascending Sort: Sorts the elements of an array in ascending order (lexicographically).
+  static std::vector<std::string> acsSort(std::vector<std::string> arr) {
+    std::sort(arr.begin(), arr.end());
+    return arr;
+  }
+
 };
 
 } // namespace Darabonba
