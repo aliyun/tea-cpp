@@ -1,5 +1,6 @@
 #include <chrono>
 #include <darabonba/Core.hpp>
+#include <darabonba/policy/Retry.hpp>
 #include <darabonba/http/MCurlHttpClient.hpp>
 #include <fstream>
 #include <sstream>
@@ -13,6 +14,10 @@
 #endif
 
 using std::string;
+
+// 定义最大和最小延迟时间
+const int MAX_DELAY_TIME = 120 * 1000;
+const int MIN_DELAY_TIME = 100;
 
 namespace Darabonba {
 
@@ -65,35 +70,61 @@ string Core::uuid() {
 #endif
 }
 
-int Core::getBackoffTime(const Json &backoff, int retryTimes) {
-  if (backoff.is_null() || backoff.empty()) {
-    return 0;
-  }
-  string policy = backoff.value("policy", "no");
-  int backOffTime = 0;
-  if (policy == "no") {
-    return backOffTime;
-  }
+int Core::getBackoffTime(const RetryOptions& options, const RetryPolicyContext& ctx) {
+    auto ex = ctx.exception;
+    const auto& conditions = options.getRetryConditions();
 
-  backOffTime = backoff.value("period", backOffTime);
-  if (backOffTime <= 0) {
-    return retryTimes;
-  }
-  return backOffTime;
+    for (const auto& condition : conditions) {
+        // if (ex.name != condition.exception && ex.code != condition.error_code) {
+        //     continue;
+        // }
+
+        // int max_delay = condition.max_delay ? condition.max_delay : MAX_DELAY_TIME;
+        // if (ex.retry_after) {
+        //     return std::min(ex.retry_after, max_delay);
+        // }
+
+        // if (!condition.backoff) {
+        //     return MIN_DELAY_TIME;
+        // }
+
+        // return std::min(condition.backoff.getDelayTime(ctx), max_delay);
+    }
+
+    return MIN_DELAY_TIME;
 }
 
-bool Core::allowRetry(const Json &retry, int retryTimes) {
-  if (retryTimes == 0)
-    return true;
-  if (retry.is_null() || retry.empty()) {
+bool Core::allowRetry(const RetryOptions& options, const RetryPolicyContext& ctx) {
+    // if (ctx.retries_attempted == 0) {
+    //     return true;
+    // }
+
+    // if (!options.retryable) {
+    //     return false;
+    // }
+
+    // auto retries_attempted = ctx.retries_attempted;
+    // auto ex = ctx.exception;
+
+    // for (const auto& condition : options.no_retry_condition) {
+    //     if (ex.name == condition.exception || ex.code == condition.error_code) {
+    //         return false;
+    //     }
+    // }
+
+    // for (const auto& condition : options.retry_condition) {
+    //     if (ex.name != condition.exception && ex.code != condition.error_code) {
+    //         continue;
+    //     }
+
+    //     if (retries_attempted >= condition.max_attempts) {
+    //         return false;
+    //     }
+
+    //     return true;
+    // }
+
     return false;
-  }
-  bool retryable = retry.value("retryable", false);
-  if (retryable) {
-    int maxAttempts = retry.value("maxAttempts", 0);
-    return maxAttempts >= retryTimes;
-  }
-  return false;
 }
 
 std::future<std::shared_ptr<Http::MCurlResponse>>

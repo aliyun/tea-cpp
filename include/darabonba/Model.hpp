@@ -141,7 +141,7 @@ namespace Darabonba {
 
 class Model {
 public:
-  virtual ~Model() {}
+  // ~Model() {}
   virtual void validate() const = 0;
   virtual Json toMap() const = 0;
   virtual void fromMap(const Json &) = 0;

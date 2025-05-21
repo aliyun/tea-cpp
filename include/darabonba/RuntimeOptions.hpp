@@ -6,6 +6,69 @@
 
 namespace Darabonba {
 
+class ExtendsParameters : public Model {
+public:
+    // 构造函数，支持默认参数初始化为nullptr
+    ExtendsParameters(const std::map<std::string, std::string>& headers = {},
+                      const std::map<std::string, std::string>& queries = {}) 
+        : headers_(headers), queries_(queries) {}
+
+    // 验证函数
+    void validate() const {}
+
+    // 将对象转换为map
+    Darabonba::Json toMap() const override {
+        auto result = Model::toMap();
+        if (!headers_.empty()) {
+            result["headers"] = mapToString(headers_);
+        }
+        if (!queries_.empty()) {
+            result["queries"] = mapToString(queries_);
+        }
+        return result;
+    }
+
+    // 从map初始化对象
+    void fromMap(const std::map<std::string, std::string>& m) {
+        auto headersIt = m.find("headers");
+        if (headersIt != m.end()) {
+            headers_ = stringToMap(headersIt->second);
+        }
+
+        auto queriesIt = m.find("queries");
+        if (queriesIt != m.end()) {
+            queries_ = stringToMap(queriesIt->second);
+        }
+    }
+
+private:
+    std::map<std::string, std::string> headers_;
+    std::map<std::string, std::string> queries_;
+
+    // 辅助函数：将map转换为字符串
+    std::string mapToString(const std::map<std::string, std::string>& map) const {
+        // std::ostringstream oss;
+        // for (const auto& pair : map) {
+        //     oss << pair.first << ":" << pair.second << ";";
+        // }
+        // return oss.str();
+    }
+
+    // 辅助函数：将字符串转换为map
+    std::map<std::string, std::string> stringToMap(const std::string& str) const {
+        // std::map<std::string, std::string> ret;
+        // std::istringstream iss(str);
+        // std::string item;
+        // while (std::getline(iss, item, ';')) {
+        //     auto pos = item.find(':');
+        //     if (pos != std::string::npos) {
+        //         ret[item.substr(0, pos)] = item.substr(pos + 1);
+        //     }
+        // }
+        // return ret;
+    }
+};
+
 class RuntimeOptions : public Model {
   friend void to_json(Json &j, const RuntimeOptions &obj) {
     DARABONBA_PTR_TO_JSON(autoretry, autoretry_);

@@ -58,7 +58,7 @@ public:
       return it->second;
     return "";
   }
-  const Header &header() const { return header_; };
+  const Header &header() const { return header_; }
   Header &header() { return header_; }
   Request &setHeader(const Header &header) {
     header_ = header;
@@ -79,6 +79,13 @@ public:
     body_ = std::shared_ptr<IStream>(p);
     return *this;
   }
+
+  // New methods to access protocol and path
+  std::string getProtocol() const { return url_.scheme(); }
+  void setProtocol(const std::string &protocol) { url_.setScheme(protocol); }
+
+  std::string getPath() const { return url_.pathName(); }
+  void setPath(const std::string &path) { url_.setPathName(path); }
 
 protected:
   URL url_;
