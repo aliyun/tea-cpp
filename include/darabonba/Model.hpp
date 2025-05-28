@@ -2,10 +2,10 @@
 #define DARABONBA_MODEL_H_
 
 #include <darabonba/Type.hpp>
+#include <darabonba/Exception.hpp>
 #include <regex>
 #include <type_traits>
 
-namespace Darabonba {
 
 #define DARABONBA_PTR_TO_JSON(key, attr)                                       \
   if (obj.attr) {                                                              \
@@ -25,7 +25,7 @@ namespace Darabonba {
       obj.attr = nullptr;                                                      \
     } else {                                                                   \
       using Type = std::remove_reference<decltype(*obj.attr)>::type;           \
-      obj.attr = std::make_shared<Type>(j[#key].get<Type>());                  \
+      obj.attr = std::make_shared<Type>(j[#key].template get<Type>());                  \
     }                                                                          \
   }
 
@@ -139,6 +139,7 @@ namespace Darabonba {
     }                                                                          \
   }
 
+namespace Darabonba {
 class Model {
 public:
   // ~Model() {}

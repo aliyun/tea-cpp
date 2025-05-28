@@ -34,6 +34,9 @@ public:
 
   virtual ~FileField() = default;
 
+  FileField &operator=(const FileField &) = default;
+  FileField &operator=(FileField &&) = default;
+
   virtual void validate() const override {}
 
   virtual void fromMap(const Darabonba::Json &obj) override {
@@ -80,8 +83,6 @@ public:
   FileField &setFilename(std::string &&filename) {
     DARABONBA_PTR_SET_RVALUE(filename_, filename);
   }
-
-  static std::string getBoundary() { return Core::uuid(); }
 
   static std::shared_ptr<Stream> toFileForm(const Json &form,
                                             const std::string &boundary);

@@ -3,6 +3,7 @@
 #include <darabonba/Ini.hpp>
 #include <darabonba/String.hpp>
 #include <darabonba/Type.hpp>
+#include <darabonba/Exception.hpp>
 #include <sstream>
 
 namespace Darabonba {
@@ -26,7 +27,7 @@ Ini Ini::parse(std::basic_istream<char> &content, CommentType type) {
     } else if (line[0] == '[') {
       // section name
       if (line.back() != ']')
-        throw Darabonba::Exception("There is no ] in section name");
+        throw Exception("There is no ] in section name");
       auto secName = std::string(line.begin() + 1, line.end() - 1);
       // if(obj.has(secName))
       //   throw Darabonba::Exception("Duplicated section name.");
@@ -35,9 +36,9 @@ Ini Ini::parse(std::basic_istream<char> &content, CommentType type) {
     } else {
       auto pos = line.find_first_of('=');
       if (pos == std::string::npos)
-        throw Darabonba::Exception("There is no = in the key-value pair");
+        throw Exception("There is no = in the key-value pair");
       else if (pSec == nullptr)
-        throw Darabonba::Exception("The key-value pair has no section name.");
+        throw Exception("The key-value pair has no section name.");
       else {
         auto name = String::trim(line.substr(0, pos)),
              value = String::trim(line.substr(pos + 1));

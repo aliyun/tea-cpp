@@ -1,6 +1,6 @@
 #include <atomic>
 #include <condition_variable>
-#include <darabonba/RuntimeOptions.hpp>
+#include <darabonba/Runtime.hpp>
 #include <darabonba/http/Curl.hpp>
 #include <darabonba/http/MCurlResponse.hpp>
 #include <darabonba/http/Request.hpp>
@@ -32,7 +32,7 @@ public:
   }
 
   std::future<std::shared_ptr<MCurlResponse>>
-  makeRequest(const Request &request, const Darabonba::Json &options = {});
+  makeRequest(const Request &request, const Darabonba::Json &options = {}) ;
 
   /**
    * @brief Start a background thread to handle network IO

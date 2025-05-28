@@ -39,7 +39,7 @@ TEST_F(CoreTest, DoActionReturnsValidResponse) {
         std::cout << "Response Status: " << response->statusCode() << std::endl;
 
         // 打印响应头信息
-        for (const auto& headerPair : response->header()) {
+        for (const auto& headerPair : response->headers()) {
             std::cout << headerPair.first << ": " << headerPair.second << std::endl;
         }
 
@@ -76,7 +76,7 @@ TEST_F(CoreTest, DoActionWithEmptyHostFails) {
         std::cout << "Response Status: " << response->statusCode() << std::endl;
 
         // 打印响应头信息
-        for (const auto& headerPair : response->header()) {
+        for (const auto& headerPair : response->headers()) {
             std::cout << headerPair.first << ": " << headerPair.second << std::endl;
         }
 

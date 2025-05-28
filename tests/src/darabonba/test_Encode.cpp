@@ -1,5 +1,6 @@
 #include <darabonba/String.hpp>
 #include <darabonba/encode/Encoder.hpp>
+#include <darabonba/Util.hpp>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
@@ -29,7 +30,7 @@ TEST(Darabonba_Encode_Encoder, hexEncode) {
 }
 
 TEST(Darabonba_Encode_Encoder, hash) {
-  // TODO
+  Encoder::hash(Darabonba::Util::toBytes("hello"), "SHA-256");
 }
 
 TEST(Darabonba_Encode_Encoder, base64EncodeToString) {

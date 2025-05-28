@@ -13,17 +13,34 @@
 namespace Darabonba {
 
 class IStream;
+class OStream;
 
 class Stream {
 public:
   virtual ~Stream() {}
+
+  static Bytes readAsBytes(std::shared_ptr<IStream> raw);
+
+  static std::string readAsString(std::shared_ptr<IStream> raw);
+
+  static Json readAsJSON(std::shared_ptr<IStream> raw);
+
   static std::shared_ptr<IStream> readFromFilePath(const std::string &path);
 
   static std::shared_ptr<IStream> readFromBytes(Bytes &raw);
 
   static std::shared_ptr<IStream> readFromString(const std::string &raw);
 
+  static std::shared_ptr<IStream> toReadable(const std::string &raw);
+
+  static std::shared_ptr<IStream> toReadable(const Bytes &raw);
+
+  static std::shared_ptr<OStream> toWritable(const std::string &raw);
+
+  static std::shared_ptr<OStream> toWritable(const Bytes &raw);
+
   static void reset(std::shared_ptr<Stream> raw);
+
 };
 
 class IStream : public Stream {
@@ -140,4 +157,36 @@ public:
 };
 
 } // namespace Darabonba
+
+namespace nlohmann {
+  template <>
+  struct adl_serializer<std::shared_ptr<Darabonba::IStream>> {
+    static void to_json(json &j, const std::shared_ptr<Darabonba::IStream> &body) {
+      j = reinterpret_cast<uintptr_t>(body.get());
+    }
+
+    static std::shared_ptr<Darabonba::IStream> from_json(const json &j) {
+      if (j.is_number_unsigned()) {
+        Darabonba::IStream *ptr = reinterpret_cast<Darabonba::IStream *>(j.get<uintptr_t>());
+        return std::shared_ptr<Darabonba::IStream>(ptr);
+      }
+      return nullptr;
+    }
+  };
+
+  template <>
+  struct adl_serializer<std::shared_ptr<Darabonba::OStream>> {
+    static void to_json(json &j, const std::shared_ptr<Darabonba::OStream> &body) {
+      j = reinterpret_cast<uintptr_t>(body.get());
+    }
+
+    static std::shared_ptr<Darabonba::OStream> from_json(const json &j) {
+      if (j.is_number_unsigned()) {
+        Darabonba::OStream *ptr = reinterpret_cast<Darabonba::OStream *>(j.get<uintptr_t>());
+        return std::shared_ptr<Darabonba::OStream>(ptr);
+      }
+      return nullptr;
+    }
+  };
+}
 #endif

@@ -83,7 +83,7 @@ MCurlHttpClient::makeRequest(const Request &request,
   resp->setBody(body);
 
   // set the storage of response header
-  curl_easy_setopt(easyHandle, CURLOPT_HEADERDATA, &(resp->header()));
+  curl_easy_setopt(easyHandle, CURLOPT_HEADERDATA, &(resp->headers()));
   // set how to receive response header
   curl_easy_setopt(easyHandle, CURLOPT_HEADERFUNCTION, Curl::writeHeader);
   // set the storage of response body

@@ -16,6 +16,8 @@
 #include <sstream>
 #include <string>
 
+
+
 namespace Darabonba {
 namespace Http {
 
@@ -26,6 +28,10 @@ class MCurlResponseBody : public IOStream {
   friend class MCurlHttpClient;
 
 public:
+  MCurlResponseBody &operator=(const MCurlResponseBody &) = default;
+
+  MCurlResponseBody &operator=(MCurlResponseBody &&) = default;
+
   virtual ~MCurlResponseBody() {}
 
   size_t maxSize() const { return maxSize_; }
@@ -100,6 +106,10 @@ public:
     return *this;
   }
 
+  MCurlResponse &operator=(const MCurlResponse &) = default;
+
+  MCurlResponse &operator=(MCurlResponse &&) = default;
+
   virtual std::shared_ptr<MCurlResponseBody> body() const { return body_; };
 
   virtual void setBody(std::shared_ptr<MCurlResponseBody> body) {
@@ -112,4 +122,36 @@ protected:
 
 } // namespace Http
 } // namespace Darabonba
+
+namespace nlohmann {
+  template <>
+  struct adl_serializer<std::shared_ptr<Darabonba::Http::MCurlResponseBody>> {
+    static void to_json(json &j, const std::shared_ptr<Darabonba::Http::MCurlResponseBody> &body) {
+      j = {{"body_address", reinterpret_cast<uintptr_t>(body.get())}};
+    }
+
+    static std::shared_ptr<Darabonba::Http::MCurlResponseBody> from_json(const json &j) {
+      if (j.contains("body_address")) {
+        Darabonba::Http::MCurlResponseBody *ptr = reinterpret_cast<Darabonba::Http::MCurlResponseBody *>(j.at("body_address").get<uintptr_t>());
+        return std::shared_ptr<Darabonba::Http::MCurlResponseBody>(ptr);
+      }
+      return nullptr;
+    }
+  };
+
+  template <>
+  struct adl_serializer<std::shared_ptr<Darabonba::Http::MCurlResponse>> {
+    static void to_json(json &j, const std::shared_ptr<Darabonba::Http::MCurlResponse> &body) {
+      j = {{"resp_address", reinterpret_cast<uintptr_t>(body.get())}};
+    }
+
+    static std::shared_ptr<Darabonba::Http::MCurlResponse> from_json(const json &j) {
+      if (j.contains("resp_address")) {
+        Darabonba::Http::MCurlResponse *ptr = reinterpret_cast<Darabonba::Http::MCurlResponse *>(j.at("resp_address").get<uintptr_t>());
+        return std::shared_ptr<Darabonba::Http::MCurlResponse>(ptr);
+      }
+      return nullptr;
+    }
+  };
+}
 #endif

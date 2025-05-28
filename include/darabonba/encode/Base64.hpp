@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <darabonba/Type.hpp>
+#include <darabonba/Exception.hpp>
 #include <stdexcept>
 #include <string>
 #include <vector>

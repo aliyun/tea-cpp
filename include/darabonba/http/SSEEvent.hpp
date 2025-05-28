@@ -4,40 +4,74 @@
 #include <string>
 #include <map>
 #include <stdexcept>
+#include <darabonba/Model.hpp>
+#include <darabonba/Type.hpp>
 
-// 假设 DaraModel 是一个已经定义的基类
-class DaraModel {
-public:
-    virtual std::map<std::string, std::string> toMap() const = 0;
-    virtual void validateRequired(const std::string &value, const std::string &fieldName) const = 0;
-};
+using json = nlohmann::json;
 
-class SSEEvent : public DaraModel {
-public:
-    SSEEvent(const std::string &id = "", const std::string &event = "", const std::string &data = "", int retry = 0);
+namespace Darabonba{
+  namespace Http {
+    class SSEEvent : public Darabonba::Model {
+    public:
+      friend void to_json(Darabonba::Json &j, const SSEEvent &obj) {
+        DARABONBA_PTR_TO_JSON(id, id_);
+        DARABONBA_PTR_TO_JSON(data, event_);
+        DARABONBA_PTR_TO_JSON(data, data_);
+        DARABONBA_PTR_TO_JSON(retry, retry_);
+      };
 
-    void validate() const;
-    std::map<std::string, std::string> toMap() const override;
-    void fromMap(const std::map<std::string, std::string> &m);
+      friend void from_json(const Darabonba::Json &j, SSEEvent &obj) {
+        DARABONBA_PTR_FROM_JSON(id, id_);
+        DARABONBA_PTR_FROM_JSON(event, event_);
+        DARABONBA_PTR_FROM_JSON(data, data_);
+        DARABONBA_PTR_FROM_JSON(retry, retry_);
+      };
 
-    // Accessor methods
-    const std::string& getId() const;
-    void setId(const std::string &id);
+      SSEEvent(const std::string &id = "", const std::string &event = "", const std::string &data = "", int retry = 0);
 
-    const std::string& getEvent() const;
-    void setEvent(const std::string &event);
+      SSEEvent(const Darabonba::Json &obj) { from_json(obj, *this); };
 
-    const std::string& getData() const;
-    void setData(const std::string &data);
+      SSEEvent &operator=(const SSEEvent &) = default;
 
-    int getRetry() const;
-    void setRetry(int retry);
+      void validate() const {};
 
-private:
-    std::string id_;
-    std::string event_;
-    std::string data_;
-    int retry_;
-};
+      virtual bool empty() const override {};
+
+      virtual Darabonba::Json toMap() const override {
+        Darabonba::Json obj;
+        to_json(obj, *this);
+        return obj;
+      };
+
+      virtual void fromMap(const Darabonba::Json &obj) override {
+        from_json(obj, *this);
+        validate();
+      };
+
+      // Accessor methods
+      const std::string &getId() const;
+
+      void setId(const std::string &id);
+
+      const std::string &getEvent() const;
+
+      void setEvent(const std::string &event);
+
+      const std::string &getData() const;
+
+      void setData(const std::string &data);
+
+      int retry() const;
+
+      void setRetry(int retry);
+
+    private:
+      std::shared_ptr<std::string> id_;
+      std::shared_ptr<std::string> event_;
+      std::shared_ptr<std::string> data_;
+      std::shared_ptr<int> retry_;
+    };
+  }
+}
 
 #endif // SSE_EVENT_HPP

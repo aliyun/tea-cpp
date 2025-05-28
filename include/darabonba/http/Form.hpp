@@ -17,6 +17,9 @@ public:
     auto ret = Query::encode(content);
     return String::replace(content, "%20", "+");
   }
+  static std::string getBoundary() { return Core::uuid(); }
+
+  static std::string toFormString(const Json &val);
 };
 } // namespace Http
 } // namespace Darabonba

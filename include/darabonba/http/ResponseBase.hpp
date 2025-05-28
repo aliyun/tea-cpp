@@ -91,14 +91,14 @@ public:
   ResponseBase() = default;
   virtual ~ResponseBase() = default;
 
-  std::string header(const std::string &key) const {
+  std::string headers(const std::string &key) const {
     auto it = header_.find(key);
     if (it != header_.end())
       return it->second;
     return "";
   }
-  const Header &header() const { return header_; }
-  Header &header() { return header_; }
+  const Header &headers() const { return header_; }
+  Header &headers() { return header_; }
   ResponseBase &setHeader(const Header &header) {
     header_ = header;
     return *this;

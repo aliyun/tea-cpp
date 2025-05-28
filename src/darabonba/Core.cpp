@@ -28,10 +28,6 @@ struct Deleter {
   }
 };
 
-void Core::sleep(int seconds) {
-  std::this_thread::sleep_for(std::chrono::seconds(seconds));
-}
-
 string Core::uuid() {
 #ifdef _WIN32
   GUID guid;
@@ -70,11 +66,39 @@ string Core::uuid() {
 #endif
 }
 
-int Core::getBackoffTime(const RetryOptions& options, const RetryPolicyContext& ctx) {
-    auto ex = ctx.exception;
-    const auto& conditions = options.getRetryConditions();
+std::future<std::shared_ptr<Http::MCurlResponse>>
+Core::doAction(Http::Request &request, const Darabonba::Json &runtime) {
+  static auto client = []() {
+    curl_global_init(CURL_GLOBAL_ALL);
+    auto ret = std::unique_ptr<Http::MCurlHttpClient, Deleter>(
+        new Http::MCurlHttpClient());
+    ret->start();
+    return ret;
+  }();
+  // modfiy the request url
+  auto &header = request.header();
+  auto &url = request.url();
+  if (url.host().empty()) {
+    auto it = header.find("host");
+    if (it != header.end()) {
+      url.setHost(it->second);
+    }
+  }
+  if (url.scheme().empty()) {
+    url.setScheme("https");
+  }
+  return client->makeRequest(request, runtime);
+}
 
-    for (const auto& condition : conditions) {
+static void sleep(int seconds) {
+  std::this_thread::sleep_for(std::chrono::seconds(seconds));
+}
+
+static int getBackoffTime(const RetryOptions& options, const RetryPolicyContext& ctx) {
+    // auto ex = ctx.exception;
+    // const auto& conditions = options.getRetryConditions();
+
+    // for (const auto& condition : conditions) {
         // if (ex.name != condition.exception && ex.code != condition.error_code) {
         //     continue;
         // }
@@ -89,12 +113,12 @@ int Core::getBackoffTime(const RetryOptions& options, const RetryPolicyContext& 
         // }
 
         // return std::min(condition.backoff.getDelayTime(ctx), max_delay);
-    }
+    // }
 
     return MIN_DELAY_TIME;
 }
 
-bool Core::allowRetry(const RetryOptions& options, const RetryPolicyContext& ctx) {
+bool allowRetry(const RetryOptions& options, const RetryPolicyContext& ctx) {
     // if (ctx.retries_attempted == 0) {
     //     return true;
     // }
@@ -127,28 +151,11 @@ bool Core::allowRetry(const RetryOptions& options, const RetryPolicyContext& ctx
     return false;
 }
 
-std::future<std::shared_ptr<Http::MCurlResponse>>
-Core::doAction(Http::Request &request, const Darabonba::Json &runtime) {
-  static auto client = []() {
-    curl_global_init(CURL_GLOBAL_ALL);
-    auto ret = std::unique_ptr<Http::MCurlHttpClient, Deleter>(
-        new Http::MCurlHttpClient());
-    ret->start();
-    return ret;
-  }();
-  // modfiy the request url
-  auto &header = request.header();
-  auto &url = request.url();
-  if (url.host().empty()) {
-    auto it = header.find("host");
-    if (it != header.end()) {
-      url.setHost(it->second);
-    }
+Json defaultVal(const Json& a, const Json& b) {
+  if (a.is_null() || a.empty()) {
+    return b;
   }
-  if (url.scheme().empty()) {
-    url.setScheme("https");
-  }
-  return client->makeRequest(request, runtime);
+  return a;
 }
 
 } // namespace Darabonba

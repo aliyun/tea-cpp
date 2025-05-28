@@ -42,6 +42,10 @@ public:
     return HexEncoder::encode(bytes.begin(), bytes.end());
   }
 
+  static std::string toString(const Bytes &bytes){
+    return std::string(bytes.begin(), bytes.end());
+  }
+
   static Bytes hash(const Bytes &bytes, const std::string &signatureAlgorithm) {
 
     if (signatureAlgorithm.find("HMAC-SHA256") != std::string::npos ||

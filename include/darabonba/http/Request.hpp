@@ -3,6 +3,7 @@
 
 #include <darabonba/Stream.hpp>
 #include <darabonba/http/Header.hpp>
+#include <darabonba/http/Query.hpp>
 #include <darabonba/http/URL.hpp>
 #include <iostream>
 #include <memory>
@@ -30,6 +31,15 @@ public:
   Request(const URL &url) : url_(url) {}
   ~Request() = default;
 
+  Request(const Request& other) :
+      url_(other.url_),
+      method_(other.method_),
+      header_(other.header_),
+      body_(other.body_ ? other.body_ : nullptr) {}
+
+  Request &operator=(Request &&) = default;
+  Request &operator=(const Request &) = default;
+
   const URL &url() const { return url_; }
   URL &url() { return url_; }
 
@@ -52,6 +62,10 @@ public:
     return *this;
   }
 
+  void addQuery(std::string key, std::string value) {
+    url_.query().emplace(key, value);
+  }
+
   std::string header(const std::string key) const {
     auto it = header_.find(key);
     if (it != header_.end())
@@ -60,6 +74,10 @@ public:
   }
   const Header &header() const { return header_; }
   Header &header() { return header_; }
+
+  const Header &headers() const { return header_; }
+  Header &headers() { return header_; }
+
   Request &setHeader(const Header &header) {
     header_ = header;
     return *this;
@@ -67,6 +85,20 @@ public:
   Request &setHeader(Header &&header) {
     header_ = std::move(header);
     return *this;
+  }
+
+  Request &setHeaders(Header &&header) {
+    header_ = std::move(header);
+    return *this;
+  }
+
+  Request &setHeaders(const Header &header) {
+    header_ = header;
+    return *this;
+  }
+
+  void addHeader(std::string key, std::string value) {
+    header_.emplace(key, value);
   }
 
   std::shared_ptr<IStream> body() const { return body_; }
@@ -84,8 +116,8 @@ public:
   std::string getProtocol() const { return url_.scheme(); }
   void setProtocol(const std::string &protocol) { url_.setScheme(protocol); }
 
-  std::string getPath() const { return url_.pathName(); }
-  void setPath(const std::string &path) { url_.setPathName(path); }
+  std::string getPathname() const { return url_.pathName(); }
+  void setPathname(const std::string &path) { url_.setPathName(path); }
 
 protected:
   URL url_;
@@ -96,5 +128,22 @@ protected:
 
 } // namespace Http
 } // namespace Darabonba
+
+namespace nlohmann {
+  template <>
+  struct adl_serializer<std::shared_ptr<Darabonba::Http::Request>> {
+    static void to_json(json &j, const std::shared_ptr<Darabonba::Http::Request> &body) {
+      j = {{"req_address", reinterpret_cast<uintptr_t>(body.get())}};
+    }
+
+    static std::shared_ptr<Darabonba::Http::Request> from_json(const json &j) {
+      if (j.contains("req_address")) {
+        Darabonba::Http::Request *ptr = reinterpret_cast<Darabonba::Http::Request *>(j.at("req_address").get<uintptr_t>());
+        return std::shared_ptr<Darabonba::Http::Request>(ptr);
+      }
+      return nullptr;
+    }
+  };
+}
 
 #endif

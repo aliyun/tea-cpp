@@ -1,11 +1,11 @@
 #include <darabonba/policy/Retry.hpp>
 #include <random>
-#include <cmath>
 #include <algorithm>
 
 namespace Darabonba {
+namespace Policy {
 
-// 获取随机整数
+// Helper function for generating random integers
 static int getRandomInt(int cap) {
     std::random_device rd;
     std::mt19937 mt(rd());
@@ -13,7 +13,7 @@ static int getRandomInt(int cap) {
     return dist(mt);
 }
 
-// BackoffPolicy 创建工厂方法
+// BackoffPolicy factory method
 std::unique_ptr<BackoffPolicy> BackoffPolicy::createBackoffPolicy(const std::map<std::string, std::string>& option) {
     std::string policy = option.at("policy");
     if (policy == "Fixed") {
@@ -21,64 +21,44 @@ std::unique_ptr<BackoffPolicy> BackoffPolicy::createBackoffPolicy(const std::map
     } else if (policy == "Random") {
         // return std::make_unique<RandomBackoffPolicy>(option);
     }
-    // 继续为其他策略增加实现...
     throw std::invalid_argument("Unknown policy: " + policy);
 }
 
-// FixedBackoffPolicy 实现
-FixedBackoffPolicy::FixedBackoffPolicy(const std::map<std::string, std::string>& option)
-: BackoffPolicy(option), _period(std::stoi(option.at("period"))) {}
+// FixedBackoffPolicy definition
+// FixedBackoffPolicy::FixedBackoffPolicy(const std::map<std::string, std::string>& option)
+// : period_(std::stoi(option.at("period"))) {}
 
-int FixedBackoffPolicy::getDelayTime(const RetryPolicyContext& ctx) const {
-    return _period;
-}
+// int FixedBackoffPolicy::getDelayTime(const RetryPolicyContext& ctx) const {
+//     return period_;
+// }
 
-// RandomBackoffPolicy 实现
-RandomBackoffPolicy::RandomBackoffPolicy(const std::map<std::string, std::string>& option)
-: BackoffPolicy(option), _period(std::stoi(option.at("period"))), _cap(std::stoi(option.at("cap"))) {}
+// RandomBackoffPolicy definition
+// RandomBackoffPolicy::RandomBackoffPolicy(const std::map<std::string, std::string>& option)
+// : period_(std::stoi(option.at("period"))), cap_(std::stoi(option.at("cap"))) {}
 
-int RandomBackoffPolicy::getDelayTime(const RetryPolicyContext& ctx) const {
-    int randomTime = getRandomInt(ctx.retriesAttempted * _period);
-    return std::min(randomTime, _cap);
-}
+// int RandomBackoffPolicy::getDelayTime(const RetryPolicyContext& ctx) const {
+//     return std::min(getRandomInt(ctx.retriesAttempted() * period_), cap_);
+// }
 
-// RetryCondition 实现
-RetryCondition::RetryCondition(const std::map<std::string, std::string>& condition) {
-    maxAttempts = std::stoi(condition.at("maxAttempts"));
-    backoff = BackoffPolicy::createBackoffPolicy(condition); // Assuming backoff object here
-    // Initialize exception and errorCode vectors
-    // maxDelay = logic for maxDelay
-}
+// RetryCondition implemented as needed...
 
-// RetryOptions 实现
-RetryOptions::RetryOptions(const std::map<std::string, std::string>& options) {
-    _retryable = options.at("retryable") == "true";
-    // Populate _retryCondition and _noRetryCondition vectors
-}
+// RetryOptions implemented as needed...
 
-bool RetryOptions::isValid() const {
-    if (!_retryable && _retryCondition.empty() && _noRetryCondition.empty()) {
-        throw std::invalid_argument("Invalid retry options configuration.");
-    }
-    return true;
-}
+// RetryPolicyContext constructor
+// RetryPolicyContext::RetryPolicyContext(int retriesAttempted, Darabonba::Exception exception)
+// : retriesAttempted_(retriesAttempted), exception_(exception) {}
 
-// RetryPolicyContext 实现
-RetryPolicyContext::RetryPolicyContext(int retriesAttempted, std::exception_ptr httpException)
-: retriesAttempted(retriesAttempted), exception(httpException) {}
-
-// getBackoffDelay 函数实现
+// getBackoffDelay function implementation
 int getBackoffDelay(const RetryOptions& options, const RetryPolicyContext& ctx) {
-    // Here ctx.exception needs to be converted to something meaningful like name, code, etc.
-    for (const auto& condition : options.getRetryConditions()) {
-        int maxDelay = condition.maxDelay ? condition.maxDelay : MaxDelayTime;
-        if (!condition.backoff) {
-            return MinDelayTime;
-        }
-        return std::min(condition.backoff->getDelayTime(ctx), maxDelay);
+    for (const auto& condition : options.retryCondition()) {
+        // int maxDelay = condition.maxDelay ? *condition.maxDelay() : MaxDelayTime;
+        // if (!condition.backoff()) {
+        //     return MinDelayTime;
+        // }
+        // return std::min(condition.backoff()->getDelayTime(ctx), maxDelay);
     }
-
     return MinDelayTime;
 }
 
+} // namespace Policy
 } // namespace Darabonba

@@ -1,10 +1,10 @@
-#ifndef DARABONBA_CONSOLE_H_
-#define DARABONBA_CONSOLE_H_
+#ifndef DARABONBA_LOGGER_H_
+#define DARABONBA_LOGGER_H_
 
 #include <iostream>
 #include <string>
 
-class Console {
+class Logger {
 public:
   static void log(const std::string &val) {
     std::cout << "[LOG] " << val << std::endl;

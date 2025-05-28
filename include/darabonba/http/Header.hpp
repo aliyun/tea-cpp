@@ -36,6 +36,7 @@ public:
       : std::map<std::string, std::string>(std::move(obj)) {}
   Header(std::initializer_list<std::pair<std::string, std::string>> list)
       : std::map<std::string, std::string>(list.begin(), list.end()) {}
+  Header(const Darabonba::Json &obj) { from_json(obj, *this); }
 
   Header &operator=(const Header &) = default;
   Header &operator=(Header &&) = default;

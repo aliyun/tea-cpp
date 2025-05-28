@@ -11,19 +11,23 @@
 
 namespace Darabonba {
 
-class Bytes {
+class BytesUtil {
 public:
     // Constructor from std::string
-    Bytes(const std::string &str)
+    BytesUtil(const std::string &str)
         : data(str.begin(), str.end()) {}
 
     // Constructor from a vector of unsigned char
-    Bytes(const std::vector<unsigned char> &vec)
+    BytesUtil(const std::vector<unsigned char> &vec)
         : data(vec) {}
 
     // 将字符串转换为字节数据
-    static Bytes toBytes(const std::string &str) {
-        return Bytes(str);
+    static Darabonba::Bytes toBytes(const std::string &str) {
+      Bytes binaryData;
+      for (char c : str) {
+        binaryData.push_back(static_cast<uint8_t>(c));
+      }
+      return binaryData;
     }
 
     // 将字节数据转换为十六进制字符串

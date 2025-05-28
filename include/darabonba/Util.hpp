@@ -75,6 +75,8 @@ public:
     return input.get<std::vector<Json>>();
   };
 
+  static std::string getBoundary() { return Core::uuid(); }
+
   static std::string toFormString(const Json &val);
 
   static std::string toJSONString(const Json &value) { return value.dump(); }
@@ -108,18 +110,6 @@ public:
   }
 
   static bool empty(const std::string &val) { return val.empty(); }
-
-  static bool equalString(const std::string &val1, const std::string &val2) {
-    return val1 == val2;
-  }
-
-  template <
-      typename T1, typename T2,
-      typename std::enable_if<std::is_arithmetic<T1>::value, bool>::type = true,
-      typename std::enable_if<std::is_arithmetic<T2>::value, bool>::type = true>
-  static bool equalNumber(T1 val1, T2 val2) {
-    return val1 == val2;
-  }
 
   static bool assertAsBoolean(const Json &value);
 

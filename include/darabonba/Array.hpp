@@ -9,6 +9,7 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <darabonba/Exception.hpp>
 
 namespace Darabonba {
 class Array {
