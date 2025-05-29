@@ -2,6 +2,52 @@
 #include <darabonba/Stream.hpp>
 
 namespace Darabonba {
+
+Bytes Stream::readAsBytes(std::shared_ptr<IStream> raw) {
+  if (!raw) return Bytes();
+
+  Bytes result;
+  char buffer[1024];
+  size_t bytesRead;
+  while ((bytesRead = raw->read(buffer, sizeof(buffer))) > 0) {
+    result.insert(result.end(), buffer, buffer + bytesRead);
+  }
+  return result;
+}
+
+std::string Stream::readAsString(std::shared_ptr<IStream> raw) {
+  if (!raw) return "";
+
+  std::ostringstream oss;
+  char buffer[1024];
+  size_t bytesRead;
+  while ((bytesRead = raw->read(buffer, sizeof(buffer))) > 0) {
+    oss.write(buffer, bytesRead);
+  }
+  return oss.str();
+}
+
+Json Stream::readAsJSON(std::shared_ptr<IStream> raw) {
+  // Assuming Json can be constructed from a string
+  std::string str = readAsString(raw);
+  return Json::parse(str); // Adjust with your Json parse method
+}
+
+std::shared_ptr<IStream> Stream::toReadable(const std::string &raw) {
+  return std::make_shared<ISStream>(raw);
+}
+
+std::shared_ptr<IStream> Stream::toReadable(const Bytes &raw) {
+  return std::make_shared<ISStream>(raw);
+}
+
+std::shared_ptr<OStream> Stream::toWritable(const std::string &raw) {
+  return std::make_shared<OSStream>(std::ostringstream(raw));
+}
+std::shared_ptr<OStream> Stream::toWritable(const Bytes &raw) {
+  return std::make_shared<OSStream>(std::ostringstream(std::string(raw.begin(), raw.end())));
+}
+
 std::shared_ptr<IStream> Stream::readFromFilePath(const std::string &path) {
   return std::shared_ptr<IStream>(
       new IFStream(std::ifstream(path, std::ios::binary)));

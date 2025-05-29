@@ -90,65 +90,33 @@ Core::doAction(Http::Request &request, const Darabonba::Json &runtime) {
   return client->makeRequest(request, runtime);
 }
 
-static void sleep(int seconds) {
+
+int Darabonba::getBackoffTime(const RetryOptions& options, const RetryPolicyContext& ctx) {
+  // Example with exponential backoff
+  // int base = options.baseBackoffTime;
+  // int cap = options.maxBackoffTime;
+  // int attempt = ctx.currentRetryTimes;
+
+  // int backoff = base * (1 << attempt); // Exponential backoff: base * (2^attempt)
+  return 1000; // Cap the backoff time
+}
+
+bool Darabonba::allowRetry(const RetryOptions& options, const RetryPolicyContext& ctx) {
+  // Check the maximum retry limit
+  // if (ctx.currentRetryTimes >= options) {
+  //   return false;
+  // }
+  
+  // // Check conditions specific to the error
+  // if (!ctx.shouldRetry) {
+  //   return false;
+  // }
+
+  return true;
+}
+
+void Darabonba::sleep(int seconds) {
   std::this_thread::sleep_for(std::chrono::seconds(seconds));
-}
-
-static int getBackoffTime(const RetryOptions& options, const RetryPolicyContext& ctx) {
-    // auto ex = ctx.exception;
-    // const auto& conditions = options.getRetryConditions();
-
-    // for (const auto& condition : conditions) {
-        // if (ex.name != condition.exception && ex.code != condition.error_code) {
-        //     continue;
-        // }
-
-        // int max_delay = condition.max_delay ? condition.max_delay : MAX_DELAY_TIME;
-        // if (ex.retry_after) {
-        //     return std::min(ex.retry_after, max_delay);
-        // }
-
-        // if (!condition.backoff) {
-        //     return MIN_DELAY_TIME;
-        // }
-
-        // return std::min(condition.backoff.getDelayTime(ctx), max_delay);
-    // }
-
-    return MIN_DELAY_TIME;
-}
-
-bool allowRetry(const RetryOptions& options, const RetryPolicyContext& ctx) {
-    // if (ctx.retries_attempted == 0) {
-    //     return true;
-    // }
-
-    // if (!options.retryable) {
-    //     return false;
-    // }
-
-    // auto retries_attempted = ctx.retries_attempted;
-    // auto ex = ctx.exception;
-
-    // for (const auto& condition : options.no_retry_condition) {
-    //     if (ex.name == condition.exception || ex.code == condition.error_code) {
-    //         return false;
-    //     }
-    // }
-
-    // for (const auto& condition : options.retry_condition) {
-    //     if (ex.name != condition.exception && ex.code != condition.error_code) {
-    //         continue;
-    //     }
-
-    //     if (retries_attempted >= condition.max_attempts) {
-    //         return false;
-    //     }
-
-    //     return true;
-    // }
-
-    return false;
 }
 
 Json defaultVal(const Json& a, const Json& b) {

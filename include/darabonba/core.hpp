@@ -55,21 +55,21 @@ public:
 };
 
 template <typename T>
-bool isNull(T* const & ptr);
+inline bool isNull(T* const & ptr);
 
 template <typename T>
-bool isNull(const T& value);
+inline bool isNull(const T& value);
 
 
 template <>
-bool isNull<std::nullptr_t>(const std::nullptr_t&);
+inline bool isNull<std::nullptr_t>(const std::nullptr_t&);
 
 Json defaultVal(const Json& a, const Json& b);
 
 
-static bool allowRetry(const RetryOptions& options, const RetryPolicyContext& ctx);
-static int  getBackoffTime(const RetryOptions& options, const RetryPolicyContext& ctx);
-static void sleep(int seconds);
+bool allowRetry(const RetryOptions& options, const RetryPolicyContext& ctx);
+int  getBackoffTime(const RetryOptions& options, const RetryPolicyContext& ctx);
+void sleep(int seconds);
 
 } // namespace Darabonba
 
