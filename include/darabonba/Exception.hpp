@@ -39,8 +39,17 @@ namespace Darabonba {
 
     virtual const char *what() const noexcept override { return msg_.c_str(); }
 
+    // Getters for each field to use in code, if needed
+    const std::string& message() const { return msg_; }
+    const std::string& name() const { return name_; }
+    const std::string& code() const { return  code_;}
+    const std::int32_t& retry_fater() const { return  retry_after_;}
+
   protected:
     std::string msg_;
+    std::string name_ = "Exception";
+    std::string code_;
+    std::int32_t retry_after_;
   };
 
   class ValidateException : public Exception {
@@ -58,16 +67,6 @@ namespace Darabonba {
 // ResponseException Class
   class ResponseException : public Exception {
   public:
-//    ResponseException(
-//        const std::string &code,
-//        const std::string &message,
-//        int statusCode = 0,
-//        int retryAfter = 0,
-//        const std::string &description = "",
-//        const std::string &accessDeniedDetail = ""
-//    ) : Exception(message), statusCode_(statusCode), retryAfter_(retryAfter), code_(code), description_(description),
-//        accessDeniedDetail_(accessDeniedDetail) {}
-
     ResponseException() ;
     ResponseException(const ResponseException &) = default ;
     ResponseException(ResponseException &&) = default ;
@@ -94,6 +93,7 @@ namespace Darabonba {
     std::shared_ptr<int64_t> retryAfter_;
     std::shared_ptr<std::string> description_;
     std::shared_ptr<std::string> accessDeniedDetail_;
+    std::string name_ = "ResponseException";
   };
 
 
@@ -106,6 +106,7 @@ namespace Darabonba {
 
   private:
     std::string arg_;
+    std::string name_ = "RequiredArgumentException";
   };
 
 // RetryError Class
@@ -117,6 +118,7 @@ namespace Darabonba {
 
   private:
     std::string message_;
+    std::string name_ = "RetryError";
   };
 }// namesapce Darabonba
 #endif // DARABONBA_EXCEPTIONS_HPP

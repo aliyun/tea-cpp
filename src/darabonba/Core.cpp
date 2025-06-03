@@ -90,33 +90,76 @@ Core::doAction(Http::Request &request, const Darabonba::Json &runtime) {
   return client->makeRequest(request, runtime);
 }
 
+bool allowRetry(const RetryOptions* options, const RetryPolicyContext* ctx) {
+  if (ctx->retriesAttempted() == 0) {
+    return true;
+  }
 
-int Darabonba::getBackoffTime(const RetryOptions& options, const RetryPolicyContext& ctx) {
-  // Example with exponential backoff
-  // int base = options.baseBackoffTime;
-  // int cap = options.maxBackoffTime;
-  // int attempt = ctx.currentRetryTimes;
+  if (options == nullptr || !options->isRetryable()) {
+    return false;
+  }
 
-  // int backoff = base * (1 << attempt); // Exponential backoff: base * (2^attempt)
-  return 1000; // Cap the backoff time
+  int retriesAttempted = ctx->retriesAttempted();
+  Exception ex = ctx->exception();
+
+  auto noRetryConditions = options->noRetryCondition();
+  for (const auto& condition : noRetryConditions) {
+    if (std::find(condition.exception().begin(), condition.exception().end(), ex.name()) != condition.exception().end() ||
+        std::find(condition.errorCode().begin(), condition.errorCode().end(), ex.code()) != condition.errorCode().end()) {
+      return false;
+        }
+  }
+
+  auto retryConditions = options->retryCondition();
+  for (const auto& condition : retryConditions) {
+    if (std::find(condition.exception().begin(), condition.exception().end(), ex.name()) == condition.exception().end() &&
+        std::find(condition.errorCode().begin(), condition.errorCode().end(), ex.code()) == condition.errorCode().end()) {
+      continue;
+        }
+
+    if (retriesAttempted >= condition.maxAttempts()) {
+      return false;
+    }
+    return true;
+  }
+
+  return false;
 }
 
-bool Darabonba::allowRetry(const RetryOptions& options, const RetryPolicyContext& ctx) {
-  // Check the maximum retry limit
-  // if (ctx.currentRetryTimes >= options) {
-  //   return false;
-  // }
-  
-  // // Check conditions specific to the error
-  // if (!ctx.shouldRetry) {
-  //   return false;
-  // }
+int getBackoffTime(const RetryOptions* options, const RetryPolicyContext* ctx) {
+  Exception ex = ctx->exception();
+  auto conditions = options->retryCondition();
 
-  return true;
+  for (const auto& condition : conditions) {
+    if (std::find(condition.exception().begin(), condition.exception().end(), ex.name()) == condition.exception().end() &&
+        std::find(condition.errorCode().begin(), condition.errorCode().end(), ex.code()) == condition.errorCode().end()) {
+      continue;
+        }
+
+    int maxDelay = (condition.maxDelay() > 0) ? condition.maxDelay() : MAX_DELAY_TIME;
+    int retryAfter = ex.retry_fater();
+
+    if (retryAfter > 0) {
+      return std::min(retryAfter, maxDelay);
+    }
+
+    if (!condition.backoff()) {
+      return MIN_DELAY_TIME;
+    }
+
+    BackoffPolicy* strategy = condition.backoff().get();
+    if (strategy) {
+      return std::min(strategy->getDelayTime(*ctx), maxDelay);
+    }
+
+    return MIN_DELAY_TIME;
+  }
+
+  return MIN_DELAY_TIME;
 }
 
-void Darabonba::sleep(int seconds) {
-  std::this_thread::sleep_for(std::chrono::seconds(seconds));
+void sleep(int millisecond) {
+  std::this_thread::sleep_for(std::chrono::milliseconds(millisecond));
 }
 
 Json defaultVal(const Json& a, const Json& b) {
