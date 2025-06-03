@@ -1,5 +1,5 @@
-cmake_minimum_required(VERSION 3.10)
-project(DarbonbaCore)
+cmake_minimum_required(VERSION 3.5 FATAL_ERROR)
+project(darabonba_core VERSION "1.0.0")
 
 # set c++ version
 set(CMAKE_CXX_STANDARD 11)
@@ -21,8 +21,6 @@ find_package(OpenSSL REQUIRED)
 # curl
 find_package(CURL REQUIRED)
 add_subdirectory(external)
-# dependency nlohmann_json
-find_package(nlohmann_json REQUIRED)
 
 include_directories(include)
 

@@ -15,6 +15,14 @@ Bytes Stream::readAsBytes(std::shared_ptr<IStream> raw) {
   return result;
 }
 
+std::string Stream::cleanString(const std::string& str) {
+  std::string cleaned = str;
+  cleaned.erase(std::remove_if(cleaned.begin(), cleaned.end(),
+                               [](unsigned char c) { return !std::isprint(c); }),
+                cleaned.end());
+  return cleaned;
+}
+
 std::string Stream::readAsString(std::shared_ptr<IStream> raw) {
   if (!raw) return "";
 
@@ -24,7 +32,7 @@ std::string Stream::readAsString(std::shared_ptr<IStream> raw) {
   while ((bytesRead = raw->read(buffer, sizeof(buffer))) > 0) {
     oss.write(buffer, bytesRead);
   }
-  return oss.str();
+  return Stream::cleanString(oss.str());
 }
 
 Json Stream::readAsJSON(std::shared_ptr<IStream> raw) {

@@ -1,6 +1,5 @@
 #include <darabonba/String.hpp>
 #include <darabonba/encode/Encoder.hpp>
-#include <darabonba/Util.hpp>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
@@ -27,10 +26,6 @@ TEST(Darabonba_Encode_Encoder, pathEncode) {
 TEST(Darabonba_Encode_Encoder, hexEncode) {
   Bytes raw(vector<uint8_t>{20, 10, 30, 5});
   EXPECT_EQ("140a1e05", Encoder::hexEncode(raw));
-}
-
-TEST(Darabonba_Encode_Encoder, hash) {
-  Encoder::hash(Darabonba::Util::toBytes("hello"), "SHA-256");
 }
 
 TEST(Darabonba_Encode_Encoder, base64EncodeToString) {

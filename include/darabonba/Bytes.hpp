@@ -8,6 +8,7 @@
 #include <iomanip>
 #include <openssl/evp.h>
 #include <openssl/buffer.h>
+#include <darabonba/Type.hpp>
 
 namespace Darabonba {
 
@@ -67,27 +68,47 @@ public:
 
     // 从给定格式的数据生成Bytes
 static Bytes from(const std::string &str, const std::string &format) {
-    if (format == "base64") {
-        BIO *bio, *b64;
-        int strLen = str.length();
-        std::vector<unsigned char> buffer((strLen * 3) / 4 + 1);
+  if (format == "base64") {
+    BIO *bio, *b64;
+    int strLen = str.length();
+    std::vector<unsigned char> buffer((strLen * 3) / 4 + 1);
         
-        bio = BIO_new_mem_buf(str.data(), strLen);
-        b64 = BIO_new(BIO_f_base64());
-        bio = BIO_push(b64, bio);
-        BIO_set_flags(bio, BIO_FLAGS_BASE64_NO_NL);  // Ignore newlines in Base64 encoded data
+    bio = BIO_new_mem_buf(str.data(), strLen);
+    b64 = BIO_new(BIO_f_base64());
+    bio = BIO_push(b64, bio);
+    BIO_set_flags(bio, BIO_FLAGS_BASE64_NO_NL);  // Ignore newlines in Base64 encoded data
 
-        int length = BIO_read(bio, buffer.data(), buffer.size());
-        BIO_free_all(bio);
+    int length = BIO_read(bio, buffer.data(), buffer.size());
+    BIO_free_all(bio);
 
-        if (length < 0) {
-            throw std::runtime_error("Failed to decode base64");
-        }
-
-        buffer.resize(length);  // Adjust to actual size
-        return Bytes(buffer);
+    if (length < 0) {
+      throw std::runtime_error("Failed to decode base64");
     }
+
+    buffer.resize(length);  // Adjust to actual size
+    return Bytes(buffer);
+  } else if (format == "utf8") {
+    // Convert UTF-8 string to byte vector
+    std::vector<unsigned char> buffer(str.begin(), str.end());
+    return Bytes(buffer);
+  } else if (format == "hex") {
+    if (str.length() % 2 != 0) {
+      throw std::invalid_argument("Hex string must have an even length");
+    }
+
+    std::vector<unsigned char> buffer;
+    buffer.reserve(str.length() / 2);
+
+    for (size_t i = 0; i < str.length(); i += 2) {
+      std::string byteString = str.substr(i, 2);
+      unsigned char byte = static_cast<unsigned char>(std::stoi(byteString, nullptr, 16));
+      buffer.push_back(byte);
+    }
+
+    return Bytes(buffer);
+  } else {
     throw std::invalid_argument("Unsupported format");
+  }
 }
 
 private:

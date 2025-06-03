@@ -32,7 +32,7 @@ size_t MCurlResponseBody::read(char *buffer, size_t expectSize) {
     if (realSize != 0) {
       {
         std::lock_guard<Lock::SpinLock> lock(bufferlock_);
-        buffer_.read(buffer, realSize);
+        realSize = buffer_.read(buffer, realSize);
       }
       readableSize_ -= realSize;
       return realSize;

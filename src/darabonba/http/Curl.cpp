@@ -8,6 +8,13 @@ namespace Darabonba {
 namespace Http {
 namespace Curl {
 
+std::string toLower(const std::string& str) {
+  std::string lower;
+  lower.resize(str.size());
+  std::transform(str.begin(), str.end(), lower.begin(), ::tolower);
+  return lower;
+}
+
 size_t writeHeader(char *buffer, size_t size, size_t nitems, void *userdata) {
   auto header = static_cast<Header *>(userdata);
   std::string s(buffer, size * nitems);
@@ -17,6 +24,7 @@ size_t writeHeader(char *buffer, size_t size, size_t nitems, void *userdata) {
     return size * nitems;
   }
   header->emplace(s.substr(0, pos), s.substr(pos + 2));
+  header->emplace(toLower(s.substr(0, pos)), s.substr(pos + 2));
   return size * nitems;
 }
 

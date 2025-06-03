@@ -2,7 +2,6 @@
 #define DARABONBA_MODEL_H_
 
 #include <darabonba/Type.hpp>
-#include <darabonba/Exception.hpp>
 #include <regex>
 #include <type_traits>
 
@@ -70,7 +69,18 @@
   }                                                                            \
   return __VA_ARGS__;
 
-#define DARABONBA_PTR_GET(attr) return *this->attr;
+#define DARABONBA_PTR_GET(attr, ...)                                          \
+  if (this->attr) {                                                            \
+    return *attr;                                                              \
+  }                                                                            \
+  return __VA_ARGS__();
+
+#define DARABONBA_PTR_GET_CONST(attr, ...)                                     \
+  static const  __VA_ARGS__ empty;                                             \
+  if (this->attr) {                                                            \
+    return *attr;                                                              \
+  }                                                                            \
+  return empty;
 
 #define DARABONBA_GET(attr) return this->attr;
 

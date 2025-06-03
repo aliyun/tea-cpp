@@ -6,40 +6,40 @@
 #include <vector>
 #include <type_traits>
 #include <cstdint>
-#include "Any.hpp"
+#include <darabonba/Type.hpp>
 
 namespace Darabonba {
 
 class Convert {
 public:
     // Integer conversion
-    static int8_t int8Val(const SimpleAny& value);
-    static int16_t int16Val(const SimpleAny& value);
-    static int32_t int32Val(const SimpleAny& value);
-    static int64_t int64Val(const SimpleAny& value);
+    static int8_t int8Val(const Json& value);
+    static int16_t int16Val(const Json& value);
+    static int32_t int32Val(const Json& value);
+    static int64_t int64Val(const Json& value);
 
     // Unsigned integer conversion
-    static uint8_t uint8Val(const SimpleAny& value);
-    static uint16_t uint16Val(const SimpleAny& value);
-    static uint32_t uint32Val(const SimpleAny& value);
-    static uint64_t uint64Val(const SimpleAny& value);
+    static uint8_t uint8Val(const Json& value);
+    static uint16_t uint16Val(const Json& value);
+    static uint32_t uint32Val(const Json& value);
+    static uint64_t uint64Val(const Json& value);
 
     // Number conversion
-    static float floatVal(const SimpleAny& value);
-    static double doubleVal(const SimpleAny& value);
+    static float floatVal(const Json& value);
+    static double doubleVal(const Json& value);
 
     // String conversion
-    static std::string stringVal(const SimpleAny& value);
+    static std::string stringVal(const Json& value);
 
     // Boolean conversion
-    static bool boolVal(const SimpleAny& value);
+    static bool boolVal(const Json& value);
 
     // Bytes conversion
-    static std::vector<unsigned char> toBytes(const SimpleAny& value);
+    static std::vector<unsigned char> toBytes(const Json& value);
 
 private:
     template <typename T>
-    static T convert(const SimpleAny& value);
+    static T convert(const Json& value);
 };
 
 } // namespace Darabonba

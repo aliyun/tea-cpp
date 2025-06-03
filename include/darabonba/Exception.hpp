@@ -5,6 +5,7 @@
 #include <exception>
 #include <memory>
 #include <darabonba/Type.hpp>
+#include <darabonba/Model.hpp>
 
 namespace Darabonba {
 
@@ -57,48 +58,42 @@ namespace Darabonba {
 // ResponseException Class
   class ResponseException : public Exception {
   public:
-    ResponseException(
-        const std::string &code,
-        const std::string &message,
-        int statusCode = 0,
-        int retryAfter = 0,
-        const std::string &description = "",
-        const std::string &accessDeniedDetail = ""
-    ) : Exception(message), statusCode_(statusCode), retryAfter_(retryAfter), code_(code), description_(description),
-        accessDeniedDetail_(accessDeniedDetail) {}
+//    ResponseException(
+//        const std::string &code,
+//        const std::string &message,
+//        int statusCode = 0,
+//        int retryAfter = 0,
+//        const std::string &description = "",
+//        const std::string &accessDeniedDetail = ""
+//    ) : Exception(message), statusCode_(statusCode), retryAfter_(retryAfter), code_(code), description_(description),
+//        accessDeniedDetail_(accessDeniedDetail) {}
 
-    ResponseException(const nlohmann::json &obj) {
+    ResponseException() ;
+    ResponseException(const ResponseException &) = default ;
+    ResponseException(ResponseException &&) = default ;
+    ResponseException(const Darabonba::Json &obj) {
       from_json(obj, *this);
     }
-
-    // 序列化 JSON
-    friend void to_json(nlohmann::json &j, const ResponseException &ex) {
-      j = nlohmann::json{
-          {"code",               ex.code_},
-          {"message",            ex.msg_},
-          {"statusCode",         ex.statusCode_},
-          {"retryAfter",         ex.retryAfter_},
-          {"description",        ex.description_},
-          {"accessDeniedDetail", ex.accessDeniedDetail_}
-      };
-    }
+    virtual ~ResponseException() = default ;
+    ResponseException& operator=(const ResponseException &) = default ;
+    ResponseException& operator=(ResponseException &&) = default ;
 
     // 反序列化 JSON
-    friend void from_json(const nlohmann::json &j, ResponseException &ex) {
-      j.at("code").get_to(ex.code_);
-      j.at("message").get_to(ex.msg_);
-      j.at("statusCode").get_to(ex.statusCode_);
-      j.at("retryAfter").get_to(ex.retryAfter_);
-      j.at("description").get_to(ex.description_);
-      j.at("accessDeniedDetail").get_to(ex.accessDeniedDetail_);
+    friend void from_json(const Darabonba::Json &j, ResponseException& obj) {
+      DARABONBA_PTR_FROM_JSON(statusCode, statusCode_);
+      DARABONBA_PTR_FROM_JSON(code, code_);
+      DARABONBA_FROM_JSON(msg, msg_);
+      DARABONBA_PTR_FROM_JSON(retryAfter, retryAfter_);
+      DARABONBA_PTR_FROM_JSON(description, description_);
+      DARABONBA_PTR_FROM_JSON(accessDeniedDetail, accessDeniedDetail_);
     }
 
   private:
-    std::string code_;
-    int statusCode_;
-    int retryAfter_;
-    std::string description_;
-    std::string accessDeniedDetail_;
+    std::shared_ptr<std::string> code_;
+    std::shared_ptr<int64_t> statusCode_;
+    std::shared_ptr<int64_t> retryAfter_;
+    std::shared_ptr<std::string> description_;
+    std::shared_ptr<std::string> accessDeniedDetail_;
   };
 
 
