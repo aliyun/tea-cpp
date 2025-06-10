@@ -9,29 +9,7 @@
 #include <future>
 #include <memory>
 #include <string>
-#include <iostream>
-#include <sstream>
 #include <type_traits>
-
-template<typename T>
-void appendToStream(std::ostringstream& oss, T&& arg) {
-  oss << arg;
-}
-
-template<typename First, typename... Args>
-void appendToStream(std::ostringstream& oss, First&& first, Args&&... args) {
-  oss << first;
-  appendToStream(oss, std::forward<Args>(args)...);
-}
-
-template<typename... Args>
-std::string stringTemplate(Args&&... args) {
-  std::ostringstream oss;
-  appendToStream(oss, std::forward<Args>(args)...);
-  return oss.str();
-}
-
-#define DARA_STRING_TEMPLATE(...) stringTemplate(__VA_ARGS__)
 
 namespace Darabonba {
 class Core {

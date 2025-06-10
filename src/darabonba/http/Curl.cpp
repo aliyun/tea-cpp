@@ -45,6 +45,7 @@ void setCurlRequestBody(CURL *easyHandle,
   }
   auto is = std::dynamic_pointer_cast<IStream>(body);
   if (is) {
+    curl_easy_setopt(easyHandle, CURLOPT_POST, 1L);
     curl_easy_setopt(easyHandle, CURLOPT_READDATA, body.get());
     curl_easy_setopt(easyHandle, CURLOPT_READFUNCTION, readIStream);
     return;
@@ -74,6 +75,35 @@ curl_slist *setCurlHeader(CURL *curl, const Darabonba::Http::Header &header) {
   }
   curl_easy_setopt(curl, CURLOPT_HTTPHEADER, list);
   return list;
+}
+
+int debugFunction(CURL *handle, curl_infotype type, char *data, size_t size, void *userptr)
+{
+  switch (type) {
+  case CURLINFO_TEXT:
+    std::cerr << "Request Info:" << data << std::endl;
+    break;
+  case CURLINFO_HEADER_OUT:
+    std::cerr << "Request Header:" << std::endl;
+    std::cerr << std::string(data, size) << std::endl;
+    break;
+  case CURLINFO_HEADER_IN:
+    std::cerr << "Response Header:" << std::endl;
+    std::cerr << std::string(data, size) << std::endl;
+    break;
+  case CURLINFO_DATA_OUT:
+    std::cerr << "Request Body:" << std::endl;
+    std::cerr << std::string(data, size) << std::endl;
+    break;
+  case CURLINFO_DATA_IN:
+    std::cerr << "Response Body:" << std::endl;
+    std::cerr << std::string(data, size) << std::endl;
+    break;
+  default: /* in case a new one is introduced to shock us */
+    return 0;
+  }
+
+  return 0;
 }
 } // namespace Curl
 } // namespace Http

@@ -35,7 +35,7 @@
 
 #define DARABONBA_FROM_JSON(key, attr)                                         \
   if (j.count(#key)) {                                                         \
-    if (!j[#key].is_null()) {                                                  \
+    if (j[#key].is_null()) {                                                  \
       obj.attr = decltype(obj.attr)();                                         \
     } else {                                                                   \
       obj.attr =                                                               \

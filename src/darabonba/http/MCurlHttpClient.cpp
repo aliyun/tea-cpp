@@ -56,6 +56,11 @@ MCurlHttpClient::makeRequest(const Request &request,
     curl_easy_setopt(easyHandle, CURLOPT_NOPROXY, noProxy.c_str());
   }
 
+  if (nullptr != getenv("DEBUG")) {
+    curl_easy_setopt(easyHandle, CURLOPT_VERBOSE, 1L);
+    curl_easy_setopt(easyHandle, CURLOPT_DEBUGFUNCTION, Curl::debugFunction);
+  }
+
   // set request method
   curl_easy_setopt(easyHandle, CURLOPT_CUSTOMREQUEST, request.method().c_str());
   // set request url

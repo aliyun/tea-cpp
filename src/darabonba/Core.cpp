@@ -90,30 +90,30 @@ Core::doAction(Http::Request &request, const Darabonba::Json &runtime) {
   return client->makeRequest(request, runtime);
 }
 
-bool allowRetry(const RetryOptions* options, const RetryPolicyContext* ctx) {
-  if (ctx->retriesAttempted() == 0) {
+bool allowRetry(const RetryOptions& options, const RetryPolicyContext& ctx) {
+  if (ctx.retriesAttempted() == 0) {
     return true;
   }
 
-  if (options == nullptr || !options->isRetryable()) {
+  if (!options.isRetryable()) {
     return false;
   }
 
-  int retriesAttempted = ctx->retriesAttempted();
-  Exception ex = ctx->exception();
+  int retriesAttempted = ctx.retriesAttempted();
+  shared_ptr<Exception> ex = ctx.exception();
 
-  auto noRetryConditions = options->noRetryCondition();
+  auto noRetryConditions = options.noRetryCondition();
   for (const auto& condition : noRetryConditions) {
-    if (std::find(condition.exception().begin(), condition.exception().end(), ex.name()) != condition.exception().end() ||
-        std::find(condition.errorCode().begin(), condition.errorCode().end(), ex.code()) != condition.errorCode().end()) {
+    if (std::find(condition.exception().begin(), condition.exception().end(), ex->name()) != condition.exception().end() ||
+        std::find(condition.errorCode().begin(), condition.errorCode().end(), ex->code()) != condition.errorCode().end()) {
       return false;
         }
   }
 
-  auto retryConditions = options->retryCondition();
+  auto retryConditions = options.retryCondition();
   for (const auto& condition : retryConditions) {
-    if (std::find(condition.exception().begin(), condition.exception().end(), ex.name()) == condition.exception().end() &&
-        std::find(condition.errorCode().begin(), condition.errorCode().end(), ex.code()) == condition.errorCode().end()) {
+    if (std::find(condition.exception().begin(), condition.exception().end(), ex->name()) == condition.exception().end() &&
+        std::find(condition.errorCode().begin(), condition.errorCode().end(), ex->code()) == condition.errorCode().end()) {
       continue;
         }
 
@@ -126,18 +126,18 @@ bool allowRetry(const RetryOptions* options, const RetryPolicyContext* ctx) {
   return false;
 }
 
-int getBackoffTime(const RetryOptions* options, const RetryPolicyContext* ctx) {
-  Exception ex = ctx->exception();
-  auto conditions = options->retryCondition();
+int getBackoffTime(const RetryOptions& options, const RetryPolicyContext& ctx) {
+  shared_ptr<Exception> ex = ctx.exception();
+  auto conditions = options.retryCondition();
 
   for (const auto& condition : conditions) {
-    if (std::find(condition.exception().begin(), condition.exception().end(), ex.name()) == condition.exception().end() &&
-        std::find(condition.errorCode().begin(), condition.errorCode().end(), ex.code()) == condition.errorCode().end()) {
+    if (std::find(condition.exception().begin(), condition.exception().end(), ex->name()) == condition.exception().end() &&
+        std::find(condition.errorCode().begin(), condition.errorCode().end(), ex->code()) == condition.errorCode().end()) {
       continue;
         }
 
     int maxDelay = (condition.maxDelay() > 0) ? condition.maxDelay() : MAX_DELAY_TIME;
-    int retryAfter = ex.retry_fater();
+    int retryAfter = ex->retry_fater();
 
     if (retryAfter > 0) {
       return std::min(retryAfter, maxDelay);
@@ -149,7 +149,7 @@ int getBackoffTime(const RetryOptions* options, const RetryPolicyContext* ctx) {
 
     BackoffPolicy* strategy = condition.backoff().get();
     if (strategy) {
-      return std::min(strategy->getDelayTime(*ctx), maxDelay);
+      return std::min(strategy->getDelayTime(ctx), maxDelay);
     }
 
     return MIN_DELAY_TIME;
@@ -163,8 +163,27 @@ void sleep(int millisecond) {
 }
 
 Json defaultVal(const Json& a, const Json& b) {
-  if (a.is_null() || a.empty()) {
+  if (a.is_null()) {
     return b;
+  }
+  switch(a.type()) {
+  case Json::value_t::string:
+    return a.get<std::string>().empty() ? b : a;
+  case Json::value_t::boolean:
+    return !a.get<bool>() ? b : a;;
+  case Json::value_t::number_integer:
+    return a.get<int>() == 0 ? b : a;;
+  case Json::value_t::number_unsigned:
+    return a.get<unsigned int>() == 0  ? b : a;;
+  case Json::value_t::number_float:
+    return a.get<float>() == 0.0 ? b : a;;
+  case Json::value_t::binary:
+    return a.get_binary().empty() ? b : a;;
+  case Json::value_t::object:
+  case Json::value_t::array:
+    return a.empty() ? b : a;;
+  default:
+    return b; // All other non-valid or discarded cases
   }
   return a;
 }
