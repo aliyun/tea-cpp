@@ -21,26 +21,39 @@ public:
   doAction(Http::Request &request, const Darabonba::Json &runtime = {});
 
   static std::string uuid();
-  static Json merge(const Json &obj) { return obj; }
-  template <typename... Args>
-  static Json merge(const Json &arg, const Args &...args) {
-    Darabonba::Json ret = arg;
-    ret.merge_patch(merge(args...));
-    return ret;
+  static void merge_helper(Json &) {} // 递归终止条件
+
+  template <typename T, typename... Args>
+  static void merge_helper(Json &result, const T &arg, const Args &...args) {
+    result.update(Json(arg));
+    merge_helper(result, args...);
   }
 
+  template <typename... Args>
+  static Json merge(const Json &arg, const Args &...args) {
+    Json result = arg;
+    merge_helper(result, args...);
+    return result;
+  }
 
 };
 
-template <typename T>
-inline bool isNull(T* const & ptr);
 
 template <typename T>
-inline bool isNull(const T& value);
+inline bool isNull(const T& value) {
+  return false; // 默认情况下非指针类型不是nullptr
+}
 
+template <typename T>
+inline bool isNull(T* const & ptr) {
+  return ptr == nullptr;
+}
 
+// 对于特定类型的特化，如果该类型有意义
 template <>
-inline bool isNull<std::nullptr_t>(const std::nullptr_t&);
+inline bool isNull<std::nullptr_t>(const std::nullptr_t&) {
+  return true;
+}
 
 Json defaultVal(const Json& a, const Json& b);
 
