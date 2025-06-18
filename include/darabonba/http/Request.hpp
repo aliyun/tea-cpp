@@ -139,7 +139,7 @@ namespace nlohmann {
     static std::shared_ptr<Darabonba::Http::Request> from_json(const json &j) {
       if (j.contains("req_address")) {
         Darabonba::Http::Request *ptr = reinterpret_cast<Darabonba::Http::Request *>(j.at("req_address").get<uintptr_t>());
-        return std::shared_ptr<Darabonba::Http::Request>(ptr);
+        return std::make_shared<Darabonba::Http::Request>(*ptr);
       }
       return nullptr;
     }
