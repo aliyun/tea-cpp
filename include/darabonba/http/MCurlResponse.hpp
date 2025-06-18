@@ -28,6 +28,7 @@ class MCurlResponseBody : public IOStream {
   friend class MCurlHttpClient;
 
 public:
+
   MCurlResponseBody &operator=(const MCurlResponseBody &) = default;
 
   MCurlResponseBody &operator=(MCurlResponseBody &&) = default;
@@ -95,6 +96,7 @@ protected:
 class MCurlResponse : public ResponseBase {
 public:
   MCurlResponse() = default;
+  MCurlResponse(const MCurlResponse &other) = default;
   virtual ~MCurlResponse() = default;
 
   MCurlResponse &setHeader(const Header &header) {
@@ -148,7 +150,7 @@ namespace nlohmann {
     static std::shared_ptr<Darabonba::Http::MCurlResponse> from_json(const json &j) {
       if (j.contains("resp_address")) {
         Darabonba::Http::MCurlResponse *ptr = reinterpret_cast<Darabonba::Http::MCurlResponse *>(j.at("resp_address").get<uintptr_t>());
-        return std::shared_ptr<Darabonba::Http::MCurlResponse>(ptr);
+        return std::make_shared<Darabonba::Http::MCurlResponse>(*ptr);
       }
       return nullptr;
     }
