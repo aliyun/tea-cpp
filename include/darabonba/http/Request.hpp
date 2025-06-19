@@ -133,12 +133,12 @@ namespace nlohmann {
   template <>
   struct adl_serializer<std::shared_ptr<Darabonba::Http::Request>> {
     static void to_json(json &j, const std::shared_ptr<Darabonba::Http::Request> &body) {
-      j = {{"req_address", reinterpret_cast<uintptr_t>(body.get())}};
+      j = reinterpret_cast<uintptr_t>(body.get());
     }
 
     static std::shared_ptr<Darabonba::Http::Request> from_json(const json &j) {
-      if (j.contains("req_address")) {
-        Darabonba::Http::Request *ptr = reinterpret_cast<Darabonba::Http::Request *>(j.at("req_address").get<uintptr_t>());
+      if (j.is_null()) {
+        Darabonba::Http::Request *ptr = reinterpret_cast<Darabonba::Http::Request *>(j.get<uintptr_t>());
         return std::make_shared<Darabonba::Http::Request>(*ptr);
       }
       return nullptr;
