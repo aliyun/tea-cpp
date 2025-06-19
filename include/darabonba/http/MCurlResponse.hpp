@@ -129,12 +129,12 @@ namespace nlohmann {
   template <>
   struct adl_serializer<std::shared_ptr<Darabonba::Http::MCurlResponseBody>> {
     static void to_json(json &j, const std::shared_ptr<Darabonba::Http::MCurlResponseBody> &body) {
-      j = {{"body_address", reinterpret_cast<uintptr_t>(body.get())}};
+      j = reinterpret_cast<uintptr_t>(body.get());
     }
 
     static std::shared_ptr<Darabonba::Http::MCurlResponseBody> from_json(const json &j) {
-      if (j.contains("body_address")) {
-        Darabonba::Http::MCurlResponseBody *ptr = reinterpret_cast<Darabonba::Http::MCurlResponseBody *>(j.at("body_address").get<uintptr_t>());
+      if (j.is_null()) {
+        Darabonba::Http::MCurlResponseBody *ptr = reinterpret_cast<Darabonba::Http::MCurlResponseBody *>(j.get<uintptr_t>());
         return std::shared_ptr<Darabonba::Http::MCurlResponseBody>(ptr);
       }
       return nullptr;
@@ -144,12 +144,12 @@ namespace nlohmann {
   template <>
   struct adl_serializer<std::shared_ptr<Darabonba::Http::MCurlResponse>> {
     static void to_json(json &j, const std::shared_ptr<Darabonba::Http::MCurlResponse> &body) {
-      j = {{"resp_address", reinterpret_cast<uintptr_t>(body.get())}};
+      j = reinterpret_cast<uintptr_t>(body.get());
     }
 
     static std::shared_ptr<Darabonba::Http::MCurlResponse> from_json(const json &j) {
-      if (j.contains("resp_address")) {
-        Darabonba::Http::MCurlResponse *ptr = reinterpret_cast<Darabonba::Http::MCurlResponse *>(j.at("resp_address").get<uintptr_t>());
+      if (j.is_null()) {
+        Darabonba::Http::MCurlResponse *ptr = reinterpret_cast<Darabonba::Http::MCurlResponse *>(j.get<uintptr_t>());
         return std::make_shared<Darabonba::Http::MCurlResponse>(*ptr);
       }
       return nullptr;
