@@ -1,8 +1,9 @@
 #ifndef DARABONBA_HTTP_FORM_H_
 #define DARABONBA_HTTP_FORM_H_
 
-#include <darabonba/String.hpp>
-#include <darabonba/http/Query.hpp>
+#include <darabonba/http/FileField.hpp>
+#include <curl/curl.h>
+#include <darabonba/Stream.hpp>
 #include <string>
 
 namespace Darabonba {
@@ -21,8 +22,10 @@ public:
 
   static std::string toFormString(const Json &val);
 
-};
+  static std::shared_ptr<IStream> toFileForm(const Json &form,
+                                          const std::string &boundary);
 
+};
 } // namespace Http
 } // namespace Darabonba
 
