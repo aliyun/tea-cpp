@@ -84,8 +84,6 @@ public:
     DARABONBA_PTR_SET_RVALUE(filename_, filename);
   }
 
-  static std::shared_ptr<Stream> toFileForm(const Json &form,
-                                            const std::string &boundary);
 
 protected:
   // the name of the file
@@ -119,6 +117,7 @@ public:
 protected:
   curl_mime *mime_ = nullptr;
 };
+
 } // namespace Http
 } // namespace Darabonba
 #endif
