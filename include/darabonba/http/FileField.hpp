@@ -34,7 +34,7 @@ namespace Darabonba {
       FileField(FileField &&) = default;
       FileField(const Darabonba::Json &obj) { from_json(obj, *this); }
 
-      virtual ~FileField()  { cout << "sdfsdf" << endl; };
+      virtual ~FileField()  = default;
 
       FileField &operator=(const FileField &) = default;
       FileField &operator=(FileField &&) = default;
