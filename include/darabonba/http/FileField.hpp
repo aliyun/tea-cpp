@@ -11,113 +11,118 @@
 #include <vector>
 
 namespace Darabonba {
-namespace Http {
+  namespace Http {
 
-class FileField : public Model {
-  friend void to_json(Darabonba::Json &j, const FileField &obj) {
-    DARABONBA_PTR_TO_JSON(contentType, contentType_);
-    DARABONBA_PTR_TO_JSON(content, content_);
-    DARABONBA_PTR_TO_JSON(filename, filename_);
-  }
+    bool isFileFiled(const nlohmann::json& jsonObject);
 
-  friend void from_json(const Darabonba::Json &j, FileField &obj) {
-    DARABONBA_PTR_FROM_JSON(contentType, contentType_);
-    DARABONBA_PTR_FROM_JSON(content, content_);
-    DARABONBA_PTR_FROM_JSON(filename, filename_);
-  }
+    class FileField : public Model {
+      friend void to_json(Darabonba::Json &j, const FileField &obj) {
+        DARABONBA_PTR_TO_JSON(contentType, contentType_);
+        DARABONBA_TO_JSON(content, content_);
+        DARABONBA_PTR_TO_JSON(filename, filename_);
+      }
 
-public:
-  FileField() = default;
-  FileField(const FileField &) = default;
-  FileField(FileField &&) = default;
-  FileField(const Darabonba::Json &obj) { from_json(obj, *this); }
+      friend void from_json(const Darabonba::Json &j, FileField &obj) {
+        DARABONBA_PTR_FROM_JSON(contentType, contentType_);
+        DARABONBA_FROM_JSON(content, content_);
+        DARABONBA_PTR_FROM_JSON(filename, filename_);
+      }
 
-  virtual ~FileField() = default;
+    public:
+      FileField() = default;
+      FileField(const FileField &) = default;
+      FileField(FileField &&) = default;
+      FileField(const Darabonba::Json &obj) { from_json(obj, *this); }
 
-  FileField &operator=(const FileField &) = default;
-  FileField &operator=(FileField &&) = default;
+      virtual ~FileField()  { cout << "sdfsdf" << endl; };
 
-  virtual void validate() const override {}
+      FileField &operator=(const FileField &) = default;
+      FileField &operator=(FileField &&) = default;
 
-  virtual void fromMap(const Darabonba::Json &obj) override {
-    from_json(obj, *this);
-    validate();
-  }
+      virtual void validate() const override {}
 
-  virtual Darabonba::Json toMap() const override {
-    Darabonba::Json obj;
-    to_json(obj, *this);
-    return obj;
-  }
+      virtual void fromMap(const Darabonba::Json &obj) override {
+        from_json(obj, *this);
+        validate();
+      }
 
-  virtual bool empty() const override {
-    return contentType_ == nullptr && content_ == nullptr &&
-           filename_ == nullptr;
-  }
+      virtual Darabonba::Json toMap() const override {
+        Darabonba::Json obj;
+        to_json(obj, *this);
+        return obj;
+      }
 
-  bool hasContentType() const { return this->contentType_ != nullptr; }
-  std::string contentType() const {
-    DARABONBA_PTR_GET_DEFAULT(contentType_, "");
-  }
-  FileField &setContentType(const std::string &contentType) {
-    DARABONBA_PTR_SET_VALUE(contentType_, contentType);
-  }
-  FileField &setContentType(std::string &&contentType) {
-    DARABONBA_PTR_SET_RVALUE(contentType_, contentType);
-  }
+      virtual bool empty() const override {
+        return contentType_ == nullptr && content_ == nullptr &&
+               filename_ == nullptr;
+      }
 
-  bool hasContent() const { return this->content_ != nullptr; }
-  std::string content() const { DARABONBA_PTR_GET_DEFAULT(content_, ""); }
-  FileField &setContent(const std::string &content) {
-    DARABONBA_PTR_SET_VALUE(content_, content);
-  }
-  FileField &setContent(std::string &&content) {
-    DARABONBA_PTR_SET_RVALUE(content_, content);
-  }
+      bool hasContentType() const { return this->contentType_ != nullptr; }
+      std::string contentType() const {
+        DARABONBA_PTR_GET_DEFAULT(contentType_, "");
+      }
+      FileField &setContentType(const std::string &contentType) {
+        DARABONBA_PTR_SET_VALUE(contentType_, contentType);
+      }
+      FileField &setContentType(std::string &&contentType) {
+        DARABONBA_PTR_SET_RVALUE(contentType_, contentType);
+      }
 
-  bool hasFilename() const { return this->filename_ != nullptr; }
-  std::string filename() const { DARABONBA_PTR_GET_DEFAULT(filename_, ""); }
-  FileField &setFilename(const std::string &filename) {
-    DARABONBA_PTR_SET_VALUE(filename_, filename);
-  }
-  FileField &setFilename(std::string &&filename) {
-    DARABONBA_PTR_SET_RVALUE(filename_, filename);
-  }
+      bool hasContent() const { return this->content_ != nullptr; }
+      std::shared_ptr<IStream> content() const { DARABONBA_GET(content_); }
+      FileField &setContent(std::shared_ptr<IStream> content) {
+        DARABONBA_SET_VALUE(content_, content);
+      }
+
+      bool hasFilename() const { return this->filename_ != nullptr; }
+      std::string filename() const { DARABONBA_PTR_GET_DEFAULT(filename_, ""); }
+      FileField &setFilename(const std::string &filename) {
+        DARABONBA_PTR_SET_VALUE(filename_, filename);
+      }
+      FileField &setFilename(std::string &&filename) {
+        DARABONBA_PTR_SET_RVALUE(filename_, filename);
+      }
 
 
-protected:
-  // the name of the file
-  std::shared_ptr<std::string> filename_ = nullptr;
+    protected:
+      // the name of the file
+      std::shared_ptr<std::string> filename_ = nullptr;
 
-  // the MIME of the file
-  std::shared_ptr<std::string> contentType_ = nullptr;
+      // the MIME of the file
+      std::shared_ptr<std::string> contentType_ = nullptr;
 
-  // the content of the file
-  std::shared_ptr<std::string> content_ = nullptr;
-};
+      // the content of the file
+      std::shared_ptr<IStream> content_ = nullptr;
+    };
 
-class FileFormStream : public IStream, public std::vector<FileField> {
-public:
-  FileFormStream() = default;
-  FileFormStream(curl_mime *mime) : mime_(mime) {}
+    class FileFormStream : public IStream {
+    public:
+      FileFormStream() = default;
+      FileFormStream(const Json obj) : form_(obj) {}
 
-  virtual ~FileFormStream() { curl_mime_free(mime_); }
+      virtual ~FileFormStream() { curl_mime_free(mime_); }
 
-  /**
-   * @note This is a specail IStream class whose read method is implemented by
-   * libcurl
-   */
-  virtual size_t read(char *buffer, size_t expectSize) override {
-    return expectSize;
-  }
+      /**
+       * @note This is a specail IStream class whose read method is implemented by
+       * libcurl
+       */
+      virtual size_t read(char *buffer, size_t expectSize) override {
+        return expectSize;
+      }
 
-  curl_mime *mime() const { return mime_; }
-  void setMine(curl_mime *mine) { mime_ = mine; }
+      virtual bool isFinished() const override {
+        return true;
+      }
 
-protected:
-  curl_mime *mime_ = nullptr;
-};
+      const Json& form() const { return form_; }
+      curl_mime *mime() const { return mime_; }
+      void setMine(curl_mime *mine) { mime_ = mine; }
 
-} // namespace Http
+    protected:
+      curl_mime *mime_ = nullptr;
+      Json form_ = nullptr;
+    };
+
+  } // namespace Http
 } // namespace Darabonba
 #endif

@@ -22,6 +22,8 @@ size_t writeHeader(char *buffer, size_t size, size_t nitems, void *userdata);
 
 size_t readIStream(char *buffer, size_t size, size_t nitems, void *userdata);
 
+void closeIStream(void *userdata);
+
 void setCurlRequestBody(CURL *curl, std::shared_ptr<Darabonba::IStream> body);
 
 void setCurlProxy(CURL *curl, const std::string &proxy);

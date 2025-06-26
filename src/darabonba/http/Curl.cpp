@@ -30,17 +30,46 @@ size_t writeHeader(char *buffer, size_t size, size_t nitems, void *userdata) {
 
 void setCurlRequestBody(CURL *easyHandle,
                         std::shared_ptr<Darabonba::IStream> body) {
-  auto ffs = std::dynamic_pointer_cast<FileFormStream>(body);
-  if (ffs) {
-    ffs->setMine(curl_mime_init(easyHandle));
-    auto mime = ffs->mime();
-    for (const auto &fileform : *ffs) {
-      auto part = curl_mime_addpart(mime);
-      curl_mime_name(part, fileform.filename().c_str());
-      curl_mime_filedata(part, fileform.content().c_str());
-      curl_mime_type(part, fileform.contentType().c_str());
+  auto fileform = std::dynamic_pointer_cast<FileFormStream>(body);
+  if (fileform) {
+    curl_mimepart *part;
+    fileform->setMine(curl_mime_init(easyHandle));
+    auto mime = fileform->mime();
+    Json form = fileform->form();
+    std::shared_ptr<FileField> file;
+    string fileKey = "";
+    for (auto it = form.begin(); it != form.end(); ++it) {
+      if(isFileFiled(it.value())) {
+        file = std::make_shared<FileField>(it.value());
+        fileKey = it.key();
+        continue;
+      }
+      part = curl_mime_addpart(mime);
+      auto key = it.key();
+      auto value = it.value();
+      std::string data = "";
+      if(value.is_string()) {
+        data = value;
+      } else {
+        data = value.dump();
+      }
+      curl_mime_name(part, key.c_str());
+      curl_mime_data(part, data.c_str(), CURL_ZERO_TERMINATED);
+    }
+
+    if(file != nullptr && !file->empty()) {
+      part = curl_mime_addpart(mime);
+      curl_mime_name(part, fileKey.c_str());
+      curl_mime_filename(part, file->filename().c_str());
+      curl_mime_type(part, file->contentType().c_str());
+      curl_mime_data_cb(part, CURL_ZERO_TERMINATED,
+                        readIStream,
+                        nullptr,
+                        closeIStream,
+                        file->content().get());
     }
     curl_easy_setopt(easyHandle, CURLOPT_MIMEPOST, mime);
+
     return;
   }
   auto is = std::dynamic_pointer_cast<IStream>(body);
@@ -49,6 +78,14 @@ void setCurlRequestBody(CURL *easyHandle,
     curl_easy_setopt(easyHandle, CURLOPT_READDATA, body.get());
     curl_easy_setopt(easyHandle, CURLOPT_READFUNCTION, readIStream);
     return;
+  }
+}
+
+
+void closeIStream(void* userdata) {
+  Darabonba::IStream* stream = static_cast<Darabonba::IStream*>(userdata);
+  if(stream) {
+    delete stream;
   }
 }
 
@@ -71,7 +108,17 @@ void setCurlProxy(CURL *curl, const std::string &proxy) {
 curl_slist *setCurlHeader(CURL *curl, const Darabonba::Http::Header &header) {
   curl_slist *list = nullptr;
   for (const auto &p : header) {
-    list = curl_slist_append(list, (p.first + ": " + p.second).c_str());
+    std::string firstLowerCase = p.first;
+    std::transform(firstLowerCase.begin(), firstLowerCase.end(), firstLowerCase.begin(), ::tolower);
+
+    std::string modifiedSecond = p.second;
+    if (firstLowerCase == "content-type") {
+      const std::string boundaryPrefix = "multipart/form-data; boundary=";
+      if (p.second.compare(0, boundaryPrefix.size(), boundaryPrefix) == 0) {
+        modifiedSecond = "multipart/form-data";
+      }
+    }
+    list = curl_slist_append(list, (p.first + ": " + modifiedSecond).c_str());
   }
   curl_easy_setopt(curl, CURLOPT_HTTPHEADER, list);
   return list;

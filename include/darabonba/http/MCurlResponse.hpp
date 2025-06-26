@@ -46,6 +46,13 @@ public:
    */
   virtual size_t read(char *buffer, size_t expectSize) override;
 
+  virtual bool isFinished() const override {
+    if (done_ && readableSize_ == 0) {
+      return true;
+    }
+    return false;
+  };
+
   /**
    * @brief This method is thread safe.
    */

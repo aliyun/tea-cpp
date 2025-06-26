@@ -21,39 +21,41 @@ MCurlHttpClient::makeRequest(const Request &request,
     return promise.get_future();
   }
 
-  // process the runtime options
-  // ssl
-  if (options.value("ignoreSSL", false)) {
-    curl_easy_setopt(easyHandle, CURLOPT_SSL_VERIFYPEER, 0L);
-    curl_easy_setopt(easyHandle, CURLOPT_SSL_VERIFYHOST, 0L);
-  } else {
-    curl_easy_setopt(easyHandle, CURLOPT_SSL_VERIFYPEER, 1L);
-    curl_easy_setopt(easyHandle, CURLOPT_SSL_VERIFYHOST, 1L);
-  }
-  // timeout
-  auto connectTimeout = options.value("connectTimeout", 5000L);
-  if (connectTimeout > 0) {
-    curl_easy_setopt(easyHandle, CURLOPT_CONNECTTIMEOUT_MS, connectTimeout);
-  }
-  long readTimeout = options.value("readTimeout", 0L);
-  if (readTimeout > 0) {
-    curl_easy_setopt(easyHandle, CURLOPT_TIMEOUT_MS, readTimeout);
-  }
-  // set proxy
-  // TODO: sock5
-  std::string httpProxy = options.value("httpProxy", "");
-  if (!httpProxy.empty()) {
-    curl_easy_setopt(easyHandle, CURLOPT_PROXYTYPE, CURLPROXY_HTTP);
-    Curl::setCurlProxy(easyHandle, httpProxy);
-  }
-  std::string httpsProxy = options.value("httpsProxy", "");
-  if (!httpsProxy.empty()) {
-    curl_easy_setopt(easyHandle, CURLOPT_PROXYTYPE, CURLPROXY_HTTPS);
-    Curl::setCurlProxy(easyHandle, httpsProxy);
-  }
-  std::string noProxy = options.value("noProxy", "");
-  if (!noProxy.empty()) {
-    curl_easy_setopt(easyHandle, CURLOPT_NOPROXY, noProxy.c_str());
+  if(!options.is_null()) {
+    // process the runtime options
+    // ssl
+    if (options.value("ignoreSSL", false)) {
+      curl_easy_setopt(easyHandle, CURLOPT_SSL_VERIFYPEER, 0L);
+      curl_easy_setopt(easyHandle, CURLOPT_SSL_VERIFYHOST, 0L);
+    } else {
+      curl_easy_setopt(easyHandle, CURLOPT_SSL_VERIFYPEER, 1L);
+      curl_easy_setopt(easyHandle, CURLOPT_SSL_VERIFYHOST, 1L);
+    }
+    // timeout
+    auto connectTimeout = options.value("connectTimeout", 5000L);
+    if (connectTimeout > 0) {
+      curl_easy_setopt(easyHandle, CURLOPT_CONNECTTIMEOUT_MS, connectTimeout);
+    }
+    long readTimeout = options.value("readTimeout", 0L);
+    if (readTimeout > 0) {
+      curl_easy_setopt(easyHandle, CURLOPT_TIMEOUT_MS, readTimeout);
+    }
+    // set proxy
+    // TODO: sock5
+    std::string httpProxy = options.value("httpProxy", "");
+    if (!httpProxy.empty()) {
+      curl_easy_setopt(easyHandle, CURLOPT_PROXYTYPE, CURLPROXY_HTTP);
+      Curl::setCurlProxy(easyHandle, httpProxy);
+    }
+    std::string httpsProxy = options.value("httpsProxy", "");
+    if (!httpsProxy.empty()) {
+      curl_easy_setopt(easyHandle, CURLOPT_PROXYTYPE, CURLPROXY_HTTPS);
+      Curl::setCurlProxy(easyHandle, httpsProxy);
+    }
+    std::string noProxy = options.value("noProxy", "");
+    if (!noProxy.empty()) {
+      curl_easy_setopt(easyHandle, CURLOPT_NOPROXY, noProxy.c_str());
+    }
   }
 
   if (nullptr != getenv("DEBUG")) {
@@ -164,6 +166,10 @@ void MCurlHttpClient::perform() {
           // response body has been fully received
           body->done_ = true;
           body->doneCV_.notify_one();
+        }
+
+        if (curlStorage->reqBody) {
+          curlStorage->reqBody.reset(); // 使用智能指针的 reset 方法释放资源
         }
         // remove the easy hanle
         curl_multi_remove_handle(mCurl_, easyHandle);
