@@ -55,6 +55,7 @@ public:
    * stream has been fully read.
    */
   virtual size_t read(char *buffer, size_t expectSize) = 0;
+  virtual bool isFinished() const = 0;
   virtual ~IStream() {}
 };
 
@@ -88,27 +89,94 @@ public:
     return *this;
   }
 
+  ISStream(const ISStream& other) {
+    std::ostringstream oss;
+    oss << other.rdbuf();
+    std::istringstream tempStream(oss.str());
+    std::istringstream::swap(tempStream);
+  }
+
   virtual size_t read(char *buffer, size_t expectSize) override;
+
+  virtual bool isFinished() const override {
+    return eof();
+  }
 };
 
 class IFStream : public IStream, protected std::ifstream {
 public:
-  IFStream() = default;
-  IFStream(std::ifstream &&obj) : std::ifstream(std::move(obj)) {}
+  IFStream() : m_openmode(std::ios_base::in) {}
 
-  virtual ~IFStream() {}
+  IFStream(const std::string& filepath, std::ios_base::openmode mode = std::ios_base::in)
+      : std::ifstream(filepath, mode), m_filepath(filepath), m_openmode(mode) {
+  }
 
-  IFStream &operator=(std::ifstream &&obj) {
-    if (this == &obj)
+  IFStream(const char* filepath, std::ios_base::openmode mode = std::ios_base::in)
+      : std::ifstream(filepath, mode), m_filepath(filepath), m_openmode(mode) {
+  }
+
+  // 深拷贝构造函数
+  IFStream(const IFStream& other)
+      : std::ifstream(), m_filepath(other.m_filepath), m_openmode(other.m_openmode) {
+
+    if (!m_filepath.empty()) {
+      this->open(m_filepath, m_openmode);
+
+      if (this->is_open() && other.is_open()) {
+        // 使用 const_cast 来调用 tellg()
+        auto pos = const_cast<IFStream&>(other).tellg();
+        if (pos != std::streampos(-1)) {
+          this->seekg(pos);
+        }
+        // 获取状态也需要 const_cast
+        this->clear(const_cast<IFStream&>(other).rdstate());
+      }
+    }
+  }
+
+  // 深拷贝赋值操作符
+  IFStream& operator=(const IFStream& other) {
+    if (this == &other) {
       return *this;
-    std::ifstream::operator=(std::move(obj));
+    }
+
+    if (this->is_open()) {
+      this->close();
+    }
+
+    m_filepath = other.m_filepath;
+    m_openmode = other.m_openmode;
+
+    if (!m_filepath.empty()) {
+      this->open(m_filepath, m_openmode);
+
+      if (this->is_open() && other.is_open()) {
+        auto pos = const_cast<IFStream&>(other).tellg();
+        if (pos != std::streampos(-1)) {
+          this->seekg(pos);
+        }
+        this->clear(const_cast<IFStream&>(other).rdstate());
+      }
+    }
+
     return *this;
   }
 
+  virtual ~IFStream() {}
+
   virtual size_t read(char *buffer, size_t expectSize) override;
+
+  virtual bool isFinished() const override {
+    return eof();
+  }
+
+private:
+  std::string m_filepath;
+  std::ios_base::openmode m_openmode;
 };
 
-class OStream : public Stream {
+
+  class OStream : public Stream {
 public:
   virtual ~OStream(){};
   /**
@@ -170,7 +238,16 @@ namespace nlohmann {
     static std::shared_ptr<Darabonba::IStream> from_json(const json &j) {
       if (j.is_number_unsigned()) {
         Darabonba::IStream *ptr = reinterpret_cast<Darabonba::IStream *>(j.get<uintptr_t>());
-        return std::shared_ptr<Darabonba::IStream>(ptr);
+        if (auto* isStreamPtr = dynamic_cast<Darabonba::ISStream*>(ptr)) {
+          return std::make_shared<Darabonba::ISStream>(*isStreamPtr);
+        } else if (auto* ifStreamPtr = dynamic_cast<Darabonba::IFStream*>(ptr)) {
+          return std::make_shared<Darabonba::IFStream>(*ifStreamPtr);
+        }
+        return std::shared_ptr<Darabonba::IStream>(ptr, [](Darabonba::IStream* ptr) {
+          if(ptr && ptr->isFinished()) {
+            delete ptr;
+          }
+        });
       }
       return nullptr;
     }

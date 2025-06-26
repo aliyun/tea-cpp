@@ -45,7 +45,18 @@ public:
   operator std::string() const {
     std::string ret;
     for (const auto &p : *this) {
-      ret += p.first + ": " + p.second + "\r\n";
+      std::string firstLowerCase = p.first;
+      std::transform(firstLowerCase.begin(), firstLowerCase.end(), firstLowerCase.begin(), ::tolower);
+
+      std::string modifiedSecond = p.second;
+
+      if (firstLowerCase == "content-type") {
+        const std::string boundaryPrefix = "multipart/form-data; boundary=";
+        if (p.second.compare(0, boundaryPrefix.size(), boundaryPrefix) == 0) {
+          modifiedSecond = "multipart/form-data";  // 修改 second
+        }
+      }
+      ret += p.first + ": " + modifiedSecond + "\r\n";
     }
     return ret;
   }

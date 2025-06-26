@@ -58,7 +58,7 @@ std::shared_ptr<OStream> Stream::toWritable(const Bytes &raw) {
 
 std::shared_ptr<IStream> Stream::readFromFilePath(const std::string &path) {
   return std::shared_ptr<IStream>(
-      new IFStream(std::ifstream(path, std::ios::binary)));
+      new IFStream(path, std::ios::binary));
 }
 
 std::shared_ptr<IStream> Stream::readFromBytes(Bytes &raw) {
