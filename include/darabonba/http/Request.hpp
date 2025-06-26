@@ -98,7 +98,7 @@ public:
   }
 
   void addHeader(std::string key, std::string value) {
-    header_.emplace(key, value);
+    header_[key] = value;
   }
 
   std::shared_ptr<IStream> body() const { return body_; }
