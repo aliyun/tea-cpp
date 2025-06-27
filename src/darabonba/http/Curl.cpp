@@ -65,7 +65,7 @@ void setCurlRequestBody(CURL *easyHandle,
       curl_mime_data_cb(part, CURL_ZERO_TERMINATED,
                         readIStream,
                         nullptr,
-                        closeIStream,
+                        nullptr,
                         file->content().get());
     }
     curl_easy_setopt(easyHandle, CURLOPT_MIMEPOST, mime);
@@ -81,13 +81,6 @@ void setCurlRequestBody(CURL *easyHandle,
   }
 }
 
-
-void closeIStream(void* userdata) {
-  Darabonba::IStream* stream = static_cast<Darabonba::IStream*>(userdata);
-  if(stream) {
-    delete stream;
-  }
-}
 
 size_t readIStream(char *buffer, size_t size, size_t nitems, void *userdata) {
   auto f = static_cast<IStream *>(userdata);
