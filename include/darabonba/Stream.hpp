@@ -80,7 +80,7 @@ public:
     }
   }
 
-  virtual ~ISStream() {}
+  virtual ~ISStream() = default;
 
   ISStream &operator=(std::istringstream &&obj) {
     if (this == &obj)
@@ -94,6 +94,18 @@ public:
     oss << other.rdbuf();
     std::istringstream tempStream(oss.str());
     std::istringstream::swap(tempStream);
+  }
+
+  ISStream(ISStream&& other) noexcept {
+    std::istringstream::swap(other);
+  }
+
+// 移动赋值运算符
+  ISStream& operator=(ISStream&& other) noexcept {
+    if (this != &other) {
+      std::istringstream::swap(other);
+    }
+    return *this;
   }
 
   virtual size_t read(char *buffer, size_t expectSize) override;
@@ -134,6 +146,12 @@ public:
     }
   }
 
+  IFStream(IFStream&& other) noexcept
+      : std::ifstream(std::move(other)),
+        m_filepath(std::move(other.m_filepath)),
+        m_openmode(other.m_openmode) {
+  }
+
   // 深拷贝赋值操作符
   IFStream& operator=(const IFStream& other) {
     if (this == &other) {
@@ -159,6 +177,19 @@ public:
       }
     }
 
+    return *this;
+  }
+
+  IFStream& operator=(IFStream&& other) noexcept {
+    if (this != &other) {
+      if (this->is_open()) {
+        this->close();
+      }
+
+      std::ifstream::operator=(std::move(other));
+      m_filepath = std::move(other.m_filepath);
+      m_openmode = other.m_openmode;
+    }
     return *this;
   }
 

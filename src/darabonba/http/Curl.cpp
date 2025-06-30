@@ -63,10 +63,10 @@ void setCurlRequestBody(CURL *easyHandle,
       curl_mime_filename(part, file->filename().c_str());
       curl_mime_type(part, file->contentType().c_str());
       curl_mime_data_cb(part, CURL_ZERO_TERMINATED,
-                        readIStream,
+                        readFileFiled,
                         nullptr,
                         nullptr,
-                        file->content().get());
+                        file.get());
     }
     curl_easy_setopt(easyHandle, CURLOPT_MIMEPOST, mime);
 
@@ -81,6 +81,15 @@ void setCurlRequestBody(CURL *easyHandle,
   }
 }
 
+  size_t readFileFiled(char *buffer, size_t size, size_t nitems, void *userdata) {
+    auto ff = static_cast<FileField *>(userdata);
+    if (ff == nullptr)
+      return 0;
+    auto f = ff->content();
+    if (f == nullptr)
+      return 0;
+    return f->read(buffer, size * nitems);
+  }
 
 size_t readIStream(char *buffer, size_t size, size_t nitems, void *userdata) {
   auto f = static_cast<IStream *>(userdata);
