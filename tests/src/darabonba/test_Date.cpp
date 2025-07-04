@@ -4,6 +4,20 @@
 
 using namespace Darabonba;
 
+TEST(Darabonba_Date, DefaultConstructor) {
+    // Create a Date object using the default constructor
+    Darabonba::Date currentDate;
+
+    // Get the current system time
+    std::time_t now = std::time(nullptr);
+    std::tm* currentTimeInfo = std::localtime(&now);
+
+    // Verify the year, month, and day of the month match
+    EXPECT_EQ(currentDate.year(), currentTimeInfo->tm_year + 1900);
+    EXPECT_EQ(currentDate.month(), currentTimeInfo->tm_mon + 1);
+    EXPECT_EQ(currentDate.dayOfMonth(), currentTimeInfo->tm_mday);
+}
+
 TEST(Darabonba_Date, Format) {
     Date date("2023-09-12 17:47:31");
     EXPECT_EQ(date.format("%Y-%m-%d %H:%M:%S"), "2023-09-12 17:47:31");
