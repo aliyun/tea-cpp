@@ -83,7 +83,9 @@ Query::operator std::string() const {
   for (const auto &p : *this) {
     ret += encode(p.first) + '=' + encode(p.second) + '&';
   }
-  ret.pop_back();
+  if (!ret.empty()) {
+    ret.pop_back();
+  }
   return ret;
 }
 
