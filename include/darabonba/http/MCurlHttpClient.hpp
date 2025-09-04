@@ -51,10 +51,10 @@ protected:
   struct CurlStorage {
   public:
     CURL *easyHandle;
-    // request body
-    std::shared_ptr<IStream> reqBody;
     // request header
     curl_slist *reqHeader;
+    // request body
+    std::shared_ptr<IStream> reqBody;
     // http response
     std::shared_ptr<MCurlResponse> resp;
 
