@@ -12,6 +12,13 @@ namespace Darabonba {
 
 class Date {
 public:
+    // Default constructor - initializes to current date and time
+    Date() {
+        std::time_t now = std::time(nullptr);
+        timeInfo = *std::localtime(&now);  // Get current local time
+        timeInfo.tm_isdst = -1;  // Let mktime figure out if DST is in effect
+    }
+
     // Constructor from string
     explicit Date(const std::string& dateStr) {
         this->parse(dateStr);
@@ -32,7 +39,6 @@ public:
         std::time_t utcTime = timegm(&utcTimeInfo); // Use `timegm` if available
         return static_cast<int32_t>(utcTime);
     }
-
 
     // Subtract time period
     Date sub(const std::string& unit, int value) const {
@@ -57,7 +63,7 @@ public:
     // Difference in time period
     int32_t diff(const std::string& unit, const Date& otherDate) const {
         std::tm thisTimeCopy = timeInfo;
-        std::time_t thisTime = std::mktime(&thisTimeCopy);        
+        std::time_t thisTime = std::mktime(&thisTimeCopy);
         std::tm otherTimeCopy = otherDate.timeInfo;
         std::time_t otherTime = std::mktime(&otherTimeCopy);
         
@@ -122,7 +128,7 @@ private:
         if (ss.fail()) {
             throw std::invalid_argument("Invalid date format");
         }
-        timeInfo.tm_isdst = -1;
+        timeInfo.tm_isdst = -1; // Automatically determine if DST is in effect
     }
 };
 
