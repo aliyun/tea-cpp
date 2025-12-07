@@ -30,18 +30,35 @@ jobs:
         brew install openssl curl
         echo "OPENSSL_ROOT_DIR=$(brew --prefix openssl)" >> $GITHUB_ENV
 
+    - name: Setup vcpkg (Windows)
+      if: runner.os == 'Windows'
+      uses: microsoft/setup-vcpkg@v3
+      id: vcpkg-setup
+      with:
+        vcpkgGitCommitSha: '2024.01.12'  # Use a specific vcpkg version for cache stability
+
     - name: Cache vcpkg
       if: runner.os == 'Windows'
       uses: actions/cache@v4
+      id: vcpkg-cache
       with:
-        path: C:\vcpkg\installed
-        key: ${{ runner.os }}-vcpkg-curl-openssl
+        path: ${{ env.VCPKG_ROOT }}/installed
+        key: ${{ runner.os }}-vcpkg-2024.01.12-curl-openssl-x64-windows
+        restore-keys: |
+          ${{ runner.os }}-vcpkg-2024.01.12-
 
     - name: Install dependencies (Windows)
       if: runner.os == 'Windows'
       run: |
-        vcpkg install curl:x64-windows openssl:x64-windows
-        echo "CMAKE_TOOLCHAIN_FILE=$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" >> $env:GITHUB_ENV
+        $vcpkgRoot = $env:VCPKG_ROOT
+        $cacheHit = "${{ steps.vcpkg-cache.outputs.cache-hit }}" -eq "true"
+        if (-not $cacheHit) {
+          Write-Host "Cache miss, installing vcpkg packages..."
+          & "$vcpkgRoot\vcpkg.exe" install curl:x64-windows openssl:x64-windows
+        } else {
+          Write-Host "Cache hit! Using cached vcpkg packages."
+        }
+        echo "CMAKE_TOOLCHAIN_FILE=$vcpkgRoot/scripts/buildsystems/vcpkg.cmake" >> $env:GITHUB_ENV
 
     - name: Configure CMake
       run: cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DENABLE_UNIT_TESTS=ON
