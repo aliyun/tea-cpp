@@ -34,8 +34,8 @@ public:
       : requestUrl_(other.requestUrl_), method_(other.method_),
         header_(other.header_), body_(other.body_ ? other.body_ : nullptr) {}
 
-  Request &operator=(Request &&) = default;
-  Request &operator=(const Request &) = default;
+  Request &operator=(Request &&other) = default;
+  Request &operator=(const Request &other) = default;
 
   // Rename url() to getUrl() to avoid conflict with potential macros or static member requirements
   const URL &getUrl() const { return requestUrl_; }
