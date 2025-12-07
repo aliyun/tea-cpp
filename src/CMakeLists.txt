@@ -2,6 +2,12 @@ file(GLOB_RECURSE CPP_FILES "*.cpp")
 
 add_library(${PROJECT_NAME} SHARED ${CPP_FILES})
 
+if(WIN32)
+  # Ensure MSVC emits the import library by exporting all public symbols
+  set_target_properties(${PROJECT_NAME} PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
+  target_compile_definitions(${PROJECT_NAME} PRIVATE DARABONBA_CORE_BUILD)
+endif()
+
 # openssl
 target_link_libraries(${PROJECT_NAME} OpenSSL::SSL OpenSSL::Crypto)
 
