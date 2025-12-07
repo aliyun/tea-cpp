@@ -2,6 +2,8 @@
 #define DARABONBA_CORE_H_
 
 #include <darabonba/Type.hpp>
+#include <darabonba/Runtime.hpp>
+#include <darabonba/policy/Retry.hpp>
 #include <darabonba/http/MCurlResponse.hpp>
 #include <darabonba/http/Request.hpp>
 #include <future>
