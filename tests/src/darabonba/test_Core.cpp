@@ -46,9 +46,10 @@ TEST_F(CoreTest, DoActionReturnsValidResponse) {
         // 打印响应体内容
         std::shared_ptr<Http::MCurlResponseBody> responseBody = response->body();
         if (responseBody && responseBody->readableSize() > 0) {
-            char buffer[responseBody->readableSize()];
-            size_t bytesRead = responseBody->read(buffer, sizeof(buffer));
-            std::cout << "Response Body: " << std::string(buffer, bytesRead) << std::endl;
+            size_t size = responseBody->readableSize();
+            std::vector<char> buffer(size);
+            size_t bytesRead = responseBody->read(buffer.data(), buffer.size());
+            std::cout << "Response Body: " << std::string(buffer.data(), bytesRead) << std::endl;
         } else {
             std::cout << "No readable data in response body." << std::endl;
         }
@@ -83,9 +84,10 @@ TEST_F(CoreTest, DoActionWithEmptyHostFails) {
         // 打印响应体内容
         std::shared_ptr<Http::MCurlResponseBody> responseBody = response->body();
         if (responseBody && responseBody->readableSize() > 0) {
-            char buffer[responseBody->readableSize()];
-            size_t bytesRead = responseBody->read(buffer, sizeof(buffer));
-            std::cout << "Response Body: " << std::string(buffer, bytesRead) << std::endl;
+            size_t size = responseBody->readableSize();
+            std::vector<char> buffer(size);
+            size_t bytesRead = responseBody->read(buffer.data(), buffer.size());
+            std::cout << "Response Body: " << std::string(buffer.data(), bytesRead) << std::endl;
         } else {
             std::cout << "No readable data in response body." << std::endl;
         }

@@ -52,8 +52,13 @@ TEST(Darabonba_Date, DiffDays) {
 // }
 
 TEST(Darabonba_Date, WeekOfYearCalculation) {
+#ifdef _WIN32
+  _putenv_s("TZ", "UTC");
+  _tzset();
+#else
   setenv("TZ", "UTC", 1);
   tzset();
+#endif
   Date date("2023-01-01 00:00:00");
   EXPECT_EQ(date.weekOfYear(),
             1); // Might vary depending on the week-start conventions
