@@ -8,3 +8,5 @@ target_include_directories(${PROJECT_NAME}Test
 
 # googletest
 target_link_libraries(${PROJECT_NAME}Test ${PROJECT_NAME} gtest gmock gtest_main)
+
+add_test(NAME ${PROJECT_NAME}Test COMMAND ${PROJECT_NAME}Test)

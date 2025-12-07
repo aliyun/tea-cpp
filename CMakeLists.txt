@@ -27,6 +27,7 @@ include_directories(include)
 add_subdirectory(src)
 
 if(ENABLE_UNIT_TESTS)
+  enable_testing()
   add_subdirectory(tests)
 endif()
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Install set up >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> #

@@ -9,7 +9,7 @@ mkdir -p cmake_build/
 cd "cmake_build/" || exit
 cmake -DENABLE_UNIT_TESTS=ON -DENABLE_COVERAGE=ON .. || exit
 cmake --build . || exit
-./bin/tests || exit
+./bin/darabonba_coreTest || exit
 
 utdir="$basepath/cmake_build"
 

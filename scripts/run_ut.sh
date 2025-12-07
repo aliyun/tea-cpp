@@ -21,7 +21,7 @@ main() {
         error_exit "Failed to make."
     }
 
-    ./bin/tests || {
+    ./bin/darabonba_coreTest || {
         error_exit "Failed to test."
     }
 }
