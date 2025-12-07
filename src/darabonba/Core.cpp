@@ -149,7 +149,7 @@ int getBackoffTime(const RetryOptions& options, const RetryPolicyContext& ctx) {
     int retryAfter = ex->retry_fater();
 
     if (retryAfter > 0) {
-      return std::min(retryAfter, maxDelay);
+      return (std::min)(retryAfter, maxDelay);
     }
 
     if (!condition.backoff()) {
@@ -158,7 +158,7 @@ int getBackoffTime(const RetryOptions& options, const RetryPolicyContext& ctx) {
 
     BackoffPolicy* strategy = condition.backoff().get();
     if (strategy) {
-      return std::min(strategy->getDelayTime(ctx), maxDelay);
+      return (std::min)(strategy->getDelayTime(ctx), maxDelay);
     }
 
     return MIN_DELAY_TIME;

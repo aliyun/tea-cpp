@@ -12,8 +12,8 @@ namespace Http {
 void MCurlResponseBody::waitForDone() {
   if (done_)
     return;
-  if (maxSize_ != std::numeric_limits<size_t>::max()) {
-    maxSize_ = std::numeric_limits<size_t>::max();
+  if (maxSize_ != (std::numeric_limits<size_t>::max)()) {
+    maxSize_ = (std::numeric_limits<size_t>::max)();
     client_->addContinueReadingHandle(easyHandle_);
   }
   std::mutex mutex;
@@ -28,7 +28,7 @@ size_t MCurlResponseBody::read(char *buffer, size_t expectSize) {
     return 0;
   size_t realSize = 0;
   do {
-    realSize = std::min({expectSize, readableSize_.load(), maxSize_.load()});
+    realSize = (std::min)({expectSize, readableSize_.load(), maxSize_.load()});
     if (realSize != 0) {
       {
         std::lock_guard<Lock::SpinLock> lock(bufferlock_);

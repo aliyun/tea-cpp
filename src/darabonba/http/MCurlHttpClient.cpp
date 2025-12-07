@@ -74,11 +74,11 @@ MCurlHttpClient::makeRequest(const Request &request,
 
   // init header
   auto curlStorage = std::unique_ptr<CurlStorage>(new CurlStorage{
-      .easyHandle = easyHandle,
-      .reqHeader = Curl::setCurlHeader(easyHandle, request.header()),
-      .reqBody = request.body(),
-      .resp = std::make_shared<MCurlResponse>(),
-      .promise = std::unique_ptr<std::promise<std::shared_ptr<MCurlResponse>>>(
+      easyHandle,
+      Curl::setCurlHeader(easyHandle, request.header()),
+      request.body(),
+      std::make_shared<MCurlResponse>(),
+      std::unique_ptr<std::promise<std::shared_ptr<MCurlResponse>>>(
           new std::promise<std::shared_ptr<MCurlResponse>>())});
 
   // set response body

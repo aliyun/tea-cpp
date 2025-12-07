@@ -41,7 +41,7 @@ public:
   virtual size_t readableSize() const override { return writePos_ - readPos_; }
 
   virtual size_t read(char *buffer, size_t expectSize) override {
-    auto realSize = std::min(expectSize, readableSize());
+    auto realSize = (std::min)(expectSize, readableSize());
     memcpy(buffer, readPos_, realSize);
     readPos_ += realSize;
     return realSize;
