@@ -1,4 +1,3 @@
-
 #include <cctype>
 #include <curl/curl.h>
 #include <darabonba/http/Query.hpp>
@@ -67,7 +66,8 @@ std::string Query::decode(const std::string &content) {
   std::string ret;
   for (size_t i = 0; i < content.size();) {
     auto c = content[i];
-    if (c == '%' && isHexChar(content[i + 1]) && isHexChar(content[i + 2])) {
+    if (c == '%' && (i + 2) < content.size() && isHexChar(content[i + 1]) &&
+        isHexChar(content[i + 2])) {
       ret.push_back((hexVal(content[i + 1]) << 4) | (hexVal(content[i + 2])));
       i += 3;
     } else {
@@ -80,11 +80,13 @@ std::string Query::decode(const std::string &content) {
 
 Query::operator std::string() const {
   std::string ret;
+  bool first = true;
   for (const auto &p : *this) {
-    ret += encode(p.first) + '=' + encode(p.second) + '&';
-  }
-  if (!ret.empty()) {
-    ret.pop_back();
+    if (!first) {
+      ret.push_back('&');
+    }
+    first = false;
+    ret += encode(p.first) + '=' + encode(p.second);
   }
   return ret;
 }
