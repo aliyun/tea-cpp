@@ -11,6 +11,37 @@
 namespace Darabonba {
 namespace Http {
 
+// Undefine Windows macros that conflict with HTTP method names
+#ifdef _WIN32
+#ifdef GET
+#undef GET
+#endif
+#ifdef POST
+#undef POST
+#endif
+#ifdef DELETE
+#undef DELETE
+#endif
+#ifdef PUT
+#undef PUT
+#endif
+#ifdef HEAD
+#undef HEAD
+#endif
+#ifdef OPTIONS
+#undef OPTIONS
+#endif
+#ifdef CONNECT
+#undef CONNECT
+#endif
+#ifdef TRACE
+#undef TRACE
+#endif
+#ifdef PATCH
+#undef PATCH
+#endif
+#endif // _WIN32
+
 class Request {
 public:
   enum class Method {
