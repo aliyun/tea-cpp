@@ -5,7 +5,6 @@
 #include <darabonba/http/Header.hpp>
 #include <darabonba/http/Query.hpp>
 #include <darabonba/http/URL.hpp>
-#include <iostream>
 #include <memory>
 #include <string>
 
@@ -31,11 +30,9 @@ public:
   Request(const URL &url) : requestUrl_(url) {}
   ~Request() = default;
 
-  Request(const Request& other) :
-      requestUrl_(other.requestUrl_),
-      method_(other.method_),
-      header_(other.header_),
-      body_(other.body_ ? other.body_ : nullptr) {}
+  Request(const Request &other)
+      : requestUrl_(other.requestUrl_), method_(other.method_),
+        header_(other.header_), body_(other.body_ ? other.body_ : nullptr) {}
 
   Request &operator=(Request &&) = default;
   Request &operator=(const Request &) = default;
@@ -97,9 +94,7 @@ public:
     return *this;
   }
 
-  void addHeader(std::string key, std::string value) {
-    header_[key] = value;
-  }
+  void addHeader(std::string key, std::string value) { header_[key] = value; }
 
   std::shared_ptr<IStream> body() const { return body_; }
   Request &setBody(std::shared_ptr<IStream> body) {
@@ -114,7 +109,9 @@ public:
 
   // New methods to access protocol and path
   std::string getProtocol() const { return requestUrl_.scheme(); }
-  void setProtocol(const std::string &protocol) { requestUrl_.setScheme(protocol); }
+  void setProtocol(const std::string &protocol) {
+    requestUrl_.setScheme(protocol);
+  }
 
   std::string getPathname() const { return requestUrl_.pathName(); }
   void setPathname(const std::string &path) { requestUrl_.setPathName(path); }
@@ -130,20 +127,21 @@ protected:
 } // namespace Darabonba
 
 namespace nlohmann {
-  template <>
-  struct adl_serializer<std::shared_ptr<Darabonba::Http::Request>> {
-    static void to_json(json &j, const std::shared_ptr<Darabonba::Http::Request> &body) {
-      j = reinterpret_cast<uintptr_t>(body.get());
-    }
+template <> struct adl_serializer<std::shared_ptr<Darabonba::Http::Request>> {
+  static void to_json(json &j,
+                      const std::shared_ptr<Darabonba::Http::Request> &body) {
+    j = reinterpret_cast<uintptr_t>(body.get());
+  }
 
-    static std::shared_ptr<Darabonba::Http::Request> from_json(const json &j) {
-      if (j.is_null()) {
-        Darabonba::Http::Request *ptr = reinterpret_cast<Darabonba::Http::Request *>(j.get<uintptr_t>());
-        return std::make_shared<Darabonba::Http::Request>(*ptr);
-      }
-      return nullptr;
+  static std::shared_ptr<Darabonba::Http::Request> from_json(const json &j) {
+    if (j.is_null()) {
+      Darabonba::Http::Request *ptr =
+          reinterpret_cast<Darabonba::Http::Request *>(j.get<uintptr_t>());
+      return std::make_shared<Darabonba::Http::Request>(*ptr);
     }
-  };
-}
+    return nullptr;
+  }
+};
+} // namespace nlohmann
 
 #endif

@@ -1,11 +1,9 @@
 #ifndef SSE_EVENT_HPP
 #define SSE_EVENT_HPP
 
-#include <string>
-#include <map>
-#include <stdexcept>
 #include <darabonba/Model.hpp>
 #include <darabonba/Type.hpp>
+#include <string>
 
 using json = nlohmann::json;
 

@@ -27,7 +27,7 @@ std::string Form::toFormString(const Json &val) {
                                    : el.value().dump())
         << "&";
   }
-  string formstring = tmp.str();
+  std::string formstring = tmp.str();
   formstring.pop_back();
   return formstring;
 }
