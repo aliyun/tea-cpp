@@ -57,20 +57,20 @@ public:
   };
 
   Request() = default;
-  Request(const std::string &url) : requestUrl_(url) {}
-  Request(const URL &url) : requestUrl_(url) {}
+  Request(const std::string &url) : url_(url) {}
+  Request(const URL &url) : url_(url) {}
   ~Request() = default;
 
   Request(const Request &other)
-      : requestUrl_(other.requestUrl_), method_(other.method_),
+      : url_(other.url_), method_(other.method_),
         header_(other.header_), body_(other.body_ ? other.body_ : nullptr) {}
 
   Request &operator=(Request &&other) = default;
   Request &operator=(const Request &other) = default;
 
   // Rename url() to getUrl() to avoid conflict with potential macros or static member requirements
-  const URL &getUrl() const { return requestUrl_; }
-  URL &getUrl() { return requestUrl_; }
+  const URL &getUrl() const { return url_; }
+  URL &getUrl() { return url_; }
 
   std::string method() const;
 
@@ -80,19 +80,19 @@ public:
   };
   Request &setMethod(const std::string &method);
 
-  const Query &query() const { return requestUrl_.query(); }
-  Query &query() { return requestUrl_.query(); }
+  const Query &query() const { return url_.query(); }
+  Query &query() { return url_.query(); }
   Request &setQuery(const Query &query) {
-    requestUrl_.setQuery(query);
+    url_.setQuery(query);
     return *this;
   }
   Request &setQuery(Query &&query) {
-    requestUrl_.setQuery(std::move(query));
+    url_.setQuery(std::move(query));
     return *this;
   }
 
   void addQuery(std::string key, std::string value) {
-    requestUrl_.query().emplace(key, value);
+    url_.query().emplace(key, value);
   }
 
   std::string header(const std::string key) const {
@@ -140,16 +140,16 @@ public:
   }
 
   // New methods to access protocol and path
-  std::string getProtocol() const { return requestUrl_.scheme(); }
+  std::string getProtocol() const { return url_.scheme(); }
   void setProtocol(const std::string &protocol) {
-    requestUrl_.setScheme(protocol);
+    url_.setScheme(protocol);
   }
 
-  std::string getPathname() const { return requestUrl_.pathName(); }
-  void setPathname(const std::string &path) { requestUrl_.setPathName(path); }
+  std::string getPathname() const { return url_.pathName(); }
+  void setPathname(const std::string &path) { url_.setPathName(path); }
 
 protected:
-  URL requestUrl_;
+  URL url_;
   Method method_ = Method::GET;
   Header header_;
   std::shared_ptr<IStream> body_;
