@@ -67,7 +67,7 @@ MCurlHttpClient::makeRequest(const Request &request,
   curl_easy_setopt(easyHandle, CURLOPT_CUSTOMREQUEST, request.method().c_str());
   // set request url
   curl_easy_setopt(easyHandle, CURLOPT_URL,
-                   static_cast<std::string>(request.url()).c_str());
+                   static_cast<std::string>(request.getUrl()).c_str());
 
   // set the storage of request body
   Curl::setCurlRequestBody(easyHandle, request.body());

@@ -37,8 +37,9 @@ public:
   Request &operator=(Request &&) = default;
   Request &operator=(const Request &) = default;
 
-  const URL &url() const { return requestUrl_; }
-  URL &url() { return requestUrl_; }
+  // Rename url() to getUrl() to avoid conflict with potential macros or static member requirements
+  const URL &getUrl() const { return requestUrl_; }
+  URL &getUrl() { return requestUrl_; }
 
   std::string method() const;
 

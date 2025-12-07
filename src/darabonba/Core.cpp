@@ -77,7 +77,7 @@ Core::doAction(Http::Request &request, const Darabonba::Json &runtime) {
   }();
   // modfiy the request url
   auto &header = request.header();
-  auto &url = request.url();
+  auto &url = request.getUrl();
   if (url.host().empty()) {
     auto it = header.find("host");
     if (it != header.end()) {
