@@ -32,20 +32,23 @@ jobs:
 
     - name: Setup vcpkg (Windows)
       if: runner.os == 'Windows'
-      uses: microsoft/setup-vcpkg@v3
-      id: vcpkg-setup
-      with:
-        vcpkgGitCommitSha: '2024.01.12'  # Use a specific vcpkg version for cache stability
+      id: setup-vcpkg
+      run: |
+        $vcpkgRoot = "$env:RUNNER_TEMP\vcpkg"
+        git clone https://github.com/Microsoft/vcpkg.git $vcpkgRoot
+        & "$vcpkgRoot\bootstrap-vcpkg.bat"
+        echo "VCPKG_ROOT=$vcpkgRoot" >> $env:GITHUB_ENV
+        echo "vcpkg-root=$vcpkgRoot" >> $env:GITHUB_OUTPUT
 
     - name: Cache vcpkg
       if: runner.os == 'Windows'
       uses: actions/cache@v4
       id: vcpkg-cache
       with:
-        path: ${{ env.VCPKG_ROOT }}/installed
-        key: ${{ runner.os }}-vcpkg-2024.01.12-curl-openssl-x64-windows
+        path: ${{ steps.setup-vcpkg.outputs.vcpkg-root }}/installed
+        key: ${{ runner.os }}-vcpkg-curl-openssl-x64-windows
         restore-keys: |
-          ${{ runner.os }}-vcpkg-2024.01.12-
+          ${{ runner.os }}-vcpkg-
 
     - name: Install dependencies (Windows)
       if: runner.os == 'Windows'
