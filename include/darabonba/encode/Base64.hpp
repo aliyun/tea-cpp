@@ -108,7 +108,9 @@ public:
   }
 
 protected:
-  static const char base64Chars[64 + 1];
+  // Header-only constexpr to avoid MSVC unresolved external across DLL/objects
+  static constexpr const char* base64Chars =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
   static inline int posOfBase64Char(const unsigned char c) {
     if ('A' <= c && c <= 'Z')
