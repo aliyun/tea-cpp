@@ -20,12 +20,23 @@ public:
   Hash(const EVP_MD *type) : ctx_(EVP_MD_CTX_new()) {
     EVP_DigestInit_ex(ctx_, type, nullptr);
   }
-  Hash(const Hash &obj) : ctx_(EVP_MD_CTX_dup(obj.ctx_)) {}
+  Hash(const Hash &obj) : ctx_(EVP_MD_CTX_new()) {
+    if (ctx_ && obj.ctx_) {
+      EVP_MD_CTX_copy(ctx_, obj.ctx_);
+    }
+  }
   Hash(Hash &&obj) : ctx_(obj.ctx_) { obj.ctx_ = nullptr; }
   Hash &operator=(const Hash &obj) {
     if (this == &obj)
       return *this;
-    ctx_ = EVP_MD_CTX_dup(obj.ctx_);
+    
+    if (ctx_) {
+        EVP_MD_CTX_free(ctx_);
+    }
+    ctx_ = EVP_MD_CTX_new();
+    if (ctx_ && obj.ctx_) {
+      EVP_MD_CTX_copy(ctx_, obj.ctx_);
+    }
     return *this;
   }
   Hash &operator=(Hash &&obj) {

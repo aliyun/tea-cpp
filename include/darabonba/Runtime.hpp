@@ -30,7 +30,7 @@ public:
   };
   virtual void fromMap(const Darabonba::Json &obj) override { from_json(obj, *this); validate(); };
   virtual Darabonba::Json toMap() const override { Darabonba::Json obj; to_json(obj, *this); return obj; };
-  virtual bool empty() const override { this->headers_ != nullptr
+  virtual bool empty() const override { return this->headers_ != nullptr
                                                               && this->queries_ != nullptr; };
   // headers Field Functions
   bool hasHeaders() const { return this->headers_ != nullptr;};
@@ -112,7 +112,7 @@ public:
   };
   virtual void fromMap(const Darabonba::Json &obj) override { from_json(obj, *this); validate(); };
   virtual Darabonba::Json toMap() const override { Darabonba::Json obj; to_json(obj, *this); return obj; };
-  virtual bool empty() const override { this->autoretry_ != nullptr
+  virtual bool empty() const override { return this->autoretry_ != nullptr
                                                                 && this->ignoreSSL_ != nullptr && this->key_ != nullptr && this->cert_ != nullptr && this->ca_ != nullptr && this->maxAttempts_ != nullptr
                                                                                                                                                                                                   && this->backoffPolicy_ != nullptr && this->backoffPeriod_ != nullptr && this->readTimeout_ != nullptr && this->connectTimeout_ != nullptr && this->httpProxy_ != nullptr
                                                                                                                                                                                                                                                                                                                                                                    && this->httpsProxy_ != nullptr && this->noProxy_ != nullptr && this->maxIdleConns_ != nullptr && this->localAddr_ != nullptr && this->socks5Proxy_ != nullptr
