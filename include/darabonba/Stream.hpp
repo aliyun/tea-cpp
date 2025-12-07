@@ -89,7 +89,8 @@ public:
     return *this;
   }
 
-  ISStream(const ISStream& other) {
+  ISStream(const ISStream& other)
+    : std::basic_ios<char>(nullptr), std::istringstream() {
     std::ostringstream oss;
     oss << other.rdbuf();
     std::istringstream tempStream(oss.str());
@@ -129,7 +130,7 @@ public:
 
   // 深拷贝构造函数
   IFStream(const IFStream& other)
-      : std::ifstream(), m_filepath(other.m_filepath), m_openmode(other.m_openmode) {
+      : std::basic_ios<char>(nullptr), std::ifstream(), m_filepath(other.m_filepath), m_openmode(other.m_openmode) {
 
     if (!m_filepath.empty()) {
       this->open(m_filepath, m_openmode);

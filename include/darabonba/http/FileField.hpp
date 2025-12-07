@@ -105,6 +105,7 @@ public:
    * libcurl
    */
   virtual size_t read(char *buffer, size_t expectSize) override {
+    (void)buffer;
     return expectSize;
   }
 
@@ -113,10 +114,12 @@ public:
   const Json &form() const { return form_; }
   curl_mime *mime() const { return mime_; }
   void setMine(curl_mime *mine) { mime_ = mine; }
+  void setBoundary(const std::string &boundary) { boundary_ = boundary; }
 
 protected:
   curl_mime *mime_ = nullptr;
   Json form_ = nullptr;
+  std::string boundary_;
 };
 
 } // namespace Http

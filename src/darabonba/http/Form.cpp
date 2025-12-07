@@ -36,7 +36,8 @@ std::string Form::toFormString(const Json &val) {
 std::shared_ptr<IStream> Form::toFileForm(const Json &form,
                                               const std::string &boundary) {
 
-  auto p = make_shared<FileFormStream>(form);
+  auto p = std::make_shared<FileFormStream>(form);
+  p->setBoundary(boundary);
   return std::shared_ptr<IStream>(p);
 }
 
