@@ -16,10 +16,10 @@ class Array {
 public:
   static std::vector<std::string> split(const std::vector<std::string> &raw,
                                         int index, int limit) {
-    index = std::max(index, 0);
+    index = (std::max)(index, 0);
     if (static_cast<size_t>(index) >= raw.size() || limit <= index)
       return {};
-    limit = std::min(std::max(limit, 0), static_cast<int>(raw.size()));
+    limit = (std::min)((std::max)(limit, 0), static_cast<int>(raw.size()));
     return std::vector<std::string>(raw.begin() + index, raw.begin() + limit);
   }
 

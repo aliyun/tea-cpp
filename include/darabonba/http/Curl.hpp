@@ -32,7 +32,8 @@ void setCurlProxy(CURL *curl, const std::string &proxy);
 
 curl_slist *setCurlHeader(CURL *curl, const Darabonba::Http::Header &header);
 
-int debugFunction(CURL *curl, curl_infotype type, char *data, size_t size, void *userptr);
+int debugFunction(CURL *curl, curl_infotype type, char *data, size_t size,
+                  void *userptr);
 
 } // namespace Curl
 } // namespace Http

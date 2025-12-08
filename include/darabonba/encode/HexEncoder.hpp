@@ -22,7 +22,8 @@ public:
   }
 
 protected:
-  static const char hexDigits[16 + 1];
+  // Define as header-only constexpr to avoid DLL export/linkage issues on MSVC
+  static constexpr const char* hexDigits = "0123456789abcdef";
 };
 
 } // namespace Encode

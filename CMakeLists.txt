@@ -6,6 +6,21 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# Ensure consistent MSVC runtime: use dynamic MD/MDd
+if (MSVC)
+  # CMake >= 3.15 supports this variable; your environment meets the requirement
+  set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+  # Remove any manually-injected /MT or /MD flags to avoid mismatches
+  foreach(lang C CXX)
+    foreach(var CMAKE_${lang}_FLAGS CMAKE_${lang}_FLAGS_DEBUG CMAKE_${lang}_FLAGS_RELEASE CMAKE_${lang}_FLAGS_RELWITHDEBINFO CMAKE_${lang}_FLAGS_MINSIZEREL)
+      if (DEFINED ${var})
+        string(REGEX REPLACE "/MT[d]?" "" ${var} "${${var}}")
+        string(REGEX REPLACE "/MD[d]?" "" ${var} "${${var}}")
+      endif()
+    endforeach()
+  endforeach()
+endif()
+
 # compiler warning
 if(MSVC)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4 /w44265 /w44061 /w44062")
@@ -27,6 +42,7 @@ include_directories(include)
 add_subdirectory(src)
 
 if(ENABLE_UNIT_TESTS)
+  enable_testing()
   add_subdirectory(tests)
 endif()
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Install set up >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> #

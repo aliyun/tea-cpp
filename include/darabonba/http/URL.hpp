@@ -2,21 +2,19 @@
 #define DARABONBA_HTTP_URL_H_
 
 #include <cstdint>
-#include <curl/curl.h>
 #include <darabonba/http/Query.hpp>
 #include <map>
-#include <sstream>
 #include <string>
 
 namespace Darabonba {
 namespace Http {
 class URL {
 public:
-  URL(const std::string &);
-  URL(const char *s) : URL(std::string(s)) {}
+  explicit URL(const std::string &);
+  explicit URL(const char *s) : URL(std::string(s)) {}
   URL() = default;
 
-  operator std::string() const;
+  explicit operator std::string() const;
 
   URL(const URL &other) = default;
   URL(URL &&other) = default;
@@ -30,7 +28,7 @@ public:
   const Query &query() const { return query_; }
   Query &query() { return query_; }
   std::string query(const std::string &name) const {
-    auto it = query_.find(name);
+    const auto it = query_.find(name);
     return (it != query_.end()) ? it->second : "";
   }
   URL &setQuery(const Query &query) {

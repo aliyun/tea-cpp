@@ -37,7 +37,7 @@ void setCurlRequestBody(CURL *easyHandle,
     auto mime = fileform->mime();
     Json form = fileform->form();
     std::shared_ptr<FileField> file;
-    string fileKey = "";
+    std::string fileKey;
     for (auto it = form.begin(); it != form.end(); ++it) {
       if(isFileFiled(it.value())) {
         file = std::make_shared<FileField>(it.value());

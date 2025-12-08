@@ -1,4 +1,3 @@
-
 #include <algorithm>
 #include <cctype>
 #include <curl/curl.h>
@@ -14,11 +13,12 @@ URL::URL(const std::string &url) {
   if (curlu == nullptr)
     return;
   curl_url_set(curlu, CURLUPART_URL, url.c_str(), 0);
-  char *scheme = nullptr, *user = nullptr, *password, *host = nullptr,
-       *port = nullptr, *path = nullptr, *query = nullptr, *fragment = nullptr;
+  char *scheme = nullptr, *user = nullptr, *password = nullptr,
+       *host = nullptr, *port = nullptr, *path = nullptr, *query = nullptr,
+       *fragment = nullptr;
   curl_url_get(curlu, CURLUPART_SCHEME, &scheme, 0);
   curl_url_get(curlu, CURLUPART_USER, &user, 0);
-  curl_url_get(curlu, CURLUPART_USER, &password, 0);
+  curl_url_get(curlu, CURLUPART_PASSWORD, &password, 0);
   curl_url_get(curlu, CURLUPART_HOST, &host, 0);
   curl_url_get(curlu, CURLUPART_PATH, &path, 0);
   curl_url_get(curlu, CURLUPART_PORT, &port, 0);

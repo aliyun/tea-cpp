@@ -1,17 +1,20 @@
 #ifndef DARABONBA_CORE_H_
 #define DARABONBA_CORE_H_
 
+#include <darabonba/Type.hpp>
 #include <darabonba/Runtime.hpp>
 #include <darabonba/policy/Retry.hpp>
-#include <darabonba/Type.hpp>
 #include <darabonba/http/MCurlResponse.hpp>
 #include <darabonba/http/Request.hpp>
 #include <future>
 #include <memory>
 #include <string>
-#include <type_traits>
 
 namespace Darabonba {
+namespace Policy {
+class RetryOptions;
+class RetryPolicyContext;
+} // namespace Policy
 class Core {
 public:
   /**
@@ -35,31 +38,27 @@ public:
     merge_helper(result, args...);
     return result;
   }
-
 };
 
-
-template <typename T>
-inline bool isNull(const T& value) {
+template <typename T> inline bool isNull(const T &value) {
   return false; // 默认情况下非指针类型不是nullptr
 }
 
-template <typename T>
-inline bool isNull(T* const & ptr) {
+template <typename T> inline bool isNull(T *const &ptr) {
   return ptr == nullptr;
 }
 
 // 对于特定类型的特化，如果该类型有意义
-template <>
-inline bool isNull<std::nullptr_t>(const std::nullptr_t&) {
+template <> inline bool isNull<std::nullptr_t>(const std::nullptr_t &) {
   return true;
 }
 
-Json defaultVal(const Json& a, const Json& b);
+Json defaultVal(const Json &a, const Json &b);
 
-
-bool allowRetry(const RetryOptions& options, const RetryPolicyContext& ctx);
-int  getBackoffTime(const RetryOptions& options, const RetryPolicyContext& ctx);
+bool allowRetry(const Policy::RetryOptions &options,
+                const Policy::RetryPolicyContext &ctx);
+int getBackoffTime(const Policy::RetryOptions &options,
+                   const Policy::RetryPolicyContext &ctx);
 void sleep(int seconds);
 
 } // namespace Darabonba

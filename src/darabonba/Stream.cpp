@@ -95,7 +95,7 @@ size_t IFStream::read(char *buffer, size_t expectSize) {
   if (realSize < 0)
     return 0;
   else if (realSize == 0) {
-    std::ifstream::read(buffer, std::max(expectSize / 10, size_t(1)));
+    std::ifstream::read(buffer, (std::max)(expectSize / 10, size_t(1)));
     return std::ifstream::gcount();
   }
   return realSize;

@@ -2,13 +2,22 @@
 #include <darabonba/Core.hpp>
 #include <darabonba/policy/Retry.hpp>
 #include <darabonba/http/MCurlHttpClient.hpp>
+#include <algorithm>
 #include <fstream>
+#include <iomanip>
 #include <sstream>
 #include <thread>
 
 #ifdef _WIN32
 #include <Windows.h>
 #include <objbase.h>
+// Undefine Windows macros that conflict with std::min/std::max
+#ifdef min
+#undef min
+#endif
+#ifdef max
+#undef max
+#endif
 #else
 #include <uuid/uuid.h>
 #endif
@@ -37,7 +46,7 @@ string Core::uuid() {
 
   std::stringstream str;
   str.setf(std::ios_base::uppercase);
-  str << std::hex << std::setfil('0') << std::setw(8) << guid.Data1 << '-'
+  str << std::hex << std::setfill('0') << std::setw(8) << guid.Data1 << '-'
       << std::setw(4) << guid.Data2 << '-' << std::setw(4) << guid.Data3 << '-'
       << std::setw(2) << (int)guid.Data4[0] << std::setw(2)
       << (int)guid.Data4[1] << '-' << std::setw(2) << (int)guid.Data4[2]
@@ -140,7 +149,7 @@ int getBackoffTime(const RetryOptions& options, const RetryPolicyContext& ctx) {
     int retryAfter = ex->retry_fater();
 
     if (retryAfter > 0) {
-      return std::min(retryAfter, maxDelay);
+      return (std::min)(retryAfter, maxDelay);
     }
 
     if (!condition.backoff()) {
@@ -149,7 +158,7 @@ int getBackoffTime(const RetryOptions& options, const RetryPolicyContext& ctx) {
 
     BackoffPolicy* strategy = condition.backoff().get();
     if (strategy) {
-      return std::min(strategy->getDelayTime(ctx), maxDelay);
+      return (std::min)(strategy->getDelayTime(ctx), maxDelay);
     }
 
     return MIN_DELAY_TIME;

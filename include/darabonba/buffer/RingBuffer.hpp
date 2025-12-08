@@ -40,7 +40,7 @@ protected:
     size_t read(char *buffer, size_t expectSize, size_t offset = 0) {
       if (data == nullptr)
         return 0;
-      auto cnt = std::min(expectSize, cap - offset);
+      auto cnt = (std::min)(expectSize, cap - offset);
       memcpy(buffer, data + offset, cnt);
       return cnt;
     }
@@ -48,7 +48,7 @@ protected:
     size_t write(char *buffer, size_t expectSize, size_t offset = 0) {
       if (data == nullptr)
         return 0;
-      auto cnt = std::min(expectSize, cap - offset);
+      auto cnt = (std::min)(expectSize, cap - offset);
       memcpy(data + offset, buffer, cnt);
       return cnt;
     }
@@ -102,7 +102,7 @@ public:
   }
 
   virtual size_t read(char *buffer, size_t expectSize) override {
-    auto realSize = std::min(expectSize, readableSize());
+    auto realSize = (std::min)(expectSize, readableSize());
     for (auto remain = realSize; remain > 0;) {
       auto cnt = data_.front().read(buffer, remain, nRead_);
       buffer += cnt;

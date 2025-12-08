@@ -238,3 +238,5 @@ $RECYCLE.BIN/
 
 
 # End of https://www.gitignore.io/api/osx,c++,vim,linux,emacs,windows,sublimetext,visualstudiocode,cmake
+.vs
+CMakeSettings.json

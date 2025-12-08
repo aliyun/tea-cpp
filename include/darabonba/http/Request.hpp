@@ -5,12 +5,42 @@
 #include <darabonba/http/Header.hpp>
 #include <darabonba/http/Query.hpp>
 #include <darabonba/http/URL.hpp>
-#include <iostream>
 #include <memory>
 #include <string>
 
 namespace Darabonba {
 namespace Http {
+
+// Undefine Windows macros that conflict with HTTP method names
+#ifdef _WIN32
+#ifdef GET
+#undef GET
+#endif
+#ifdef POST
+#undef POST
+#endif
+#ifdef DELETE
+#undef DELETE
+#endif
+#ifdef PUT
+#undef PUT
+#endif
+#ifdef HEAD
+#undef HEAD
+#endif
+#ifdef OPTIONS
+#undef OPTIONS
+#endif
+#ifdef CONNECT
+#undef CONNECT
+#endif
+#ifdef TRACE
+#undef TRACE
+#endif
+#ifdef PATCH
+#undef PATCH
+#endif
+#endif // _WIN32
 
 class Request {
 public:
@@ -31,15 +61,14 @@ public:
   Request(const URL &url) : url_(url) {}
   ~Request() = default;
 
-  Request(const Request& other) :
-      url_(other.url_),
-      method_(other.method_),
-      header_(other.header_),
-      body_(other.body_ ? other.body_ : nullptr) {}
+  Request(const Request &other)
+      : url_(other.url_), method_(other.method_),
+        header_(other.header_), body_(other.body_ ? other.body_ : nullptr) {}
 
-  Request &operator=(Request &&) = default;
-  Request &operator=(const Request &) = default;
+  Request &operator=(Request &&other) = default;
+  Request &operator=(const Request &other) = default;
 
+  // Rename url() to getUrl() to avoid conflict with potential macros or static member requirements
   const URL &url() const { return url_; }
   URL &url() { return url_; }
 
@@ -97,9 +126,7 @@ public:
     return *this;
   }
 
-  void addHeader(std::string key, std::string value) {
-    header_[key] = value;
-  }
+  void addHeader(std::string key, std::string value) { header_[key] = value; }
 
   std::shared_ptr<IStream> body() const { return body_; }
   Request &setBody(std::shared_ptr<IStream> body) {
@@ -114,7 +141,9 @@ public:
 
   // New methods to access protocol and path
   std::string getProtocol() const { return url_.scheme(); }
-  void setProtocol(const std::string &protocol) { url_.setScheme(protocol); }
+  void setProtocol(const std::string &protocol) {
+    url_.setScheme(protocol);
+  }
 
   std::string getPathname() const { return url_.pathName(); }
   void setPathname(const std::string &path) { url_.setPathName(path); }
@@ -130,20 +159,21 @@ protected:
 } // namespace Darabonba
 
 namespace nlohmann {
-  template <>
-  struct adl_serializer<std::shared_ptr<Darabonba::Http::Request>> {
-    static void to_json(json &j, const std::shared_ptr<Darabonba::Http::Request> &body) {
-      j = reinterpret_cast<uintptr_t>(body.get());
-    }
+template <> struct adl_serializer<std::shared_ptr<Darabonba::Http::Request>> {
+  static void to_json(json &j,
+                      const std::shared_ptr<Darabonba::Http::Request> &body) {
+    j = reinterpret_cast<uintptr_t>(body.get());
+  }
 
-    static std::shared_ptr<Darabonba::Http::Request> from_json(const json &j) {
-      if (j.is_null()) {
-        Darabonba::Http::Request *ptr = reinterpret_cast<Darabonba::Http::Request *>(j.get<uintptr_t>());
-        return std::make_shared<Darabonba::Http::Request>(*ptr);
-      }
-      return nullptr;
+  static std::shared_ptr<Darabonba::Http::Request> from_json(const json &j) {
+    if (j.is_null()) {
+      Darabonba::Http::Request *ptr =
+          reinterpret_cast<Darabonba::Http::Request *>(j.get<uintptr_t>());
+      return std::make_shared<Darabonba::Http::Request>(*ptr);
     }
-  };
-}
+    return nullptr;
+  }
+};
+} // namespace nlohmann
 
 #endif
