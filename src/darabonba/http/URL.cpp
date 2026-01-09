@@ -132,12 +132,12 @@ bool URL::isValid() const {
   return valid;
 }
 
-std::string URL::authority() const {
+std::string URL::getAuthority() const {
   if (!isValid())
     return "";
 
   std::ostringstream out;
-  std::string str = userInfo();
+  std::string str = getUserInfo();
   if (!str.empty())
     out << str << "@";
   out << host_;
@@ -210,7 +210,7 @@ URL &URL::setUserInfo(const std::string &userInfo) {
   return *this;
 }
 
-std::string URL::userInfo() const {
+std::string URL::getUserInfo() const {
   if (!isValid())
     return "";
   return user_ + (password_.empty() ? "" : ":" + password_);

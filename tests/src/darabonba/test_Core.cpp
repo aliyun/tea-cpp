@@ -22,7 +22,7 @@ TEST_F(CoreTest, DoActionReturnsValidResponse) {
     try {
         Http::Request request(std::string("https://example.com/api"));
 
-        request.header()["Content-Type"] = "application/json"; 
+        request.getHeader()["Content-Type"] = "application/json"; 
 
         Json runtime;
         runtime["some_key"] = "default_value";
@@ -36,17 +36,17 @@ TEST_F(CoreTest, DoActionReturnsValidResponse) {
         ASSERT_NE(response, nullptr);
 
         // 访问和打印 response 的属性
-        std::cout << "Response Status: " << response->statusCode() << std::endl;
+        std::cout << "Response Status: " << response->getStatusCode() << std::endl;
 
         // 打印响应头信息
-        for (const auto& headerPair : response->headers()) {
+        for (const auto& headerPair : response->getHeaders()) {
             std::cout << headerPair.first << ": " << headerPair.second << std::endl;
         }
 
         // 打印响应体内容
-        std::shared_ptr<Http::MCurlResponseBody> responseBody = response->body();
-        if (responseBody && responseBody->readableSize() > 0) {
-            size_t size = responseBody->readableSize();
+        std::shared_ptr<Http::MCurlResponseBody> responseBody = response->getBody();
+        if (responseBody && responseBody->getReadableSize() > 0) {
+            size_t size = responseBody->getReadableSize();
             std::vector<char> buffer(size);
             size_t bytesRead = responseBody->read(buffer.data(), buffer.size());
             std::cout << "Response Body: " << std::string(buffer.data(), bytesRead) << std::endl;
@@ -74,17 +74,17 @@ TEST_F(CoreTest, DoActionWithEmptyHostFails) {
 
         auto response = futureResponse.get();
         
-        std::cout << "Response Status: " << response->statusCode() << std::endl;
+        std::cout << "Response Status: " << response->getStatusCode() << std::endl;
 
         // 打印响应头信息
-        for (const auto& headerPair : response->headers()) {
+        for (const auto& headerPair : response->getHeaders()) {
             std::cout << headerPair.first << ": " << headerPair.second << std::endl;
         }
 
         // 打印响应体内容
-        std::shared_ptr<Http::MCurlResponseBody> responseBody = response->body();
-        if (responseBody && responseBody->readableSize() > 0) {
-            size_t size = responseBody->readableSize();
+        std::shared_ptr<Http::MCurlResponseBody> responseBody = response->getBody();
+        if (responseBody && responseBody->getReadableSize() > 0) {
+            size_t size = responseBody->getReadableSize();
             std::vector<char> buffer(size);
             size_t bytesRead = responseBody->read(buffer.data(), buffer.size());
             std::cout << "Response Body: " << std::string(buffer.data(), bytesRead) << std::endl;

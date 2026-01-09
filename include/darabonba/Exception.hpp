@@ -40,10 +40,10 @@ public:
   virtual const char *what() const noexcept override { return msg_.c_str(); }
 
   // Getters for each field to use in code, if needed
-  const std::string& message() const { return msg_; }
-  const std::string& name() const { return name_; }
-  const std::string& code() const { return  code_;}
-  const std::int32_t& retry_fater() const { return  retry_after_;}
+  const std::string& getMessage() const { return msg_; }
+  const std::string& getName() const { return name_; }
+  const std::string& getCode() const { return  code_;}
+  const std::int32_t& getRetryAfter() const { return  retry_after_;}
 
 protected:
   std::string msg_;
@@ -72,17 +72,17 @@ public:
   ResponseException(ResponseException &&) = default ;
   ResponseException(const Darabonba::Json &obj) {
     from_json(obj, *this);
-    msg_ = DARA_STRING_TEMPLATE("SDKError:\n   StatusCode: " , statusCode() , ", Code: " , code(), ", Message: " , message());
+    msg_ = DARA_STRING_TEMPLATE("SDKError:\n   StatusCode: " , getStatusCode() , ", Code: " , getCode(), ", Message: " , getMessage());
   }
   virtual ~ResponseException() = default ;
   ResponseException& operator=(const ResponseException &) = default ;
   ResponseException& operator=(ResponseException &&) = default ;
-  inline int64_t statusCode() const { DARABONBA_PTR_GET_DEFAULT(statusCode_, 0) };
-  inline int64_t retryAfter() const { DARABONBA_PTR_GET_DEFAULT(retryAfter_, 0) };
-  inline std::string code() const { DARABONBA_PTR_GET_DEFAULT(code_, "") };
-  inline std::string message() const { DARABONBA_PTR_GET_DEFAULT(message_, "") };
-  inline std::string description() const { DARABONBA_PTR_GET_DEFAULT(description_, "") };
-  inline std::string accessDeniedDetail() const { DARABONBA_PTR_GET_DEFAULT(accessDeniedDetail_, "") };
+  inline int64_t getStatusCode() const { DARABONBA_PTR_GET_DEFAULT(statusCode_, 0) };
+  inline int64_t getRetryAfter() const { DARABONBA_PTR_GET_DEFAULT(retryAfter_, 0) };
+  inline std::string getCode() const { DARABONBA_PTR_GET_DEFAULT(code_, "") };
+  inline std::string getMessage() const { DARABONBA_PTR_GET_DEFAULT(message_, "") };
+  inline std::string getDescription() const { DARABONBA_PTR_GET_DEFAULT(description_, "") };
+  inline std::string getAccessDeniedDetail() const { DARABONBA_PTR_GET_DEFAULT(accessDeniedDetail_, "") };
 
   // 反序列化 JSON
   friend void from_json(const Darabonba::Json &j, ResponseException& obj) {

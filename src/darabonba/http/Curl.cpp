@@ -34,8 +34,8 @@ void setCurlRequestBody(CURL *easyHandle,
   if (fileform) {
     curl_mimepart *part;
     fileform->setMine(curl_mime_init(easyHandle));
-    auto mime = fileform->mime();
-    Json form = fileform->form();
+    auto mime = fileform->getMime();
+    Json form = fileform->getForm();
     std::shared_ptr<FileField> file;
     std::string fileKey;
     for (auto it = form.begin(); it != form.end(); ++it) {
@@ -60,8 +60,8 @@ void setCurlRequestBody(CURL *easyHandle,
     if(file != nullptr && !file->empty()) {
       part = curl_mime_addpart(mime);
       curl_mime_name(part, fileKey.c_str());
-      curl_mime_filename(part, file->filename().c_str());
-      curl_mime_type(part, file->contentType().c_str());
+      curl_mime_filename(part, file->getFilename().c_str());
+      curl_mime_type(part, file->getContentType().c_str());
       curl_mime_data_cb(part, CURL_ZERO_TERMINATED,
                         readFileFiled,
                         nullptr,
@@ -85,7 +85,7 @@ void setCurlRequestBody(CURL *easyHandle,
     auto ff = static_cast<FileField *>(userdata);
     if (ff == nullptr)
       return 0;
-    auto f = ff->content();
+    auto f = ff->getContent();
     if (f == nullptr)
       return 0;
     return f->read(buffer, size * nitems);
@@ -100,10 +100,10 @@ size_t readIStream(char *buffer, size_t size, size_t nitems, void *userdata) {
 
 void setCurlProxy(CURL *curl, const std::string &proxy) {
   URL url(proxy);
-  std::string out = url.host() + ":" + std::to_string(url.port());
+  std::string out = url.getHost() + ":" + std::to_string(url.getPort());
   curl_easy_setopt(curl, CURLOPT_PROXY, out.c_str());
-  if (!url.userInfo().empty()) {
-    curl_easy_setopt(curl, CURLOPT_PROXYUSERPWD, url.userInfo().c_str());
+  if (!url.getUserInfo().empty()) {
+    curl_easy_setopt(curl, CURLOPT_PROXYUSERPWD, url.getUserInfo().c_str());
   }
 }
 

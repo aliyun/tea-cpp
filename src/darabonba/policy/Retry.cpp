@@ -50,7 +50,7 @@ std::unique_ptr<BackoffPolicy> BackoffPolicy::createBackoffPolicy(const std::map
 
 // getBackoffDelay function implementation
 int getBackoffDelay(const RetryOptions& options, const RetryPolicyContext& ctx) {
-    for (const auto& condition : options.retryCondition()) {
+    for (const auto& condition : options.getRetryCondition()) {
         // int maxDelay = condition.maxDelay ? *condition.maxDelay() : MaxDelayTime;
         // if (!condition.backoff()) {
         //     return MinDelayTime;

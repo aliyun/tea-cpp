@@ -57,7 +57,7 @@ public:
   }
 
   bool hasContentType() const { return this->contentType_ != nullptr; }
-  std::string contentType() const {
+  std::string getContentType() const {
     DARABONBA_PTR_GET_DEFAULT(contentType_, "");
   }
   FileField &setContentType(const std::string &contentType) {
@@ -68,13 +68,13 @@ public:
   }
 
   bool hasContent() const { return this->content_ != nullptr; }
-  std::shared_ptr<IStream> content() const { DARABONBA_GET(content_); }
+  std::shared_ptr<IStream> getContent() const { DARABONBA_GET(content_); }
   FileField &setContent(std::shared_ptr<IStream> content) {
     DARABONBA_SET_VALUE(content_, content);
   }
 
   bool hasFilename() const { return this->filename_ != nullptr; }
-  std::string filename() const { DARABONBA_PTR_GET_DEFAULT(filename_, ""); }
+  std::string getFilename() const { DARABONBA_PTR_GET_DEFAULT(filename_, ""); }
   FileField &setFilename(const std::string &filename) {
     DARABONBA_PTR_SET_VALUE(filename_, filename);
   }
@@ -111,8 +111,8 @@ public:
 
   virtual bool isFinished() const override { return true; }
 
-  const Json &form() const { return form_; }
-  curl_mime *mime() const { return mime_; }
+  const Json &getForm() const { return form_; }
+  curl_mime *getMime() const { return mime_; }
   void setMine(curl_mime *mine) { mime_ = mine; }
   void setBoundary(const std::string &boundary) { boundary_ = boundary; }
 
