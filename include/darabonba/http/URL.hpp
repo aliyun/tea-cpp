@@ -25,9 +25,9 @@ public:
   bool operator==(const URL &URL) const;
   bool operator!=(const URL &URL) const { return !(*this == URL); };
 
-  const Query &query() const { return query_; }
-  Query &query() { return query_; }
-  std::string query(const std::string &name) const {
+  const Query &getQuery() const { return query_; }
+  Query &getQuery() { return query_; }
+  std::string getQuery(const std::string &name) const {
     const auto it = query_.find(name);
     return (it != query_.end()) ? it->second : "";
   }
@@ -40,45 +40,45 @@ public:
     return *this;
   }
 
-  const std::string &host() const { return host_; }
+  const std::string &getHost() const { return host_; }
   URL &setHost(const std::string &host);
 
   void clear();
   bool empty() const;
   bool isValid() const;
 
-  uint16_t port() const { return port_; }
+  uint16_t getPort() const { return port_; }
   URL &setPort(uint16_t port) {
     port_ = port;
     return *this;
   }
 
-  const std::string &user() const { return user_; }
+  const std::string &getUser() const { return user_; }
   URL &setUser(const std::string &user) {
     user_ = user;
     return *this;
   }
-  const std::string &password() const { return password_; }
+  const std::string &getPassword() const { return password_; }
   URL &setPassword(const std::string &password) {
     password_ = password;
     return *this;
   }
-  std::string userInfo() const;
+  std::string getUserInfo() const;
   URL &setUserInfo(const std::string &userInfo);
 
-  const std::string &pathName() const { return pathName_; }
+  const std::string &getPathName() const { return pathName_; }
   URL &setPathName(const std::string &path) {
     pathName_ = path;
     return *this;
   }
 
-  const std::string &scheme() const { return scheme_; }
+  const std::string &getScheme() const { return scheme_; }
   URL &setScheme(const std::string &scheme);
 
-  std::string authority() const;
+  std::string getAuthority() const;
   URL &setAuthority(const std::string &authority);
 
-  const std::string &fragment() const { return fragment_; }
+  const std::string &getFragment() const { return fragment_; }
   bool hasFragment() const { return !fragment_.empty(); }
   URL &setFragment(const std::string &fragment) {
     fragment_ = fragment;

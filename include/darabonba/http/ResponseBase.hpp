@@ -86,14 +86,14 @@ public:
   ResponseBase() = default;
   virtual ~ResponseBase() = default;
 
-  std::string headers(const std::string &key) const {
+  std::string getHeaders(const std::string &key) const {
     auto it = header_.find(key);
     if (it != header_.end())
       return it->second;
     return "";
   }
-  const Header &headers() const { return header_; }
-  Header &headers() { return header_; }
+  const Header &getHeaders() const { return header_; }
+  Header &getHeaders() { return header_; }
   ResponseBase &setHeader(const Header &header) {
     header_ = header;
     return *this;
@@ -103,7 +103,7 @@ public:
     return *this;
   }
 
-  int64_t statusCode() const { return statusCode_; };
+  int64_t getStatusCode() const { return statusCode_; };
 
   ResponseBase &setStatusCode(int64_t statusCode) {
     statusCode_ = statusCode;

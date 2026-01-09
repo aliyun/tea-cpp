@@ -26,10 +26,10 @@ public:
 
   virtual ~MCurlResponseBody() {}
 
-  size_t maxSize() const { return maxSize_; }
+  size_t getMaxSize() const { return maxSize_; }
   // size_t setMaxSize(size_t maxSize) { maxSize_ = maxSize; }
 
-  size_t readableSize() const { return readableSize_; }
+  size_t getReadableSize() const { return readableSize_; }
 
   /**
    * @note This method is thread safe.
@@ -54,12 +54,12 @@ public:
   /**
    * @brief Indicate whether http responses have been accepted
    */
-  bool done() const { return done_; }
+  bool getDone() const { return done_; }
 
   /**
    * @brief Indicate whether http response body is ready to receive.
    */
-  bool ready() const { return ready_; }
+  bool getReady() const { return ready_; }
 
   /**
    * @brief 发送一个请求，让 client 继续读取数据并放到流中。
@@ -110,7 +110,7 @@ public:
 
   MCurlResponse &operator=(MCurlResponse &&) = default;
 
-  virtual std::shared_ptr<MCurlResponseBody> body() const { return body_; };
+  virtual std::shared_ptr<MCurlResponseBody> getBody() const { return body_; };
 
   virtual void setBody(std::shared_ptr<MCurlResponseBody> body) {
     body_ = body;

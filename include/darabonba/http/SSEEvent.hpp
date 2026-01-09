@@ -59,7 +59,7 @@ namespace Darabonba{
 
       void setData(const std::string &data);
 
-      int retry() const;
+      int getRetry() const;
 
       void setRetry(int retry);
 

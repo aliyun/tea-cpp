@@ -4,7 +4,7 @@
 
 namespace Darabonba {
 namespace Http {
-std::string Request::method() const {
+std::string Request::getMethod() const {
   switch (method_) {
   case Method::GET:
     return "GET";

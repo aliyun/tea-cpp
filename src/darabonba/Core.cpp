@@ -85,22 +85,22 @@ Core::doAction(Http::Request &request, const Darabonba::Json &runtime) {
     return ret;
   }();
   // modfiy the request url
-  auto &header = request.header();
-  auto &url = request.url();
-  if (url.host().empty()) {
+  auto &header = request.getHeader();
+  auto &url = request.getUrl();
+  if (url.getHost().empty()) {
     auto it = header.find("host");
     if (it != header.end()) {
       url.setHost(it->second);
     }
   }
-  if (url.scheme().empty()) {
+  if (url.getScheme().empty()) {
     url.setScheme("https");
   }
   return client->makeRequest(request, runtime);
 }
 
 bool allowRetry(const RetryOptions& options, const RetryPolicyContext& ctx) {
-  if (ctx.retriesAttempted() == 0) {
+  if (ctx.getRetriesAttempted() == 0) {
     return true;
   }
 
@@ -108,25 +108,25 @@ bool allowRetry(const RetryOptions& options, const RetryPolicyContext& ctx) {
     return false;
   }
 
-  int retriesAttempted = ctx.retriesAttempted();
-  shared_ptr<Exception> ex = ctx.exception();
+  int retriesAttempted = ctx.getRetriesAttempted();
+  shared_ptr<Exception> ex = ctx.getException();
 
-  auto noRetryConditions = options.noRetryCondition();
+  auto noRetryConditions = options.getNoRetryCondition();
   for (const auto& condition : noRetryConditions) {
-    if (std::find(condition.exception().begin(), condition.exception().end(), ex->name()) != condition.exception().end() ||
-        std::find(condition.errorCode().begin(), condition.errorCode().end(), ex->code()) != condition.errorCode().end()) {
+    if (std::find(condition.getException().begin(), condition.getException().end(), ex->getName()) != condition.getException().end() ||
+        std::find(condition.getErrorCode().begin(), condition.getErrorCode().end(), ex->getCode()) != condition.getErrorCode().end()) {
       return false;
         }
   }
 
-  auto retryConditions = options.retryCondition();
+  auto retryConditions = options.getRetryCondition();
   for (const auto& condition : retryConditions) {
-    if (std::find(condition.exception().begin(), condition.exception().end(), ex->name()) == condition.exception().end() &&
-        std::find(condition.errorCode().begin(), condition.errorCode().end(), ex->code()) == condition.errorCode().end()) {
+    if (std::find(condition.getException().begin(), condition.getException().end(), ex->getName()) == condition.getException().end() &&
+        std::find(condition.getErrorCode().begin(), condition.getErrorCode().end(), ex->getCode()) == condition.getErrorCode().end()) {
       continue;
         }
 
-    if (retriesAttempted >= condition.maxAttempts()) {
+    if (retriesAttempted >= condition.getMaxAttempts()) {
       return false;
     }
     return true;
@@ -136,27 +136,27 @@ bool allowRetry(const RetryOptions& options, const RetryPolicyContext& ctx) {
 }
 
 int getBackoffTime(const RetryOptions& options, const RetryPolicyContext& ctx) {
-  shared_ptr<Exception> ex = ctx.exception();
-  auto conditions = options.retryCondition();
+  shared_ptr<Exception> ex = ctx.getException();
+  auto conditions = options.getRetryCondition();
 
   for (const auto& condition : conditions) {
-    if (std::find(condition.exception().begin(), condition.exception().end(), ex->name()) == condition.exception().end() &&
-        std::find(condition.errorCode().begin(), condition.errorCode().end(), ex->code()) == condition.errorCode().end()) {
+    if (std::find(condition.getException().begin(), condition.getException().end(), ex->getName()) == condition.getException().end() &&
+        std::find(condition.getErrorCode().begin(), condition.getErrorCode().end(), ex->getCode()) == condition.getErrorCode().end()) {
       continue;
         }
 
-    int maxDelay = (condition.maxDelay() > 0) ? condition.maxDelay() : MAX_DELAY_TIME;
-    int retryAfter = ex->retry_fater();
+    int maxDelay = (condition.getMaxDelay() > 0) ? condition.getMaxDelay() : MAX_DELAY_TIME;
+    int retryAfter = ex->getRetryAfter();
 
     if (retryAfter > 0) {
       return (std::min)(retryAfter, maxDelay);
     }
 
-    if (!condition.backoff()) {
+    if (!condition.getBackoff()) {
       return MIN_DELAY_TIME;
     }
 
-    BackoffPolicy* strategy = condition.backoff().get();
+    BackoffPolicy* strategy = condition.getBackoff().get();
     if (strategy) {
       return (std::min)(strategy->getDelayTime(ctx), maxDelay);
     }

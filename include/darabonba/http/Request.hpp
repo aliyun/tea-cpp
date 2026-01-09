@@ -68,11 +68,11 @@ public:
   Request &operator=(Request &&other) = default;
   Request &operator=(const Request &other) = default;
 
-  // Rename url() to getUrl() to avoid conflict with potential macros or static member requirements
-  const URL &url() const { return url_; }
-  URL &url() { return url_; }
+  // Getter methods with 'get' prefix
+  const URL &getUrl() const { return url_; }
+  URL &getUrl() { return url_; }
 
-  std::string method() const;
+  std::string getMethod() const;
 
   Request &setMethod(Method method) {
     method_ = method;
@@ -80,8 +80,8 @@ public:
   };
   Request &setMethod(const std::string &method);
 
-  const Query &query() const { return url_.query(); }
-  Query &query() { return url_.query(); }
+  const Query &getQuery() const { return url_.getQuery(); }
+  Query &getQuery() { return url_.getQuery(); }
   Request &setQuery(const Query &query) {
     url_.setQuery(query);
     return *this;
@@ -92,20 +92,20 @@ public:
   }
 
   void addQuery(std::string key, std::string value) {
-    url_.query().emplace(key, value);
+    url_.getQuery().emplace(key, value);
   }
 
-  std::string header(const std::string key) const {
+  std::string getHeader(const std::string key) const {
     auto it = header_.find(key);
     if (it != header_.end())
       return it->second;
     return "";
   }
-  const Header &header() const { return header_; }
-  Header &header() { return header_; }
+  const Header &getHeader() const { return header_; }
+  Header &getHeader() { return header_; }
 
-  const Header &headers() const { return header_; }
-  Header &headers() { return header_; }
+  const Header &getHeaders() const { return header_; }
+  Header &getHeaders() { return header_; }
 
   Request &setHeader(const Header &header) {
     header_ = header;
@@ -128,7 +128,7 @@ public:
 
   void addHeader(std::string key, std::string value) { header_[key] = value; }
 
-  std::shared_ptr<IStream> body() const { return body_; }
+  std::shared_ptr<IStream> getBody() const { return body_; }
   Request &setBody(std::shared_ptr<IStream> body) {
     body_ = body;
     return *this;
@@ -140,12 +140,12 @@ public:
   }
 
   // New methods to access protocol and path
-  std::string getProtocol() const { return url_.scheme(); }
+  std::string getProtocol() const { return url_.getScheme(); }
   void setProtocol(const std::string &protocol) {
     url_.setScheme(protocol);
   }
 
-  std::string getPathname() const { return url_.pathName(); }
+  std::string getPathname() const { return url_.getPathName(); }
   void setPathname(const std::string &path) { url_.setPathName(path); }
 
 protected:

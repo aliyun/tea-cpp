@@ -47,7 +47,7 @@ public:
   virtual ~BackoffPolicy() = default;
 
   // Getter 和 Setter 方法
-  const std::string& policy() const { return policy_; }
+  const std::string& getPolicy() const { return policy_; }
   void setPolicy(const std::string& policy) { policy_ = policy; }
 
   // 纯虚函数，待其他具体子类扩展实现
@@ -91,7 +91,7 @@ public:
   }
 
   // Getter 和 Setter 方法
-  int period() const { return period_; }
+  int getPeriod() const { return period_; }
   void setPeriod(int period) { period_ = period; }
 
 private:
@@ -135,10 +135,10 @@ public:
   }
 
   // Getter 和 Setter 方法
-  int period() const { return period_; }
+  int getPeriod() const { return period_; }
   void setPeriod(int period) { period_ = period; }
 
-  int cap() const { return cap_; }
+  int getCap() const { return cap_; }
   void setCap(int cap) { cap_ = cap; }
 
 private:
@@ -170,19 +170,19 @@ public:
   RetryCondition& operator=(const RetryCondition &) = default;
   RetryCondition& operator=(RetryCondition &&) = default;
 
-  int maxAttempts() const { return *maxAttempts_; }
+  int getMaxAttempts() const { return *maxAttempts_; }
   RetryCondition& setMaxAttempts(int attempts) { maxAttempts_ = std::make_shared<int>(attempts); return *this; }
 
-  const std::shared_ptr<BackoffPolicy>& backoff() const { return backoff_; }
+  const std::shared_ptr<BackoffPolicy>& getBackoff() const { return backoff_; }
   RetryCondition& setBackoff(const std::shared_ptr<BackoffPolicy> policy) { backoff_ = policy; return *this; }
 
-  const std::vector<std::string>& exception() const { return exception_; }
+  const std::vector<std::string>& getException() const { return exception_; }
   RetryCondition& setException(const std::vector<std::string> &exceptions) { exception_ = exceptions; return *this; }
 
-  const std::vector<std::string>& errorCode() const { return errorCode_; }
+  const std::vector<std::string>& getErrorCode() const { return errorCode_; }
   RetryCondition& setErrorCode(const std::vector<std::string> &codes) { errorCode_ = codes; return *this; }
 
-  int maxDelay() const { return *maxDelay_; }
+  int getMaxDelay() const { return *maxDelay_; }
   RetryCondition& setMaxDelay(int delay) { maxDelay_ = std::make_shared<int>(delay); return *this; }
 
 protected:
@@ -219,11 +219,11 @@ public:
   void setRetryable(bool retryable) { retryable_ = retryable; }
 
   // 访问重试条件
-  const std::vector<RetryCondition>& retryCondition() const { return retryCondition_; }
+  const std::vector<RetryCondition>& getRetryCondition() const { return retryCondition_; }
   RetryOptions& setRetryCondition(const std::vector<RetryCondition>& conditions) { retryCondition_ = conditions; return *this; }
 
   // 访问非重试条件
-  const std::vector<RetryCondition>& noRetryCondition() const { return noRetryCondition_; }
+  const std::vector<RetryCondition>& getNoRetryCondition() const { return noRetryCondition_; }
   RetryOptions& setNoRetryCondition(const std::vector<RetryCondition>& conditions) { noRetryCondition_ = conditions; return *this; }
 
 protected:
@@ -267,16 +267,16 @@ public:
 
 
   // Getter 和 Setter 方法
-  int retriesAttempted() const { return retriesAttempted_; }
+  int getRetriesAttempted() const { return retriesAttempted_; }
   RetryPolicyContext& setRetriesAttempted(int retries) { retriesAttempted_ = retries; return *this; }
 
-  shared_ptr<Exception> exception() const { return exception_; }
+  shared_ptr<Exception> getException() const { return exception_; }
   RetryPolicyContext& setException(shared_ptr<Exception> ex) { exception_ = ex; return *this; }
 
-  shared_ptr<Darabonba::Http::MCurlResponse> lastResponse() const { return lastResponse_; }
+  shared_ptr<Darabonba::Http::MCurlResponse> getLastResponse() const { return lastResponse_; }
   RetryPolicyContext& setLastResponse(shared_ptr<Darabonba::Http::MCurlResponse> resp) { lastResponse_ = resp; return *this; }
 
-  shared_ptr<Darabonba::Http::Request> lastRequest() const { return lastRequest_; }
+  shared_ptr<Darabonba::Http::Request> getLastRequest() const { return lastRequest_; }
   RetryPolicyContext& setLastRequest(shared_ptr<Darabonba::Http::Request> resp) { lastRequest_ = resp; return *this; }
 
 protected:

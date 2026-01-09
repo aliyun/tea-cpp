@@ -64,19 +64,19 @@ MCurlHttpClient::makeRequest(const Request &request,
   }
 
   // set request method
-  curl_easy_setopt(easyHandle, CURLOPT_CUSTOMREQUEST, request.method().c_str());
+  curl_easy_setopt(easyHandle, CURLOPT_CUSTOMREQUEST, request.getMethod().c_str());
   // set request url
   curl_easy_setopt(easyHandle, CURLOPT_URL,
-                   static_cast<std::string>(request.url()).c_str());
+                   static_cast<std::string>(request.getUrl()).c_str());
 
   // set the storage of request body
-  Curl::setCurlRequestBody(easyHandle, request.body());
+  Curl::setCurlRequestBody(easyHandle, request.getBody());
 
   // init header
   auto curlStorage = std::unique_ptr<CurlStorage>(new CurlStorage{
       easyHandle,
-      Curl::setCurlHeader(easyHandle, request.header()),
-      request.body(),
+      Curl::setCurlHeader(easyHandle, request.getHeader()),
+      request.getBody(),
       std::make_shared<MCurlResponse>(),
       std::unique_ptr<std::promise<std::shared_ptr<MCurlResponse>>>(
           new std::promise<std::shared_ptr<MCurlResponse>>())});
@@ -90,7 +90,7 @@ MCurlHttpClient::makeRequest(const Request &request,
   resp->setBody(body);
 
   // set the storage of response header
-  curl_easy_setopt(easyHandle, CURLOPT_HEADERDATA, &(resp->headers()));
+  curl_easy_setopt(easyHandle, CURLOPT_HEADERDATA, &(resp->getHeaders()));
   // set how to receive response header
   curl_easy_setopt(easyHandle, CURLOPT_HEADERFUNCTION, Curl::writeHeader);
   // set the storage of response body
@@ -158,9 +158,9 @@ void MCurlHttpClient::perform() {
         runningCurl_.erase(easyHandle);
 
         auto body =
-            dynamic_cast<MCurlResponseBody *>(curlStorage->resp->body().get());
+            dynamic_cast<MCurlResponseBody *>(curlStorage->resp->getBody().get());
         if (body) {
-          if (!body->ready()) {
+          if (!body->getReady()) {
             setResponseReady(curlStorage.get());
           }
           // response body has been fully received
@@ -244,7 +244,7 @@ bool MCurlHttpClient::setResponseReady(CurlStorage *curlStorage) {
                     &responseCode);
   curlStorage->resp->setStatusCode(responseCode);
   // set ready
-  curlStorage->resp->body()->ready_ = true;
+  curlStorage->resp->getBody()->ready_ = true;
   curlStorage->promise->set_value(curlStorage->resp);
   curlStorage->promise = nullptr;
   return true;
@@ -253,10 +253,10 @@ bool MCurlHttpClient::setResponseReady(CurlStorage *curlStorage) {
 size_t MCurlHttpClient::recvBody(char *buffer, size_t size, size_t nmemb,
                                  void *userdata) {
   auto curlStorage = static_cast<CurlStorage *>(userdata);
-  auto body = curlStorage->resp->body();
+  auto body = curlStorage->resp->getBody();
   if (!body)
     return 0;
-  if (body->readableSize() >= body->maxSize()) {
+  if (body->getReadableSize() >= body->getMaxSize()) {
     return CURL_WRITEFUNC_PAUSE;
   }
   auto expectSize = size * nmemb;
@@ -264,7 +264,7 @@ size_t MCurlHttpClient::recvBody(char *buffer, size_t size, size_t nmemb,
   body->readableSize_ += realSize;
   body->streamCV_.notify_one();
 
-  if (!body->ready()) {
+  if (!body->getReady()) {
     setResponseReady(curlStorage);
   }
 
