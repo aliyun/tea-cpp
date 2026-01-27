@@ -15,9 +15,7 @@ protected:
   public:
     Segment(size_t capacity) : cap(capacity) { data = new char[capacity]; }
     Segment(const Segment &) = delete;
-    Segment(Segment &&obj) : cap(obj.cap) {
-      delete[] data;
-      data = obj.data;
+    Segment(Segment &&obj) noexcept : data(obj.data), cap(obj.cap) {
       obj.data = nullptr;
       obj.cap = 0;
     }

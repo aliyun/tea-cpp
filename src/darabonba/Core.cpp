@@ -179,22 +179,21 @@ Json defaultVal(const Json& a, const Json& b) {
   case Json::value_t::string:
     return a.get<std::string>().empty() ? b : a;
   case Json::value_t::boolean:
-    return !a.get<bool>() ? b : a;;
+    return !a.get<bool>() ? b : a;
   case Json::value_t::number_integer:
-    return a.get<int>() == 0 ? b : a;;
+    return a.get<int>() == 0 ? b : a;
   case Json::value_t::number_unsigned:
-    return a.get<unsigned int>() == 0  ? b : a;;
+    return a.get<unsigned int>() == 0  ? b : a;
   case Json::value_t::number_float:
-    return a.get<float>() == 0.0 ? b : a;;
+    return a.get<float>() == 0.0 ? b : a;
   case Json::value_t::binary:
-    return a.get_binary().empty() ? b : a;;
+    return a.get_binary().empty() ? b : a;
   case Json::value_t::object:
   case Json::value_t::array:
-    return a.empty() ? b : a;;
+    return a.empty() ? b : a;
   default:
     return b; // All other non-valid or discarded cases
   }
-  return a;
 }
 
 } // namespace Darabonba

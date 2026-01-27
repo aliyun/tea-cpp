@@ -1,141 +1,127 @@
-cmake_minimum_required(VERSION 3.5 FATAL_ERROR)
-project(darabonba_core VERSION "1.0.0")
+cmake_minimum_required(VERSION 3.13)
 
-# set c++ version
+project(darabonba_core VERSION "1.0.0" LANGUAGES CXX)
+
+# <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Options >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> #
+option(BUILD_SHARED_LIBS "Build shared libraries" ON)
+option(ENABLE_UNIT_TESTS "Enable unit tests" OFF)
+
+# <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< C++ Standard >>>>>>>>>>>>>>>>>>>>>>>>>>>>>> #
 if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 11)
 endif()
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Ensure consistent MSVC runtime: use dynamic MD/MDd
-if (MSVC)
-  # CMake >= 3.15 supports this variable; your environment meets the requirement
-  set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
-  # Remove any manually-injected /MT or /MD flags to avoid mismatches
-  foreach(lang C CXX)
-    foreach(var CMAKE_${lang}_FLAGS CMAKE_${lang}_FLAGS_DEBUG CMAKE_${lang}_FLAGS_RELEASE CMAKE_${lang}_FLAGS_RELWITHDEBINFO CMAKE_${lang}_FLAGS_MINSIZEREL)
-      if (DEFINED ${var})
-        string(REGEX REPLACE "/MT[d]?" "" ${var} "${${var}}")
-        string(REGEX REPLACE "/MD[d]?" "" ${var} "${${var}}")
-      endif()
-    endforeach()
-  endforeach()
-endif()
-
-# compiler warning
+# <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Platform Setup >>>>>>>>>>>>>>>>>>>>>>>>>>>> #
 if(MSVC)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4 /w44265 /w44061 /w44062")
+  # Standardize MSVC runtime (MD/MDd)
+  # For CMake 3.15+, use CMAKE_MSVC_RUNTIME_LIBRARY. 
+  # For 3.13, we use a more robust target-based approach later.
+  add_definitions(-D_CRT_SECURE_NO_WARNINGS -DNOMINMAX)
+  add_compile_options(/W4 /Zc:__cplusplus /utf-8)
 else()
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic")
+  add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-# test
-option(ENABLE_UNIT_TESTS "Enable unit tests" ON)
+# For static builds, prefer static dependencies
+if(NOT BUILD_SHARED_LIBS)
+  set(OPENSSL_USE_STATIC_LIBS ON)
+  set(CURL_STATICLIB ON)
+endif()
 
-# dependency openssl
+# <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Dependencies >>>>>>>>>>>>>>>>>>>>>>>>>>>>>> #
 find_package(OpenSSL REQUIRED)
-# curl
 find_package(CURL REQUIRED)
-add_subdirectory(external)
 
-include_directories(include)
+# <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Target Setup >>>>>>>>>>>>>>>>>>>>>>>>>>>>>> #
+# Assuming the library target is defined here or in src
+# For clarity, we define the target here if source files are known, 
+# or ensure src/CMakeLists.txt uses the following modern commands.
 
-add_subdirectory(src)
+file(GLOB_RECURSE SRC_FILES "src/*.cpp")
+add_library(${PROJECT_NAME} ${SRC_FILES})
+add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 
+# --- THE MOST IMPORTANT FIX: Usage Requirements ---
+target_include_directories(${PROJECT_NAME}
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+)
+
+target_link_libraries(${PROJECT_NAME}
+    PUBLIC
+        OpenSSL::SSL
+        OpenSSL::Crypto
+        CURL::libcurl
+)
+
+if(WIN32)
+    target_link_libraries(${PROJECT_NAME} PRIVATE ws2_32)
+endif()
+
+# <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Properties >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> #
+set_target_properties(${PROJECT_NAME} PROPERTIES
+    POSITION_INDEPENDENT_CODE ON
+    WINDOWS_EXPORT_ALL_SYMBOLS ON
+    SOVERSION ${PROJECT_VERSION_MAJOR}
+    VERSION ${PROJECT_VERSION}
+)
+
+# Handle MSVC runtime for CMake 3.13
+if(MSVC)
+    target_compile_options(${PROJECT_NAME} PRIVATE
+        $<$<CONFIG:Release>:/MD>
+        $<$<CONFIG:Debug>:/MDd>
+    )
+endif()
+
+# <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Subdirectories >>>>>>>>>>>>>>>>>>>>>>>>>>>> #
 if(ENABLE_UNIT_TESTS)
   enable_testing()
   add_subdirectory(tests)
 endif()
-# <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Install set up >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> #
-message(STATUS "${PROJECT_NAME} : Project will be installed to ${CMAKE_INSTALL_PREFIX}")
 
+# <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Installation >>>>>>>>>>>>>>>>>>>>>>>>>>>>>> #
 include(GNUInstallDirs)
-
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR})
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR})
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/${CMAKE_INSTALL_BINDIR})
-
-set(INSTALL_LIBDIR ${CMAKE_INSTALL_LIBDIR} CACHE PATH "Installation directory for libraries")
-set(INSTALL_BINDIR ${CMAKE_INSTALL_BINDIR} CACHE PATH "Installation directory for executables")
-set(INSTALL_INCLUDEDIR ${CMAKE_INSTALL_INCLUDEDIR} CACHE PATH "Installation directory for header files")
-if(WIN32 AND NOT CYGWIN)
-  set(DEF_INSTALL_CMAKEDIR CMake)
-else()
-  set(DEF_INSTALL_CMAKEDIR share/cmake/${PROJECT_NAME})
-endif()
-set(INSTALL_CMAKEDIR ${DEF_INSTALL_CMAKEDIR} CACHE PATH "Installation directory for CMake files")
-
-foreach(p LIB BIN INCLUDE CMAKE)
-  file(TO_NATIVE_PATH ${CMAKE_INSTALL_PREFIX}/${INSTALL_${p}DIR} _path )
-  message(STATUS "Installing ${p} components to ${_path}")
-  unset(_path)
-endforeach()
-
-# Prepare RPATH
-file(RELATIVE_PATH _rel ${CMAKE_INSTALL_PREFIX}/${INSTALL_BINDIR} ${CMAKE_INSTALL_PREFIX})
-if(APPLE)
-  set(_rpath "@loader_path/${_rel}")
-else()
-  set(_rpath "\$ORIGIN/${_rel}")
-endif()
-file(TO_NATIVE_PATH "${_rpath}/${INSTALL_LIBDIR}" install_RPATH)
-
-set_target_properties(${PROJECT_NAME}
-        PROPERTIES
-        MACOSX_RPATH ON
-        SKIP_BUILD_RPATH OFF
-        BUILD_WITH_INSTALL_RPATH OFF
-        INSTALL_RPATH "${install_RPATH}"
-        INSTALL_RPATH_USE_LINK_PATH ON)
-
-
-install(
-        TARGETS
-        ${PROJECT_NAME}
-        EXPORT
-        darabonba_coreTargets
-        ARCHIVE
-        DESTINATION ${INSTALL_LIBDIR}
-        COMPONENT lib
-        RUNTIME
-        DESTINATION ${INSTALL_BINDIR}
-        COMPONENT bin
-        LIBRARY
-        DESTINATION ${INSTALL_LIBDIR}
-        COMPONENT lib
-        PUBLIC_HEADER
-        DESTINATION ${INSTALL_INCLUDEDIR}/darabonba
-        COMPONENT dev
-)
-
-# install cmake config
-install(
-        EXPORT
-        darabonba_coreTargets
-        NAMESPACE
-        "darabonba_core::"
-        DESTINATION
-        ${INSTALL_CMAKEDIR}
-        COMPONENT
-        dev
-)
 include(CMakePackageConfigHelpers)
 
+set(INSTALL_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME})
+
+install(TARGETS ${PROJECT_NAME}
+    EXPORT ${PROJECT_NAME}Targets
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
+
+install(DIRECTORY include/
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
+
+install(EXPORT ${PROJECT_NAME}Targets
+    NAMESPACE ${PROJECT_NAME}::
+    DESTINATION ${INSTALL_CMAKEDIR}
+)
+
 write_basic_package_version_file(
-        ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake
-        VERSION ${PROJECT_VERSION}
-        COMPATIBILITY SameMajorVersion
+    "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY SameMajorVersion
 )
-configure_package_config_file(
-        ${PROJECT_SOURCE_DIR}/cmake/${PROJECT_NAME}Config.cmake.in
-        ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake
-        INSTALL_DESTINATION ${INSTALL_CMAKEDIR}
+
+# Generate the Config file that downstream projects will use
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
+"include(CMakeFindDependencyMacro)\n"
+"find_dependency(OpenSSL)\n"
+"find_dependency(CURL)\n"
+"include(\"\${CMAKE_CURRENT_LIST_DIR}/${PROJECT_NAME}Targets.cmake\")\n"
 )
-install(
-        FILES
-        ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake
-        ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake
-        DESTINATION
-        ${INSTALL_CMAKEDIR}
+
+install(FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
+    DESTINATION ${INSTALL_CMAKEDIR}
 )

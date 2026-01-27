@@ -16,9 +16,8 @@ void MCurlResponseBody::waitForDone() {
     maxSize_ = (std::numeric_limits<size_t>::max)();
     client_->addContinueReadingHandle(easyHandle_);
   }
-  std::mutex mutex;
-  std::unique_lock<std::mutex> lock(mutex);
-  doneCV_.wait(lock, [this]() -> bool { return done_; });
+  std::unique_lock<std::mutex> lock(doneMutex_);
+  doneCV_.wait(lock, [this]() -> bool { return done_.load(); });
   client_ = nullptr;
   easyHandle_ = nullptr;
 }
@@ -45,10 +44,9 @@ size_t MCurlResponseBody::read(char *buffer, size_t expectSize) {
     }
     // blocking wait
     fetch();
-    std::mutex mutex;
-    std::unique_lock<std::mutex> lock(mutex);
+    std::unique_lock<std::mutex> lock(streamMutex_);
     streamCV_.wait(lock,
-                   [this]() -> bool { return done_ || readableSize_ > 0; });
+                   [this]() -> bool { return done_.load() || readableSize_ > 0; });
   } while (realSize == 0);
 
   return realSize;

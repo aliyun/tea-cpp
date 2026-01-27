@@ -1,6 +1,4 @@
 name: C++ CI
-permissions:
-  contents: read
 
 on:
   push:
@@ -10,20 +8,37 @@ on:
 
 jobs:
   build:
+    name: ${{ matrix.os }} - ${{ matrix.lib_type }} - C++${{ matrix.cxx_standard }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        build_type: [Release]
+        lib_type: [shared, static]
+        cxx_standard: [11, 14, 17]
+        # Restrict combinations to save time
+        exclude:
+          - os: macos-latest
+            cxx_standard: 14
+          - os: macos-latest
+            cxx_standard: 17
+          - os: windows-latest
+            cxx_standard: 14
+          - os: windows-latest
+            cxx_standard: 17
 
     steps:
     - uses: actions/checkout@v4
 
+    - name: Format Check
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update && sudo apt-get install -y clang-format
+        find src include tests -name '*.hpp' -o -name '*.cpp' | xargs clang-format --dry-run --Werror || echo "Format check failed"
+
     - name: Install dependencies (Linux)
       if: runner.os == 'Linux'
       run: |
-        sudo apt-get update
         sudo apt-get install -y libcurl4-openssl-dev libssl-dev uuid-dev
 
     - name: Install dependencies (macOS)
@@ -34,46 +49,48 @@ jobs:
 
     - name: Setup vcpkg (Windows)
       if: runner.os == 'Windows'
-      id: setup-vcpkg
       run: |
-        $vcpkgRoot = "$env:RUNNER_TEMP\vcpkg"
-        git clone https://github.com/Microsoft/vcpkg.git $vcpkgRoot
-        & "$vcpkgRoot\bootstrap-vcpkg.bat"
-        echo "VCPKG_ROOT=$vcpkgRoot" >> $env:GITHUB_ENV
-        echo "vcpkg-root=$vcpkgRoot" >> $env:GITHUB_OUTPUT
-
-    - name: Cache vcpkg
-      if: runner.os == 'Windows'
-      uses: actions/cache@v4
-      id: vcpkg-cache
-      with:
-        path: ${{ steps.setup-vcpkg.outputs.vcpkg-root }}/installed
-        key: ${{ runner.os }}-vcpkg-curl-openssl-x64-windows
-        restore-keys: |
-          ${{ runner.os }}-vcpkg-
-
-    - name: Install dependencies (Windows)
-      if: runner.os == 'Windows'
-      run: |
-        $vcpkgRoot = $env:VCPKG_ROOT
-        $cacheHit = "${{ steps.vcpkg-cache.outputs.cache-hit }}" -eq "true"
-        if (-not $cacheHit) {
-          Write-Host "Cache miss, installing vcpkg packages..."
-          & "$vcpkgRoot\vcpkg.exe" install curl:x64-windows openssl:x64-windows
-        } else {
-          Write-Host "Cache hit! Using cached vcpkg packages."
-        }
-        echo "CMAKE_TOOLCHAIN_FILE=$vcpkgRoot/scripts/buildsystems/vcpkg.cmake" >> $env:GITHUB_ENV
+        vcpkg install curl:x64-windows openssl:x64-windows
+        echo "CMAKE_TOOLCHAIN_FILE=$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" >> $GITHUB_ENV
 
     - name: Configure CMake
-      run: cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DENABLE_UNIT_TESTS=ON
+      shell: bash
+      run: |
+        LIB_SHARED=OFF
+        if [ "${{ matrix.lib_type }}" = "shared" ]; then LIB_SHARED=ON; fi
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DBUILD_SHARED_LIBS=$LIB_SHARED \
+          -DCMAKE_CXX_STANDARD=${{ matrix.cxx_standard }} \
+          -DENABLE_UNIT_TESTS=ON \
+          -DCMAKE_INSTALL_PREFIX=./install
 
     - name: Build
-      run: cmake --build build --config ${{ matrix.build_type }}
+      run: cmake --build build --config Release
 
     - name: Test
       shell: bash
       run: |
         cd build
-        ctest --output-on-failure -C ${{ matrix.build_type }}
+        ctest --output-on-failure -C Release
 
+    - name: Install
+      run: cmake --install build --config Release --prefix ./install
+
+    - name: Test find_package Integration
+      shell: bash
+      run: |
+        mkdir -p sample_test
+        cat > sample_test/CMakeLists.txt << 'EOF'
+        cmake_minimum_required(VERSION 3.13)
+        project(sample_test CXX)
+        find_package(darabonba_core REQUIRED)
+        add_executable(sample_app main.cpp)
+        target_link_libraries(sample_app darabonba_core::darabonba_core)
+        EOF
+        echo "int main() { return 0; }" > sample_test/main.cpp
+        
+        cmake -S sample_test -B sample_test/build \
+          -DCMAKE_PREFIX_PATH=$(pwd)/install \
+          -DCMAKE_TOOLCHAIN_FILE=${{ env.CMAKE_TOOLCHAIN_FILE }} \
+          -DOPENSSL_ROOT_DIR=${{ env.OPENSSL_ROOT_DIR }}

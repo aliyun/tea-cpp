@@ -41,6 +41,7 @@ public:
 };
 
 template <typename T> inline bool isNull(const T &value) {
+  (void)value;
   return false; // 默认情况下非指针类型不是nullptr
 }
 
@@ -59,7 +60,12 @@ bool allowRetry(const Policy::RetryOptions &options,
                 const Policy::RetryPolicyContext &ctx);
 int getBackoffTime(const Policy::RetryOptions &options,
                    const Policy::RetryPolicyContext &ctx);
-void sleep(int seconds);
+
+/**
+ * @brief Sleep for the specified number of milliseconds
+ * @param milliseconds The number of milliseconds to sleep
+ */
+void sleep(int milliseconds);
 
 } // namespace Darabonba
 

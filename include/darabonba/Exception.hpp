@@ -49,15 +49,19 @@ protected:
   std::string msg_;
   std::string name_ = "Exception";
   std::string code_;
-  std::int32_t retry_after_;
+  std::int32_t retry_after_ = 0;  // 初始化为 0
 };
 
 class ValidateException : public Exception {
 public:
-  ValidateException() = default;
+  ValidateException() {
+    name_ = "ValidateException";
+  }
 
   ValidateException(const std::string &code, const std::string msg)
-      : Exception(code + ": " + msg) {}
+      : Exception(code + ": " + msg) {
+    name_ = "ValidateException";
+  }
 
   virtual ~ValidateException() = default;
 
@@ -71,6 +75,7 @@ public:
   ResponseException(const ResponseException &) = default ;
   ResponseException(ResponseException &&) = default ;
   ResponseException(const Darabonba::Json &obj) {
+    name_ = "ResponseException";
     from_json(obj, *this);
     msg_ = DARA_STRING_TEMPLATE("SDKError:\n   StatusCode: " , getStatusCode() , ", Code: " , getCode(), ", Message: " , getMessage());
   }
@@ -101,7 +106,6 @@ private:
   std::shared_ptr<std::string> message_;
   std::shared_ptr<std::string> description_;
   std::shared_ptr<std::string> accessDeniedDetail_;
-  std::string name_ = "ResponseException";
 };
 
 
@@ -114,7 +118,6 @@ public:
 
 private:
   std::string arg_;
-  std::string name_ = "RequiredArgumentException";
 };
 
 // RetryError Class
@@ -126,7 +129,6 @@ public:
 
 private:
   std::string message_;
-  std::string name_ = "RetryError";
 };
 }// namesapce Darabonba
 #endif // DARABONBA_EXCEPTIONS_HPP

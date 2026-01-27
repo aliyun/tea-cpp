@@ -128,6 +128,8 @@ curl_slist *setCurlHeader(CURL *curl, const Darabonba::Http::Header &header) {
 
 int debugFunction(CURL *handle, curl_infotype type, char *data, size_t size, void *userptr)
 {
+  (void)handle;   // unused parameter
+  (void)userptr;  // unused parameter
   switch (type) {
   case CURLINFO_TEXT:
     std::cerr << "Request Info:" << data << std::endl;

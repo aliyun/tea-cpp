@@ -31,9 +31,11 @@ namespace Darabonba{
 
       SSEEvent &operator=(const SSEEvent &) = default;
 
-      void validate() const {};
+      void validate() const override{};
 
-      virtual bool empty() const override {};
+      virtual bool empty() const override {
+        return id_ == nullptr && event_ == nullptr && data_ == nullptr && retry_ == nullptr;
+      };
 
       virtual Darabonba::Json toMap() const override {
         Darabonba::Json obj;

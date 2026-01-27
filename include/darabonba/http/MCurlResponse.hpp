@@ -9,6 +9,7 @@
 #include <darabonba/http/ResponseBase.hpp>
 #include <darabonba/lock/SpinLock.hpp>
 #include <memory>
+#include <mutex>
 
 namespace Darabonba {
 namespace Http {
@@ -20,9 +21,9 @@ class MCurlResponseBody : public IOStream {
   friend class MCurlHttpClient;
 
 public:
-  MCurlResponseBody &operator=(const MCurlResponseBody &) = default;
+  MCurlResponseBody &operator=(const MCurlResponseBody &) = delete;
 
-  MCurlResponseBody &operator=(MCurlResponseBody &&) = default;
+  MCurlResponseBody &operator=(MCurlResponseBody &&) = delete;
 
   virtual ~MCurlResponseBody() {}
 
@@ -78,10 +79,12 @@ protected:
   std::atomic<bool> ready_ = {false};
 
   // 用于等待整个数据接受完毕
+  mutable std::mutex doneMutex_;
   std::condition_variable doneCV_;
 
   std::atomic<size_t> readableSize_ = {0};
 
+  mutable std::mutex streamMutex_;
   std::condition_variable streamCV_;
 
   Lock::SpinLock bufferlock_;
@@ -129,16 +132,21 @@ struct adl_serializer<std::shared_ptr<Darabonba::Http::MCurlResponseBody>> {
   static void
   to_json(json &j,
           const std::shared_ptr<Darabonba::Http::MCurlResponseBody> &body) {
-    j = reinterpret_cast<uintptr_t>(body.get());
+    if (body) {
+      j = reinterpret_cast<uintptr_t>(body.get());
+    } else {
+      j = nullptr;
+    }
   }
 
   static std::shared_ptr<Darabonba::Http::MCurlResponseBody>
   from_json(const json &j) {
-    if (j.is_null()) {
+    if (!j.is_null() && j.is_number_unsigned()) {
       Darabonba::Http::MCurlResponseBody *ptr =
           reinterpret_cast<Darabonba::Http::MCurlResponseBody *>(
               j.get<uintptr_t>());
-      return std::shared_ptr<Darabonba::Http::MCurlResponseBody>(ptr);
+      return std::shared_ptr<Darabonba::Http::MCurlResponseBody>(
+          ptr, [](Darabonba::Http::MCurlResponseBody*) {});  // 不删除，因为所有权不明确
     }
     return nullptr;
   }
@@ -149,12 +157,16 @@ struct adl_serializer<std::shared_ptr<Darabonba::Http::MCurlResponse>> {
   static void
   to_json(json &j,
           const std::shared_ptr<Darabonba::Http::MCurlResponse> &body) {
-    j = reinterpret_cast<uintptr_t>(body.get());
+    if (body) {
+      j = reinterpret_cast<uintptr_t>(body.get());
+    } else {
+      j = nullptr;
+    }
   }
 
   static std::shared_ptr<Darabonba::Http::MCurlResponse>
   from_json(const json &j) {
-    if (j.is_null()) {
+    if (!j.is_null() && j.is_number_unsigned()) {
       Darabonba::Http::MCurlResponse *ptr =
           reinterpret_cast<Darabonba::Http::MCurlResponse *>(
               j.get<uintptr_t>());

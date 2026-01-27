@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <darabonba/Stream.hpp>
+#include <darabonba/Exception.hpp>
 
 namespace Darabonba {
 
@@ -36,9 +37,15 @@ std::string Stream::readAsString(std::shared_ptr<IStream> raw) {
 }
 
 Json Stream::readAsJSON(std::shared_ptr<IStream> raw) {
-  // Assuming Json can be constructed from a string
   std::string str = readAsString(raw);
-  return Json::parse(str); // Adjust with your Json parse method
+  if (str.empty()) {
+    return Json();
+  }
+  try {
+    return Json::parse(str);
+  } catch (const nlohmann::json::parse_error& e) {
+    throw Darabonba::Exception(std::string("JSON parse error: ") + e.what());
+  }
 }
 
 std::shared_ptr<IStream> Stream::toReadable(const std::string &raw) {

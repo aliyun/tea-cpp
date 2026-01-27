@@ -25,9 +25,14 @@ public:
 
   static Bytes HmacSHA1SignByBytes(const std::string &stringToSign,
                                    const Bytes &secret) {
+    if (secret.empty()) {
+      return HmacSHA1::sign(reinterpret_cast<const void *>(stringToSign.c_str()),
+                            stringToSign.size(),
+                            nullptr, 0);
+    }
     return HmacSHA1::sign(reinterpret_cast<const void *>(stringToSign.c_str()),
                           stringToSign.size(),
-                          reinterpret_cast<const void *>(&secret[0]),
+                          reinterpret_cast<const void *>(secret.data()),
                           secret.size());
   }
 
@@ -41,9 +46,14 @@ public:
 
   static Bytes HmacSHA256SignByBytes(const std::string &stringToSign,
                                      const Bytes &secret) {
+    if (secret.empty()) {
+      return HmacSHA256::sign(
+          reinterpret_cast<const void *>(stringToSign.c_str()),
+          stringToSign.size(), nullptr, 0);
+    }
     return HmacSHA256::sign(
         reinterpret_cast<const void *>(stringToSign.c_str()),
-        stringToSign.size(), reinterpret_cast<const void *>(&secret[0]),
+        stringToSign.size(), reinterpret_cast<const void *>(secret.data()),
         secret.size());
   }
 
@@ -57,9 +67,14 @@ public:
 
   static Bytes HmacSM3SignByBytes(const std::string &stringToSign,
                                   const Bytes &secret) {
+    if (secret.empty()) {
+      return HmacSM3::sign(reinterpret_cast<const void *>(stringToSign.c_str()),
+                           stringToSign.size(),
+                           nullptr, 0);
+    }
     return HmacSM3::sign(reinterpret_cast<const void *>(stringToSign.c_str()),
                          stringToSign.size(),
-                         reinterpret_cast<const void *>(&secret[0]),
+                         reinterpret_cast<const void *>(secret.data()),
                          secret.size());
   }
 
@@ -77,7 +92,7 @@ public:
     }
     return RSASigner::sign(
         reinterpret_cast<const void *>(stringToSign.c_str()),
-        stringToSign.size(), reinterpret_cast<const void *>(&pemSecret[0]),
+        stringToSign.size(), reinterpret_cast<const void *>(pemSecret.data()),
         pemSecret.size(), std::unique_ptr<Encode::Hash>(new Encode::SHA256()));
   }
 
@@ -88,7 +103,10 @@ public:
   }
 
   static Bytes MD5SignForBytes(const Bytes &bytesToSign) {
-    return Encode::MD5::hash(reinterpret_cast<const void *>(&bytesToSign[0]),
+    if (bytesToSign.empty()) {
+      return Encode::MD5::hash(nullptr, 0);
+    }
+    return Encode::MD5::hash(reinterpret_cast<const void *>(bytesToSign.data()),
                              bytesToSign.size());
   }
 };

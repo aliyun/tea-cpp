@@ -2,10 +2,16 @@
 
 namespace Darabonba {
 
+// ResponseException Implementation
+ResponseException::ResponseException() : Exception() {
+    name_ = "ResponseException";
+}
 
 // RequiredArgumentException Implementation
 RequiredArgumentException::RequiredArgumentException(const std::string &arg)
-: Exception("\"" + arg + "\" is required.") {}
+: Exception("\"" + arg + "\" is required.") {
+    name_ = "RequiredArgumentException";
+}
 
 const char* RequiredArgumentException::what() const noexcept {
     return msg_.c_str();

@@ -29,7 +29,7 @@ MCurlHttpClient::makeRequest(const Request &request,
       curl_easy_setopt(easyHandle, CURLOPT_SSL_VERIFYHOST, 0L);
     } else {
       curl_easy_setopt(easyHandle, CURLOPT_SSL_VERIFYPEER, 1L);
-      curl_easy_setopt(easyHandle, CURLOPT_SSL_VERIFYHOST, 1L);
+      curl_easy_setopt(easyHandle, CURLOPT_SSL_VERIFYHOST, 2L);  // 2L for full verification
     }
     // timeout
     auto connectTimeout = options.value("connectTimeout", 5000L);
@@ -186,6 +186,7 @@ void MCurlHttpClient::perform() {
     curl_easy_cleanup(p.first);
   }
   runningCurl_.clear();
+  stop_ = true;
   stopCV_.notify_all();
 }
 
@@ -203,12 +204,13 @@ bool MCurlHttpClient::stop() {
   running_ = false;
   curl_multi_wakeup(mCurl_);
   std::unique_lock<std::mutex> lock(stopMutex_);
-  stopCV_.wait(lock, []() { return true; });
+  stopCV_.wait(lock, [this]() { return stop_.load(); });
   return true;
 }
 
 void MCurlHttpClient::clearQueue() {
-  std::lock(reqLock_, continueReadingLock_);
+  std::lock_guard<Lock::SpinLock> guard1(reqLock_);
+  std::lock_guard<Lock::SpinLock> guard2(continueReadingLock_);
   while (!reqQueue_.empty()) {
     auto storage = std::move(reqQueue_.front());
     reqQueue_.pop_front();
