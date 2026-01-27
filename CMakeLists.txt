@@ -2,7 +2,9 @@ cmake_minimum_required(VERSION 3.5 FATAL_ERROR)
 project(darabonba_core VERSION "1.0.0")
 
 # set c++ version
-set(CMAKE_CXX_STANDARD 11)
+if(NOT CMAKE_CXX_STANDARD)
+  set(CMAKE_CXX_STANDARD 11)
+endif()
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
