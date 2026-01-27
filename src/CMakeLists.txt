@@ -1,6 +1,6 @@
 file(GLOB_RECURSE CPP_FILES "*.cpp")
 
-add_library(${PROJECT_NAME} SHARED ${CPP_FILES})
+add_library(${PROJECT_NAME} ${CPP_FILES})
 
 if(WIN32)
   # Ensure MSVC emits the import library by exporting all public symbols
