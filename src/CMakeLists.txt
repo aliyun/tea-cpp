@@ -56,6 +56,11 @@ if(APPLE)
   target_link_libraries(${PROJECT_NAME} PUBLIC "-framework CoreFoundation" "-framework Security")
 endif()
 
+# Windows specific libraries
+if(WIN32)
+  target_link_libraries(${PROJECT_NAME} PRIVATE ws2_32)
+endif()
+
 # 6. Target Properties and Compiler Definitions
 set_target_properties(${PROJECT_NAME} PROPERTIES
   POSITION_INDEPENDENT_CODE ON

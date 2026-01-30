@@ -115,6 +115,9 @@ TEST_F(FormTest, ToFileFormWithStringField) {
         std::string content = Stream::readAsString(stream);
         // 内容应该包含 boundary 和字段
         EXPECT_FALSE(content.empty());
+        EXPECT_NE(content.find(boundary), std::string::npos);
+        EXPECT_NE(content.find("name"), std::string::npos);
+        EXPECT_NE(content.find("test"), std::string::npos);
     }
 }
 

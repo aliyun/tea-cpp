@@ -35,47 +35,8 @@ find_package(OpenSSL REQUIRED)
 find_package(CURL REQUIRED)
 
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Target Setup >>>>>>>>>>>>>>>>>>>>>>>>>>>>>> #
-# Assuming the library target is defined here or in src
-# For clarity, we define the target here if source files are known, 
-# or ensure src/CMakeLists.txt uses the following modern commands.
-
-file(GLOB_RECURSE SRC_FILES "src/*.cpp")
-add_library(${PROJECT_NAME} ${SRC_FILES})
-add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
-
-# --- THE MOST IMPORTANT FIX: Usage Requirements ---
-target_include_directories(${PROJECT_NAME}
-    PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
-)
-
-target_link_libraries(${PROJECT_NAME}
-    PUBLIC
-        OpenSSL::SSL
-        OpenSSL::Crypto
-        CURL::libcurl
-)
-
-if(WIN32)
-    target_link_libraries(${PROJECT_NAME} PRIVATE ws2_32)
-endif()
-
-# <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Properties >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> #
-set_target_properties(${PROJECT_NAME} PROPERTIES
-    POSITION_INDEPENDENT_CODE ON
-    WINDOWS_EXPORT_ALL_SYMBOLS ON
-    SOVERSION ${PROJECT_VERSION_MAJOR}
-    VERSION ${PROJECT_VERSION}
-)
-
-# Handle MSVC runtime for CMake 3.13
-if(MSVC)
-    target_compile_options(${PROJECT_NAME} PRIVATE
-        $<$<CONFIG:Release>:/MD>
-        $<$<CONFIG:Debug>:/MDd>
-    )
-endif()
+# The library target is defined in src/CMakeLists.txt
+add_subdirectory(src)
 
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Subdirectories >>>>>>>>>>>>>>>>>>>>>>>>>>>> #
 if(ENABLE_UNIT_TESTS)

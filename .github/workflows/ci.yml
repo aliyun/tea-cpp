@@ -49,30 +49,43 @@ jobs:
 
     - name: Setup vcpkg (Windows)
       if: runner.os == 'Windows'
+      shell: bash
       run: |
         vcpkg install curl:x64-windows openssl:x64-windows
-        echo "CMAKE_TOOLCHAIN_FILE=$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" >> $GITHUB_ENV
 
     - name: Configure CMake
       shell: bash
       run: |
         LIB_SHARED=OFF
         if [ "${{ matrix.lib_type }}" = "shared" ]; then LIB_SHARED=ON; fi
-        cmake -B build \
-          -DCMAKE_BUILD_TYPE=Release \
-          -DBUILD_SHARED_LIBS=$LIB_SHARED \
-          -DCMAKE_CXX_STANDARD=${{ matrix.cxx_standard }} \
-          -DENABLE_UNIT_TESTS=ON \
-          -DCMAKE_INSTALL_PREFIX=./install
+        
+        # Windows needs toolchain file
+        if [ "${{ runner.os }}" = "Windows" ]; then
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_SHARED_LIBS=$LIB_SHARED \
+            -DCMAKE_CXX_STANDARD=${{ matrix.cxx_standard }} \
+            -DENABLE_UNIT_TESTS=ON \
+            -DCMAKE_INSTALL_PREFIX=./install \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
+        else
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_SHARED_LIBS=$LIB_SHARED \
+            -DCMAKE_CXX_STANDARD=${{ matrix.cxx_standard }} \
+            -DENABLE_UNIT_TESTS=ON \
+            -DCMAKE_INSTALL_PREFIX=./install
+        fi
 
     - name: Build
       run: cmake --build build --config Release
 
     - name: Test
       shell: bash
+      timeout-minutes: 10
       run: |
         cd build
-        ctest --output-on-failure -C Release
+        ctest --output-on-failure -C Release --timeout 300
 
     - name: Install
       run: cmake --install build --config Release --prefix ./install
@@ -90,7 +103,12 @@ jobs:
         EOF
         echo "int main() { return 0; }" > sample_test/main.cpp
         
-        cmake -S sample_test -B sample_test/build \
-          -DCMAKE_PREFIX_PATH=$(pwd)/install \
-          -DCMAKE_TOOLCHAIN_FILE=${{ env.CMAKE_TOOLCHAIN_FILE }} \
-          -DOPENSSL_ROOT_DIR=${{ env.OPENSSL_ROOT_DIR }}
+        if [ "${{ runner.os }}" = "Windows" ]; then
+          cmake -S sample_test -B sample_test/build \
+            -DCMAKE_PREFIX_PATH=$(pwd)/install \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
+        else
+          cmake -S sample_test -B sample_test/build \
+            -DCMAKE_PREFIX_PATH=$(pwd)/install \
+            -DOPENSSL_ROOT_DIR=${{ env.OPENSSL_ROOT_DIR }}
+        fi
