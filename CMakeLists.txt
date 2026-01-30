@@ -80,6 +80,7 @@ endif()
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Subdirectories >>>>>>>>>>>>>>>>>>>>>>>>>>>> #
 if(ENABLE_UNIT_TESTS)
   enable_testing()
+  add_subdirectory(external)
   add_subdirectory(tests)
 endif()
 
