@@ -250,7 +250,10 @@ public:
     return *this;
   }
 
-  virtual size_t write(char *buffer, size_t expectSize) = 0;
+  virtual size_t write(char *buffer, size_t expectSize) override {
+    std::ofstream::write(buffer, expectSize);
+    return expectSize;
+  }
 };
 
 class IOStream : public IStream, public OStream {

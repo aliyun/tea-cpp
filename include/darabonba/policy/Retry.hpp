@@ -6,6 +6,8 @@
 #include <map>
 #include <memory>
 #include <stdexcept>
+#include <cmath>
+#include <algorithm>
 #include <darabonba/Type.hpp>
 #include <darabonba/Model.hpp>
 #include <darabonba/Exception.hpp>
@@ -15,7 +17,6 @@
 // 定义最大和最小延迟时间
 const int MaxDelayTime = 120 * 1000;
 const int MinDelayTime = 100;
-using namespace std;
 
 namespace Darabonba {
 namespace Policy{
@@ -86,7 +87,7 @@ public:
   FixedBackoffPolicy& operator=(FixedBackoffPolicy &&) = default;
   virtual ~FixedBackoffPolicy() = default;
 
-  int getDelayTime(const RetryPolicyContext& ctx) const override {
+  int getDelayTime(const RetryPolicyContext& /* ctx */) const override {
     return period_;
   }
 
@@ -129,7 +130,7 @@ public:
   RandomBackoffPolicy& operator=(RandomBackoffPolicy &&) = default;
   virtual ~RandomBackoffPolicy() = default;
 
-  int getDelayTime(const RetryPolicyContext& ctx) const override {
+  int getDelayTime(const RetryPolicyContext& /* ctx */) const override {
     // 返回在 period 和 cap 范围内的随机数
     return period_ + std::rand() % cap_;
   }
@@ -146,20 +147,138 @@ private:
   int cap_;
 };
 
-// 定义其他策略如 ExponentialBackoffPolicy、EqualJitterBackoffPolicy、FullJitterBackoffPolicy...
+class ExponentialBackoffPolicy : public BackoffPolicy {
+public:
+  friend void to_json(Darabonba::Json &j, const ExponentialBackoffPolicy &obj) {
+    to_json(j, static_cast<const BackoffPolicy&>(obj));
+    DARABONBA_TO_JSON(period, period_);
+    DARABONBA_TO_JSON(cap, cap_);
+  }
+
+  friend void from_json(const Darabonba::Json &j, ExponentialBackoffPolicy &obj) {
+    from_json(j, static_cast<BackoffPolicy&>(obj));
+    DARABONBA_FROM_JSON(period, period_);
+    DARABONBA_FROM_JSON(cap, cap_);
+  }
+
+  ExponentialBackoffPolicy(const Darabonba::Json &obj) { from_json(obj, *this); }
+  explicit ExponentialBackoffPolicy(const std::map<std::string, std::string>& option)
+      : BackoffPolicy(option), period_(std::stoi(option.at("period"))),
+        cap_(option.count("cap") ? std::stoi(option.at("cap")) : 3 * 24 * 60 * 60 * 1000) {}
+
+  ExponentialBackoffPolicy& operator=(const ExponentialBackoffPolicy &) = default;
+  ExponentialBackoffPolicy& operator=(ExponentialBackoffPolicy &&) = default;
+  virtual ~ExponentialBackoffPolicy() = default;
+
+  int getDelayTime(const RetryPolicyContext& ctx) const override;
+
+  int getPeriod() const { return period_; }
+  void setPeriod(int period) { period_ = period; }
+
+  int getCap() const { return cap_; }
+  void setCap(int cap) { cap_ = cap; }
+
+private:
+  int period_;
+  int cap_;
+};
+
+class EqualJitterBackoffPolicy : public BackoffPolicy {
+public:
+  friend void to_json(Darabonba::Json &j, const EqualJitterBackoffPolicy &obj) {
+    to_json(j, static_cast<const BackoffPolicy&>(obj));
+    DARABONBA_TO_JSON(period, period_);
+    DARABONBA_TO_JSON(cap, cap_);
+  }
+
+  friend void from_json(const Darabonba::Json &j, EqualJitterBackoffPolicy &obj) {
+    from_json(j, static_cast<BackoffPolicy&>(obj));
+    DARABONBA_FROM_JSON(period, period_);
+    DARABONBA_FROM_JSON(cap, cap_);
+  }
+
+  EqualJitterBackoffPolicy(const Darabonba::Json &obj) { from_json(obj, *this); }
+  explicit EqualJitterBackoffPolicy(const std::map<std::string, std::string>& option)
+      : BackoffPolicy(option), period_(std::stoi(option.at("period"))),
+        cap_(option.count("cap") ? std::stoi(option.at("cap")) : 3 * 24 * 60 * 60 * 1000) {}
+
+  EqualJitterBackoffPolicy& operator=(const EqualJitterBackoffPolicy &) = default;
+  EqualJitterBackoffPolicy& operator=(EqualJitterBackoffPolicy &&) = default;
+  virtual ~EqualJitterBackoffPolicy() = default;
+
+  int getDelayTime(const RetryPolicyContext& ctx) const override;
+
+  int getPeriod() const { return period_; }
+  void setPeriod(int period) { period_ = period; }
+
+  int getCap() const { return cap_; }
+  void setCap(int cap) { cap_ = cap; }
+
+private:
+  int period_;
+  int cap_;
+};
+
+class FullJitterBackoffPolicy : public BackoffPolicy {
+public:
+  friend void to_json(Darabonba::Json &j, const FullJitterBackoffPolicy &obj) {
+    to_json(j, static_cast<const BackoffPolicy&>(obj));
+    DARABONBA_TO_JSON(period, period_);
+    DARABONBA_TO_JSON(cap, cap_);
+  }
+
+  friend void from_json(const Darabonba::Json &j, FullJitterBackoffPolicy &obj) {
+    from_json(j, static_cast<BackoffPolicy&>(obj));
+    DARABONBA_FROM_JSON(period, period_);
+    DARABONBA_FROM_JSON(cap, cap_);
+  }
+
+  FullJitterBackoffPolicy(const Darabonba::Json &obj) { from_json(obj, *this); }
+  explicit FullJitterBackoffPolicy(const std::map<std::string, std::string>& option)
+      : BackoffPolicy(option), period_(std::stoi(option.at("period"))),
+        cap_(option.count("cap") ? std::stoi(option.at("cap")) : 3 * 24 * 60 * 60 * 1000) {}
+
+  FullJitterBackoffPolicy& operator=(const FullJitterBackoffPolicy &) = default;
+  FullJitterBackoffPolicy& operator=(FullJitterBackoffPolicy &&) = default;
+  virtual ~FullJitterBackoffPolicy() = default;
+
+  int getDelayTime(const RetryPolicyContext& ctx) const override;
+
+  int getPeriod() const { return period_; }
+  void setPeriod(int period) { period_ = period; }
+
+  int getCap() const { return cap_; }
+  void setCap(int cap) { cap_ = cap; }
+
+private:
+  int period_;
+  int cap_;
+};
 
 class RetryCondition {
 public:
   friend void to_json(Darabonba::Json &j, const RetryCondition &obj) {
+    if (obj.maxAttempts_) {
+      j["maxAttempts"] = *obj.maxAttempts_;
+    }
     DARABONBA_PTR_TO_JSON(backoff, backoff_);
     DARABONBA_TO_JSON(exception, exception_);
     DARABONBA_TO_JSON(errorCode, errorCode_);
+    if (obj.maxDelay_) {
+      j["maxDelay"] = *obj.maxDelay_;
+    }
   }
 
   friend void from_json(const Darabonba::Json &j, RetryCondition &obj) {
+    if (j.count("maxAttempts") && !j["maxAttempts"].is_null()) {
+      obj.maxAttempts_ = std::make_shared<int>(j["maxAttempts"].get<int>());
+    }
     //      DARABONBA_PTR_FROM_JSON(backoff, backoff_);
     DARABONBA_FROM_JSON(exception, exception_);
     DARABONBA_FROM_JSON(errorCode, errorCode_);
+    if (j.count("maxDelay") && !j["maxDelay"].is_null()) {
+      obj.maxDelay_ = std::make_shared<int>(j["maxDelay"].get<int>());
+    }
   }
 
   RetryCondition() = default;
@@ -170,7 +289,11 @@ public:
   RetryCondition& operator=(const RetryCondition &) = default;
   RetryCondition& operator=(RetryCondition &&) = default;
 
-  int getMaxAttempts() const { return *maxAttempts_; }
+  const std::shared_ptr<int>& getMaxAttemptsPtr() const { return maxAttempts_; }
+  int getMaxAttempts() const { 
+    if (maxAttempts_) return *maxAttempts_; 
+    return 0;
+  }
   RetryCondition& setMaxAttempts(int attempts) { maxAttempts_ = std::make_shared<int>(attempts); return *this; }
 
   const std::shared_ptr<BackoffPolicy>& getBackoff() const { return backoff_; }
@@ -182,7 +305,11 @@ public:
   const std::vector<std::string>& getErrorCode() const { return errorCode_; }
   RetryCondition& setErrorCode(const std::vector<std::string> &codes) { errorCode_ = codes; return *this; }
 
-  int getMaxDelay() const { return *maxDelay_; }
+  const std::shared_ptr<int>& getMaxDelayPtr() const { return maxDelay_; }
+  int getMaxDelay() const { 
+    if (maxDelay_) return *maxDelay_; 
+    return 0;
+  }
   RetryCondition& setMaxDelay(int delay) { maxDelay_ = std::make_shared<int>(delay); return *this; }
 
 protected:
@@ -258,7 +385,7 @@ public:
   ~RetryPolicyContext() = default ;
 
   // 构造函数初始化
-  RetryPolicyContext(int retriesAttempted, shared_ptr<Exception> httpException)
+  RetryPolicyContext(int retriesAttempted, std::shared_ptr<Exception> httpException)
       : retriesAttempted_(retriesAttempted), exception_(httpException) {}
 
   RetryPolicyContext& operator=(const RetryPolicyContext &) = default;
@@ -270,23 +397,24 @@ public:
   int getRetriesAttempted() const { return retriesAttempted_; }
   RetryPolicyContext& setRetriesAttempted(int retries) { retriesAttempted_ = retries; return *this; }
 
-  shared_ptr<Exception> getException() const { return exception_; }
-  RetryPolicyContext& setException(shared_ptr<Exception> ex) { exception_ = ex; return *this; }
+  std::shared_ptr<Exception> getException() const { return exception_; }
+  RetryPolicyContext& setException(std::shared_ptr<Exception> ex) { exception_ = ex; return *this; }
 
-  shared_ptr<Darabonba::Http::MCurlResponse> getLastResponse() const { return lastResponse_; }
-  RetryPolicyContext& setLastResponse(shared_ptr<Darabonba::Http::MCurlResponse> resp) { lastResponse_ = resp; return *this; }
+  std::shared_ptr<Darabonba::Http::MCurlResponse> getLastResponse() const { return lastResponse_; }
+  RetryPolicyContext& setLastResponse(std::shared_ptr<Darabonba::Http::MCurlResponse> resp) { lastResponse_ = resp; return *this; }
 
-  shared_ptr<Darabonba::Http::Request> getLastRequest() const { return lastRequest_; }
-  RetryPolicyContext& setLastRequest(shared_ptr<Darabonba::Http::Request> resp) { lastRequest_ = resp; return *this; }
+  std::shared_ptr<Darabonba::Http::Request> getLastRequest() const { return lastRequest_; }
+  RetryPolicyContext& setLastRequest(std::shared_ptr<Darabonba::Http::Request> resp) { lastRequest_ = resp; return *this; }
 
 protected:
-  int retriesAttempted_;       // 已尝试的重试次数
-  shared_ptr<Exception> exception_; // HTTP 异常
-  shared_ptr<Darabonba::Http::MCurlResponse> lastResponse_;
-  shared_ptr<Darabonba::Http::Request> lastRequest_;
+  int retriesAttempted_ = 0;       // 已尝试的重试次数
+  std::shared_ptr<Exception> exception_; // HTTP 异常
+  std::shared_ptr<Darabonba::Http::MCurlResponse> lastResponse_;
+  std::shared_ptr<Darabonba::Http::Request> lastRequest_;
 };
 
 // 功能函数
+bool shouldRetry(const RetryOptions& options, const RetryPolicyContext& ctx);
 int getBackoffDelay(const RetryOptions& options, const RetryPolicyContext& ctx);
 }
 } // namespace Darabonba

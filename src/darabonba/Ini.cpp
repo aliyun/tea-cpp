@@ -17,7 +17,7 @@ Ini::Section::operator std::string() const {
 
 Ini Ini::parse(std::basic_istream<char> &content, CommentType type) {
   Ini obj;
-  Ini::KeyValues *pSec;
+  Ini::KeyValues *pSec = nullptr;
 
   for (std::string line; !content.eof() && !content.bad();) {
     std::getline(content, line, '\n');

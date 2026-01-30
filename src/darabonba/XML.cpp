@@ -98,6 +98,7 @@ static Darabonba::Json xmlToJson(const void *data, size_t size) {
 
 namespace Darabonba {
 Json XML::parseXml(const std::string &body, const void *resp) {
+  (void)resp; // unused parameter
   return xmlToJson(reinterpret_cast<const void *>(body.c_str()), body.size());
 }
 

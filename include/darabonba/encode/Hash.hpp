@@ -42,6 +42,9 @@ public:
   Hash &operator=(Hash &&obj) {
     if (this == &obj)
       return *this;
+    if (ctx_) {
+      EVP_MD_CTX_free(ctx_);  // 释放旧资源
+    }
     ctx_ = obj.ctx_;
     obj.ctx_ = nullptr;
     return *this;

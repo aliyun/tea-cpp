@@ -8,6 +8,11 @@ namespace Darabonba {
 namespace Http {
 
 URL::URL(const std::string &url) {
+  // 空URL直接返回
+  if (url.empty()) {
+    return;
+  }
+  
   // TODO can't parse when url = "baidu.com"
   CURLU *curlu = curl_url();
   if (curlu == nullptr)
