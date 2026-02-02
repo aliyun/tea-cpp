@@ -20,24 +20,41 @@ if(WIN32 AND BUILD_SHARED_LIBS)
   )
   
   # Copy dependency DLLs from vcpkg
-  if(DEFINED VCPKG_TARGET_TRIPLET OR DEFINED ENV{VCPKG_INSTALLATION_ROOT})
-    # Determine vcpkg bin directory
-    if(DEFINED VCPKG_TARGET_TRIPLET)
-      set(VCPKG_BIN_DIR "$ENV{VCPKG_INSTALLATION_ROOT}/installed/${VCPKG_TARGET_TRIPLET}/bin")
-    else()
-      # Fallback: assume x64-windows for Windows
-      set(VCPKG_BIN_DIR "$ENV{VCPKG_INSTALLATION_ROOT}/installed/x64-windows/bin")
-    endif()
-    
-    # Use a CMake script to copy all DLLs at build time
+  # Use CMake's built-in capability to copy runtime dependencies (CMake 3.21+)
+  # For older CMake, we manually copy known DLLs
+  if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.21")
     add_custom_command(TARGET ${PROJECT_NAME}Test POST_BUILD
-      COMMAND ${CMAKE_COMMAND} 
-        -DVCPKG_BIN_DIR="${VCPKG_BIN_DIR}"
-        -DTARGET_DIR="$<TARGET_FILE_DIR:${PROJECT_NAME}Test>"
-        -P "${CMAKE_CURRENT_SOURCE_DIR}/copy_runtime_dlls.cmake"
-      COMMENT "Copying vcpkg runtime DLLs to test directory"
-      VERBATIM
+      COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:${PROJECT_NAME}Test> $<TARGET_FILE_DIR:${PROJECT_NAME}Test>
+      COMMAND_EXPAND_LISTS
+      COMMENT "Copying runtime DLLs to test directory"
     )
+  else()
+    # For CMake < 3.21, manually copy DLLs from dependency targets
+    # Get the DLL files from OpenSSL and CURL targets
+    if(TARGET OpenSSL::SSL)
+      add_custom_command(TARGET ${PROJECT_NAME}Test POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        $<TARGET_FILE:OpenSSL::SSL>
+        $<TARGET_FILE_DIR:${PROJECT_NAME}Test>
+        COMMENT "Copying OpenSSL SSL DLL"
+      )
+    endif()
+    if(TARGET OpenSSL::Crypto)
+      add_custom_command(TARGET ${PROJECT_NAME}Test POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        $<TARGET_FILE:OpenSSL::Crypto>
+        $<TARGET_FILE_DIR:${PROJECT_NAME}Test>
+        COMMENT "Copying OpenSSL Crypto DLL"
+      )
+    endif()
+    if(TARGET CURL::libcurl)
+      add_custom_command(TARGET ${PROJECT_NAME}Test POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        $<TARGET_FILE:CURL::libcurl>
+        $<TARGET_FILE_DIR:${PROJECT_NAME}Test>
+        COMMENT "Copying CURL DLL"
+      )
+    endif()
   endif()
 endif()
 
