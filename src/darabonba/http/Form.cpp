@@ -1,7 +1,7 @@
-#include <darabonba/String.hpp>
 #include <darabonba/Core.hpp>
-#include <darabonba/http/Form.hpp>
+#include <darabonba/String.hpp>
 #include <darabonba/http/FileField.hpp>
+#include <darabonba/http/Form.hpp>
 
 namespace Darabonba {
 namespace Http {
@@ -11,9 +11,7 @@ std::string Form::encode(const std::string &content) {
   return String::replace(ret, "%20", "+");
 }
 
-std::string Form::getBoundary() {
-  return Core::uuid();
-}
+std::string Form::getBoundary() { return Core::uuid(); }
 
 std::string Form::toFormString(const Json &val) {
   if (val.empty() || val.is_null()) {
@@ -32,9 +30,8 @@ std::string Form::toFormString(const Json &val) {
   return formstring;
 }
 
-
 std::shared_ptr<IStream> Form::toFileForm(const Json &form,
-                                              const std::string &boundary) {
+                                          const std::string &boundary) {
 
   auto p = std::make_shared<FileFormStream>(form);
   p->setBoundary(boundary);

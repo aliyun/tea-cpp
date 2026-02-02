@@ -1,8 +1,8 @@
+#include <algorithm>
 #include <chrono>
 #include <darabonba/Core.hpp>
-#include <darabonba/policy/Retry.hpp>
 #include <darabonba/http/MCurlHttpClient.hpp>
-#include <algorithm>
+#include <darabonba/policy/Retry.hpp>
 #include <fstream>
 #include <iomanip>
 #include <sstream>
@@ -99,7 +99,7 @@ Core::doAction(Http::Request &request, const Darabonba::Json &runtime) {
   return client->makeRequest(request, runtime);
 }
 
-bool allowRetry(const RetryOptions& options, const RetryPolicyContext& ctx) {
+bool allowRetry(const RetryOptions &options, const RetryPolicyContext &ctx) {
   if (ctx.getRetriesAttempted() == 0) {
     return true;
   }
@@ -112,19 +112,27 @@ bool allowRetry(const RetryOptions& options, const RetryPolicyContext& ctx) {
   shared_ptr<Exception> ex = ctx.getException();
 
   auto noRetryConditions = options.getNoRetryCondition();
-  for (const auto& condition : noRetryConditions) {
-    if (std::find(condition.getException().begin(), condition.getException().end(), ex->getName()) != condition.getException().end() ||
-        std::find(condition.getErrorCode().begin(), condition.getErrorCode().end(), ex->getCode()) != condition.getErrorCode().end()) {
+  for (const auto &condition : noRetryConditions) {
+    if (std::find(condition.getException().begin(),
+                  condition.getException().end(),
+                  ex->getName()) != condition.getException().end() ||
+        std::find(condition.getErrorCode().begin(),
+                  condition.getErrorCode().end(),
+                  ex->getCode()) != condition.getErrorCode().end()) {
       return false;
-        }
+    }
   }
 
   auto retryConditions = options.getRetryCondition();
-  for (const auto& condition : retryConditions) {
-    if (std::find(condition.getException().begin(), condition.getException().end(), ex->getName()) == condition.getException().end() &&
-        std::find(condition.getErrorCode().begin(), condition.getErrorCode().end(), ex->getCode()) == condition.getErrorCode().end()) {
+  for (const auto &condition : retryConditions) {
+    if (std::find(condition.getException().begin(),
+                  condition.getException().end(),
+                  ex->getName()) == condition.getException().end() &&
+        std::find(condition.getErrorCode().begin(),
+                  condition.getErrorCode().end(),
+                  ex->getCode()) == condition.getErrorCode().end()) {
       continue;
-        }
+    }
 
     if (retriesAttempted >= condition.getMaxAttempts()) {
       return false;
@@ -135,17 +143,22 @@ bool allowRetry(const RetryOptions& options, const RetryPolicyContext& ctx) {
   return false;
 }
 
-int getBackoffTime(const RetryOptions& options, const RetryPolicyContext& ctx) {
+int getBackoffTime(const RetryOptions &options, const RetryPolicyContext &ctx) {
   shared_ptr<Exception> ex = ctx.getException();
   auto conditions = options.getRetryCondition();
 
-  for (const auto& condition : conditions) {
-    if (std::find(condition.getException().begin(), condition.getException().end(), ex->getName()) == condition.getException().end() &&
-        std::find(condition.getErrorCode().begin(), condition.getErrorCode().end(), ex->getCode()) == condition.getErrorCode().end()) {
+  for (const auto &condition : conditions) {
+    if (std::find(condition.getException().begin(),
+                  condition.getException().end(),
+                  ex->getName()) == condition.getException().end() &&
+        std::find(condition.getErrorCode().begin(),
+                  condition.getErrorCode().end(),
+                  ex->getCode()) == condition.getErrorCode().end()) {
       continue;
-        }
+    }
 
-    int maxDelay = (condition.getMaxDelay() > 0) ? condition.getMaxDelay() : MAX_DELAY_TIME;
+    int maxDelay = (condition.getMaxDelay() > 0) ? condition.getMaxDelay()
+                                                 : MAX_DELAY_TIME;
     int retryAfter = ex->getRetryAfter();
 
     if (retryAfter > 0) {
@@ -156,7 +169,7 @@ int getBackoffTime(const RetryOptions& options, const RetryPolicyContext& ctx) {
       return MIN_DELAY_TIME;
     }
 
-    BackoffPolicy* strategy = condition.getBackoff().get();
+    BackoffPolicy *strategy = condition.getBackoff().get();
     if (strategy) {
       return (std::min)(strategy->getDelayTime(ctx), maxDelay);
     }
@@ -171,11 +184,11 @@ void sleep(int millisecond) {
   std::this_thread::sleep_for(std::chrono::milliseconds(millisecond));
 }
 
-Json defaultVal(const Json& a, const Json& b) {
+Json defaultVal(const Json &a, const Json &b) {
   if (a.is_null()) {
     return b;
   }
-  switch(a.type()) {
+  switch (a.type()) {
   case Json::value_t::string:
     return a.get<std::string>().empty() ? b : a;
   case Json::value_t::boolean:
@@ -183,7 +196,7 @@ Json defaultVal(const Json& a, const Json& b) {
   case Json::value_t::number_integer:
     return a.get<int>() == 0 ? b : a;
   case Json::value_t::number_unsigned:
-    return a.get<unsigned int>() == 0  ? b : a;
+    return a.get<unsigned int>() == 0 ? b : a;
   case Json::value_t::number_float:
     return a.get<float>() == 0.0 ? b : a;
   case Json::value_t::binary:

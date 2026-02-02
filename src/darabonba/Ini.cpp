@@ -1,9 +1,7 @@
-
-
+#include <darabonba/Exception.hpp>
 #include <darabonba/Ini.hpp>
 #include <darabonba/String.hpp>
 #include <darabonba/Type.hpp>
-#include <darabonba/Exception.hpp>
 #include <sstream>
 
 namespace Darabonba {
@@ -161,8 +159,9 @@ bool Ini::has(const std::string &sectionName, const std::string &key) const {
     return (itSec->second).count(key);
 }
 
-const std::string& Ini::get(const std::string &sectionName, const std::string &key,
-                     const std::string &defaultValue) const {
+const std::string &Ini::get(const std::string &sectionName,
+                            const std::string &key,
+                            const std::string &defaultValue) const {
   auto itSec = data_.find(sectionName);
   if (itSec == data_.end())
     return defaultValue;

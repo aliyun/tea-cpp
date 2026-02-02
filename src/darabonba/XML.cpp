@@ -70,11 +70,11 @@ static Darabonba::Json xmlToJson(tinyxml2::XMLElement *elem) {
     }
   }
   if (result.empty()) {
-    const char* text = elem->GetText();
+    const char *text = elem->GetText();
     if (text) {
       try {
         result = Darabonba::Json::parse(text);
-      } catch (Darabonba::Json::parse_error&) {
+      } catch (Darabonba::Json::parse_error &) {
         result = Darabonba::Json::parse('"' + std::string(text) + '"');
       }
     } else {

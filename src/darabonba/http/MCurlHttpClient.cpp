@@ -21,7 +21,7 @@ MCurlHttpClient::makeRequest(const Request &request,
     return promise.get_future();
   }
 
-  if(!options.is_null()) {
+  if (!options.is_null()) {
     // process the runtime options
     // ssl
     if (options.value("ignoreSSL", false)) {
@@ -29,7 +29,8 @@ MCurlHttpClient::makeRequest(const Request &request,
       curl_easy_setopt(easyHandle, CURLOPT_SSL_VERIFYHOST, 0L);
     } else {
       curl_easy_setopt(easyHandle, CURLOPT_SSL_VERIFYPEER, 1L);
-      curl_easy_setopt(easyHandle, CURLOPT_SSL_VERIFYHOST, 2L);  // 2L for full verification
+      curl_easy_setopt(easyHandle, CURLOPT_SSL_VERIFYHOST,
+                       2L); // 2L for full verification
     }
     // timeout
     auto connectTimeout = options.value("connectTimeout", 5000L);
@@ -64,7 +65,8 @@ MCurlHttpClient::makeRequest(const Request &request,
   }
 
   // set request method
-  curl_easy_setopt(easyHandle, CURLOPT_CUSTOMREQUEST, request.getMethod().c_str());
+  curl_easy_setopt(easyHandle, CURLOPT_CUSTOMREQUEST,
+                   request.getMethod().c_str());
   // set request url
   curl_easy_setopt(easyHandle, CURLOPT_URL,
                    static_cast<std::string>(request.getUrl()).c_str());
@@ -74,10 +76,8 @@ MCurlHttpClient::makeRequest(const Request &request,
 
   // init header
   auto curlStorage = std::unique_ptr<CurlStorage>(new CurlStorage{
-      easyHandle,
-      Curl::setCurlHeader(easyHandle, request.getHeader()),
-      request.getBody(),
-      std::make_shared<MCurlResponse>(),
+      easyHandle, Curl::setCurlHeader(easyHandle, request.getHeader()),
+      request.getBody(), std::make_shared<MCurlResponse>(),
       std::unique_ptr<std::promise<std::shared_ptr<MCurlResponse>>>(
           new std::promise<std::shared_ptr<MCurlResponse>>())});
 
@@ -157,8 +157,8 @@ void MCurlHttpClient::perform() {
         auto curlStorage = std::move(runningCurl_[easyHandle]);
         runningCurl_.erase(easyHandle);
 
-        auto body =
-            dynamic_cast<MCurlResponseBody *>(curlStorage->resp->getBody().get());
+        auto body = dynamic_cast<MCurlResponseBody *>(
+            curlStorage->resp->getBody().get());
         if (body) {
           if (!body->getReady()) {
             setResponseReady(curlStorage.get());

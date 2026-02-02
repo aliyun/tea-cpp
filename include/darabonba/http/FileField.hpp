@@ -1,12 +1,12 @@
 #ifndef DARABONBA_HTTP_FILE_FIELD_H_
 #define DARABONBA_HTTP_FILE_FIELD_H_
 
+#include <algorithm>
+#include <cstring>
 #include <darabonba/Core.hpp>
 #include <darabonba/Model.hpp>
 #include <darabonba/Stream.hpp>
 #include <darabonba/Type.hpp>
-#include <algorithm>
-#include <cstring>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -127,7 +127,7 @@ public:
       // 文件读取完成,添加\r\n
       streaming_ = false;
       streamingStream_ = nullptr;
-      const char* fileEnd = "\r\n";
+      const char *fileEnd = "\r\n";
       size_t endLen = 2;
       if (endLen <= expectSize) {
         std::memcpy(buffer, fileEnd, endLen);
@@ -140,22 +140,23 @@ public:
     // 读取表单字段
     if (index_ < keys_.size()) {
       std::string name = keys_[index_];
-      const auto& fieldValue = form_[name];
+      const auto &fieldValue = form_[name];
 
       // 检查是否为文件字段
       if (isFileFiled(fieldValue)) {
         streaming_ = true;
-        streamingStream_ = fieldValue["content"].get<std::shared_ptr<IStream>>();
+        streamingStream_ =
+            fieldValue["content"].get<std::shared_ptr<IStream>>();
         std::string filename = fieldValue["filename"].get<std::string>();
         std::string contentType = fieldValue["contentType"].get<std::string>();
 
         std::ostringstream oss;
         oss << "--" << boundary_ << "\r\n"
-            << "Content-Disposition: form-data; name=\"" << name 
+            << "Content-Disposition: form-data; name=\"" << name
             << "\"; filename=\"" << filename << "\"\r\n"
             << "Content-Type: " << contentType << "\r\n\r\n";
         std::string header = oss.str();
-        
+
         size_t copyLen = std::min(header.size(), expectSize);
         std::memcpy(buffer, header.c_str(), copyLen);
         return copyLen;
@@ -165,7 +166,7 @@ public:
             << "Content-Disposition: form-data; name=\"" << name << "\"\r\n\r\n"
             << fieldValue.dump() << "\r\n";
         std::string formField = oss.str();
-        
+
         size_t copyLen = std::min(formField.size(), expectSize);
         std::memcpy(buffer, formField.c_str(), copyLen);
         index_++;
@@ -182,9 +183,7 @@ public:
     }
   }
 
-  virtual bool isFinished() const override { 
-    return index_ > keys_.size();
-  }
+  virtual bool isFinished() const override { return index_ > keys_.size(); }
 
   const Json &getForm() const { return form_; }
   curl_mime *getMime() const { return mime_; }
@@ -195,7 +194,7 @@ protected:
   curl_mime *mime_ = nullptr;
   Json form_ = nullptr;
   std::string boundary_;
-  std::vector<std::string> keys_; 
+  std::vector<std::string> keys_;
   size_t index_ = 0;
   bool streaming_ = false;
   std::shared_ptr<IStream> streamingStream_ = nullptr;

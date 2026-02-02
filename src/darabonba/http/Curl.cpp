@@ -8,7 +8,7 @@ namespace Darabonba {
 namespace Http {
 namespace Curl {
 
-std::string toLower(const std::string& str) {
+std::string toLower(const std::string &str) {
   std::string lower;
   lower.resize(str.size());
   std::transform(str.begin(), str.end(), lower.begin(), ::tolower);
@@ -39,7 +39,7 @@ void setCurlRequestBody(CURL *easyHandle,
     std::shared_ptr<FileField> file;
     std::string fileKey;
     for (auto it = form.begin(); it != form.end(); ++it) {
-      if(isFileFiled(it.value())) {
+      if (isFileFiled(it.value())) {
         file = std::make_shared<FileField>(it.value());
         fileKey = it.key();
         continue;
@@ -48,7 +48,7 @@ void setCurlRequestBody(CURL *easyHandle,
       auto key = it.key();
       auto value = it.value();
       std::string data = "";
-      if(value.is_string()) {
+      if (value.is_string()) {
         data = value;
       } else {
         data = value.dump();
@@ -57,16 +57,13 @@ void setCurlRequestBody(CURL *easyHandle,
       curl_mime_data(part, data.c_str(), CURL_ZERO_TERMINATED);
     }
 
-    if(file != nullptr && !file->empty()) {
+    if (file != nullptr && !file->empty()) {
       part = curl_mime_addpart(mime);
       curl_mime_name(part, fileKey.c_str());
       curl_mime_filename(part, file->getFilename().c_str());
       curl_mime_type(part, file->getContentType().c_str());
-      curl_mime_data_cb(part, CURL_ZERO_TERMINATED,
-                        readFileFiled,
-                        nullptr,
-                        nullptr,
-                        file.get());
+      curl_mime_data_cb(part, CURL_ZERO_TERMINATED, readFileFiled, nullptr,
+                        nullptr, file.get());
     }
     curl_easy_setopt(easyHandle, CURLOPT_MIMEPOST, mime);
 
@@ -81,15 +78,15 @@ void setCurlRequestBody(CURL *easyHandle,
   }
 }
 
-  size_t readFileFiled(char *buffer, size_t size, size_t nitems, void *userdata) {
-    auto ff = static_cast<FileField *>(userdata);
-    if (ff == nullptr)
-      return 0;
-    auto f = ff->getContent();
-    if (f == nullptr)
-      return 0;
-    return f->read(buffer, size * nitems);
-  }
+size_t readFileFiled(char *buffer, size_t size, size_t nitems, void *userdata) {
+  auto ff = static_cast<FileField *>(userdata);
+  if (ff == nullptr)
+    return 0;
+  auto f = ff->getContent();
+  if (f == nullptr)
+    return 0;
+  return f->read(buffer, size * nitems);
+}
 
 size_t readIStream(char *buffer, size_t size, size_t nitems, void *userdata) {
   auto f = static_cast<IStream *>(userdata);
@@ -111,7 +108,8 @@ curl_slist *setCurlHeader(CURL *curl, const Darabonba::Http::Header &header) {
   curl_slist *list = nullptr;
   for (const auto &p : header) {
     std::string firstLowerCase = p.first;
-    std::transform(firstLowerCase.begin(), firstLowerCase.end(), firstLowerCase.begin(), ::tolower);
+    std::transform(firstLowerCase.begin(), firstLowerCase.end(),
+                   firstLowerCase.begin(), ::tolower);
 
     std::string modifiedSecond = p.second;
     if (firstLowerCase == "content-type") {
@@ -126,10 +124,10 @@ curl_slist *setCurlHeader(CURL *curl, const Darabonba::Http::Header &header) {
   return list;
 }
 
-int debugFunction(CURL *handle, curl_infotype type, char *data, size_t size, void *userptr)
-{
-  (void)handle;   // unused parameter
-  (void)userptr;  // unused parameter
+int debugFunction(CURL *handle, curl_infotype type, char *data, size_t size,
+                  void *userptr) {
+  (void)handle;  // unused parameter
+  (void)userptr; // unused parameter
   switch (type) {
   case CURLINFO_TEXT:
     std::cerr << "Request Info:" << data << std::endl;

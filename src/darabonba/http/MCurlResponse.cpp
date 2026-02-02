@@ -45,8 +45,8 @@ size_t MCurlResponseBody::read(char *buffer, size_t expectSize) {
     // blocking wait
     fetch();
     std::unique_lock<std::mutex> lock(streamMutex_);
-    streamCV_.wait(lock,
-                   [this]() -> bool { return done_.load() || readableSize_ > 0; });
+    streamCV_.wait(
+        lock, [this]() -> bool { return done_.load() || readableSize_ > 0; });
   } while (realSize == 0);
 
   return realSize;

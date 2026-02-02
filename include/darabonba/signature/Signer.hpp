@@ -1,14 +1,14 @@
 #ifndef DARABONBA_SIGNATURE_SIGNER_H_
 #define DARABONBA_SIGNATURE_SIGNER_H_
 
+#include <darabonba/String.hpp>
 #include <darabonba/encode/MD5.hpp>
+#include <darabonba/encode/SHA256.hpp>
 #include <darabonba/signature/HmacMD5.hpp>
 #include <darabonba/signature/HmacSHA1.hpp>
 #include <darabonba/signature/HmacSHA256.hpp>
 #include <darabonba/signature/HmacSM3.hpp>
 #include <darabonba/signature/RSASigner.hpp>
-#include <darabonba/encode/SHA256.hpp>
-#include <darabonba/String.hpp>
 
 namespace Darabonba {
 
@@ -26,9 +26,9 @@ public:
   static Bytes HmacSHA1SignByBytes(const std::string &stringToSign,
                                    const Bytes &secret) {
     if (secret.empty()) {
-      return HmacSHA1::sign(reinterpret_cast<const void *>(stringToSign.c_str()),
-                            stringToSign.size(),
-                            nullptr, 0);
+      return HmacSHA1::sign(
+          reinterpret_cast<const void *>(stringToSign.c_str()),
+          stringToSign.size(), nullptr, 0);
     }
     return HmacSHA1::sign(reinterpret_cast<const void *>(stringToSign.c_str()),
                           stringToSign.size(),
@@ -69,8 +69,7 @@ public:
                                   const Bytes &secret) {
     if (secret.empty()) {
       return HmacSM3::sign(reinterpret_cast<const void *>(stringToSign.c_str()),
-                           stringToSign.size(),
-                           nullptr, 0);
+                           stringToSign.size(), nullptr, 0);
     }
     return HmacSM3::sign(reinterpret_cast<const void *>(stringToSign.c_str()),
                          stringToSign.size(),

@@ -11,12 +11,11 @@
 #ifdef _WIN32
 #include <time.h>
 // Windows equivalent of timegm
-static inline std::time_t timegm(std::tm *tm) {
-  return _mkgmtime(tm);
-}
+static inline std::time_t timegm(std::tm *tm) { return _mkgmtime(tm); }
 #else
 // On Unix/Linux/macOS, use timegm if available, otherwise implement manually
-#if defined(_GNU_SOURCE) || defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__)
+#if defined(_GNU_SOURCE) || defined(__APPLE__) || defined(__FreeBSD__) ||      \
+    defined(__OpenBSD__)
 // timegm is available on these platforms
 #include <time.h>
 #else
@@ -26,41 +25,44 @@ static inline std::time_t timegm(std::tm *tm) {
   // Save a copy of the input
   std::tm tm_copy = *tm;
   tm_copy.tm_isdst = 0; // Assume no daylight saving for UTC
-  
+
   // Convert the UTC tm structure as if it were local time
   std::time_t local_time = std::mktime(&tm_copy);
-  
+
   if (local_time == -1) {
     return -1;
   }
-  
-  // Calculate timezone offset by comparing localtime and gmtime for the same time_t
+
+  // Calculate timezone offset by comparing localtime and gmtime for the same
+  // time_t
   std::tm *local_tm = std::localtime(&local_time);
   std::tm *utc_tm = std::gmtime(&local_time);
-  
+
   if (!local_tm || !utc_tm) {
     return -1;
   }
-  
+
   // Calculate offset: difference between local and UTC representations
   // Use a simple approach: convert both back to time_t and take difference
   // But we need to be careful - we'll use the hour/minute/second differences
   std::time_t offset = 0;
-  
+
   // Calculate hour/minute/second differences
   int hour_diff = local_tm->tm_hour - utc_tm->tm_hour;
   int min_diff = local_tm->tm_min - utc_tm->tm_min;
   int sec_diff = local_tm->tm_sec - utc_tm->tm_sec;
-  
+
   offset = hour_diff * 3600 + min_diff * 60 + sec_diff;
-  
+
   // Account for day differences (timezone can cross midnight)
   int day_diff = local_tm->tm_mday - utc_tm->tm_mday;
   // Handle month/year boundaries
-  if (day_diff > 15) day_diff -= 30;  // Previous month
-  if (day_diff < -15) day_diff += 30; // Next month
+  if (day_diff > 15)
+    day_diff -= 30; // Previous month
+  if (day_diff < -15)
+    day_diff += 30; // Next month
   offset += day_diff * 86400;
-  
+
   // Adjust: if we interpreted UTC as local, subtract the offset to get UTC
   return local_time - offset;
 }

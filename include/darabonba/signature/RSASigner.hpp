@@ -2,6 +2,7 @@
 #define darabonba_signature_rsa_h_
 
 #include <cstdint>
+#include <darabonba/Type.hpp>
 #include <darabonba/encode/Hash.hpp>
 #include <memory>
 #include <openssl/evp.h>
@@ -9,7 +10,6 @@
 #include <openssl/rsa.h>
 #include <string>
 #include <vector>
-#include <darabonba/Type.hpp>
 
 namespace Darabonba {
 namespace Signature {
@@ -20,12 +20,13 @@ public:
       : hash_(std::move(hash)) {
     BIO *bioKey = BIO_new_mem_buf(privatePemKey, keyLen);
     if (!bioKey) {
-      throw Darabonba::Exception("Can't create the memory buffer for private key.");
+      throw Darabonba::Exception(
+          "Can't create the memory buffer for private key.");
     }
     PEM_read_bio_PrivateKey(bioKey, &pkey_, nullptr, nullptr);
-    BIO_free(bioKey);  // 释放 BIO 资源
+    BIO_free(bioKey); // 释放 BIO 资源
     bioKey = nullptr;
-    
+
     if (!pkey_) {
       throw Darabonba::Exception("Can't load the private key");
     }
@@ -35,14 +36,14 @@ public:
       pkey_ = nullptr;
       throw Darabonba::Exception("Can't create the context.");
     }
-    if(EVP_PKEY_sign_init(ctx_) <= 0) {
+    if (EVP_PKEY_sign_init(ctx_) <= 0) {
       EVP_PKEY_CTX_free(ctx_);
       ctx_ = nullptr;
       EVP_PKEY_free(pkey_);
       pkey_ = nullptr;
       throw Darabonba::Exception("Can't initialize the context.");
     }
-    if(EVP_PKEY_CTX_set_rsa_padding(ctx_, RSA_PKCS1_PADDING) <= 0) {
+    if (EVP_PKEY_CTX_set_rsa_padding(ctx_, RSA_PKCS1_PADDING) <= 0) {
       EVP_PKEY_CTX_free(ctx_);
       ctx_ = nullptr;
       EVP_PKEY_free(pkey_);

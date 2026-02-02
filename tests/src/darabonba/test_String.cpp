@@ -1,6 +1,6 @@
 #include <darabonba/String.hpp>
-#include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 using namespace Darabonba;
 
@@ -10,8 +10,10 @@ TEST(Darabonba_String, split) {
   EXPECT_THAT(String::split("1#2#", "#", 2), testing::ElementsAre("1", "2#"));
   EXPECT_THAT(String::split("#1#2", "#"), testing::ElementsAre("", "1", "2"));
   EXPECT_THAT(String::split("1#2#3", "#", 2), testing::ElementsAre("1", "2#3"));
-  EXPECT_THAT(String::split("1#2#3", "#", 3), testing::ElementsAre("1", "2", "3"));
-  EXPECT_THAT(String::split("1#2#3", "#", 4), testing::ElementsAre("1", "2", "3"));
+  EXPECT_THAT(String::split("1#2#3", "#", 3),
+              testing::ElementsAre("1", "2", "3"));
+  EXPECT_THAT(String::split("1#2#3", "#", 4),
+              testing::ElementsAre("1", "2", "3"));
 }
 
 TEST(Darabonba_String, replace) {
@@ -42,7 +44,6 @@ TEST(Darabonba_String, hasPrefix) {
   EXPECT_EQ(String::hasPrefix("####", "a"), false);
   EXPECT_EQ(String::hasPrefix("####", "######"), false);
 }
-
 
 TEST(Darabonba_String, hasSuffix) {
   EXPECT_EQ(String::hasSuffix("####", "#"), true);

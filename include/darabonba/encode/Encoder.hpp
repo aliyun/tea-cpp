@@ -42,7 +42,7 @@ public:
     return HexEncoder::encode(bytes.begin(), bytes.end());
   }
 
-  static std::string toString(const Bytes &bytes){
+  static std::string toString(const Bytes &bytes) {
     return std::string(bytes.begin(), bytes.end());
   }
 

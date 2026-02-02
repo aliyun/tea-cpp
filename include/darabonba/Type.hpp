@@ -2,27 +2,24 @@
 #define DARABONBA_TYPE_H_
 
 #include <cstdint>
+#include <iostream>
 #include <nlohmann/json.hpp>
+#include <sstream>
 #include <stdexcept>
 #include <string>
-#include <iostream>
-#include <sstream>
 #include <vector>
 
-
-template<typename T>
-void appendToStream(std::ostringstream& oss, T&& arg) {
+template <typename T> void appendToStream(std::ostringstream &oss, T &&arg) {
   oss << arg;
 }
 
-template<typename First, typename... Args>
-void appendToStream(std::ostringstream& oss, First&& first, Args&&... args) {
+template <typename First, typename... Args>
+void appendToStream(std::ostringstream &oss, First &&first, Args &&...args) {
   oss << first;
   appendToStream(oss, std::forward<Args>(args)...);
 }
 
-template<typename... Args>
-std::string stringTemplate(Args&&... args) {
+template <typename... Args> std::string stringTemplate(Args &&...args) {
   std::ostringstream oss;
   appendToStream(oss, std::forward<Args>(args)...);
   return oss.str();

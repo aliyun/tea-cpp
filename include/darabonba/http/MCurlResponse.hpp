@@ -146,7 +146,8 @@ struct adl_serializer<std::shared_ptr<Darabonba::Http::MCurlResponseBody>> {
           reinterpret_cast<Darabonba::Http::MCurlResponseBody *>(
               j.get<uintptr_t>());
       return std::shared_ptr<Darabonba::Http::MCurlResponseBody>(
-          ptr, [](Darabonba::Http::MCurlResponseBody*) {});  // 不删除，因为所有权不明确
+          ptr, [](Darabonba::Http::MCurlResponseBody *) {
+          }); // 不删除，因为所有权不明确
     }
     return nullptr;
   }

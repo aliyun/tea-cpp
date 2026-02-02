@@ -12,15 +12,14 @@ URL::URL(const std::string &url) {
   if (url.empty()) {
     return;
   }
-  
+
   // TODO can't parse when url = "baidu.com"
   CURLU *curlu = curl_url();
   if (curlu == nullptr)
     return;
   curl_url_set(curlu, CURLUPART_URL, url.c_str(), 0);
-  char *scheme = nullptr, *user = nullptr, *password = nullptr,
-       *host = nullptr, *port = nullptr, *path = nullptr, *query = nullptr,
-       *fragment = nullptr;
+  char *scheme = nullptr, *user = nullptr, *password = nullptr, *host = nullptr,
+       *port = nullptr, *path = nullptr, *query = nullptr, *fragment = nullptr;
   curl_url_get(curlu, CURLUPART_SCHEME, &scheme, 0);
   curl_url_get(curlu, CURLUPART_USER, &user, 0);
   curl_url_get(curlu, CURLUPART_PASSWORD, &password, 0);

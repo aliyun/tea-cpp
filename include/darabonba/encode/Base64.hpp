@@ -2,8 +2,8 @@
 #define DARABONBA_ENCODE_BASE64_H_
 
 #include <cstdint>
-#include <darabonba/Type.hpp>
 #include <darabonba/Exception.hpp>
+#include <darabonba/Type.hpp>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -109,7 +109,7 @@ public:
 
 protected:
   // Header-only constexpr to avoid MSVC unresolved external across DLL/objects
-  static constexpr const char* base64Chars =
+  static constexpr const char *base64Chars =
       "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
   static inline int posOfBase64Char(const unsigned char c) {

@@ -62,8 +62,8 @@ public:
   ~Request() = default;
 
   Request(const Request &other)
-      : url_(other.url_), method_(other.method_),
-        header_(other.header_), body_(other.body_ ? other.body_ : nullptr) {}
+      : url_(other.url_), method_(other.method_), header_(other.header_),
+        body_(other.body_ ? other.body_ : nullptr) {}
 
   Request &operator=(Request &&other) = default;
   Request &operator=(const Request &other) = default;
@@ -141,9 +141,7 @@ public:
 
   // New methods to access protocol and path
   std::string getProtocol() const { return url_.getScheme(); }
-  void setProtocol(const std::string &protocol) {
-    url_.setScheme(protocol);
-  }
+  void setProtocol(const std::string &protocol) { url_.setScheme(protocol); }
 
   std::string getPathname() const { return url_.getPathName(); }
   void setPathname(const std::string &path) { url_.setPathName(path); }
