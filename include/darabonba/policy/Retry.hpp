@@ -85,13 +85,13 @@ public:
   explicit FixedBackoffPolicy(const std::map<std::string, std::string> &option)
       : BackoffPolicy(option), period_(std::stoi(option.at("period"))) {}
 
+  FixedBackoffPolicy(const FixedBackoffPolicy &) = default;
+  FixedBackoffPolicy(FixedBackoffPolicy &&) = default;
   FixedBackoffPolicy &operator=(const FixedBackoffPolicy &) = default;
   FixedBackoffPolicy &operator=(FixedBackoffPolicy &&) = default;
   virtual ~FixedBackoffPolicy() = default;
 
-  int getDelayTime(const RetryPolicyContext & /* ctx */) const override {
-    return period_;
-  }
+  int getDelayTime(const RetryPolicyContext &ctx) const override;
 
   // Getter 和 Setter 方法
   int getPeriod() const { return period_; }
@@ -124,19 +124,15 @@ public:
   RandomBackoffPolicy(const Darabonba::Json &obj) { from_json(obj, *this); }
   explicit RandomBackoffPolicy(const std::map<std::string, std::string> &option)
       : BackoffPolicy(option), period_(std::stoi(option.at("period"))),
-        cap_(std::stoi(option.at("cap"))) {
-    std::srand(
-        static_cast<unsigned int>(std::time(nullptr))); // 初始化随机数种子
-  }
+        cap_(option.count("cap") ? std::stoi(option.at("cap")) : 20 * 1000) {}
 
+  RandomBackoffPolicy(const RandomBackoffPolicy &) = default;
+  RandomBackoffPolicy(RandomBackoffPolicy &&) = default;
   RandomBackoffPolicy &operator=(const RandomBackoffPolicy &) = default;
   RandomBackoffPolicy &operator=(RandomBackoffPolicy &&) = default;
   virtual ~RandomBackoffPolicy() = default;
 
-  int getDelayTime(const RetryPolicyContext & /* ctx */) const override {
-    // 返回在 period 和 cap 范围内的随机数
-    return period_ + std::rand() % cap_;
-  }
+  int getDelayTime(const RetryPolicyContext &ctx) const override;
 
   // Getter 和 Setter 方法
   int getPeriod() const { return period_; }
@@ -408,16 +404,13 @@ protected:
 
 class RetryPolicyContext {
 public:
-  // 友元函数实现 JSON 序列化
   friend void to_json(Darabonba::Json &j, const RetryPolicyContext &obj) {
-    // 将私有变量映射到 JSON 中
     DARABONBA_TO_JSON(retriesAttempted, retriesAttempted_);
     DARABONBA_PTR_TO_JSON(exception, exception_);
     DARABONBA_TO_JSON(lastRequest, lastRequest_);
     DARABONBA_TO_JSON(lastResponse, lastResponse_);
   }
 
-  // 友元函数实现 JSON 反序列化
   friend void from_json(const Darabonba::Json &j, RetryPolicyContext &obj) {
     DARABONBA_ANY_FROM_JSON(retriesAttempted, retriesAttempted_);
     DARABONBA_PTR_FROM_JSON(exception, exception_);
@@ -431,7 +424,6 @@ public:
   RetryPolicyContext(const Darabonba::Json &obj) { from_json(obj, *this); };
   ~RetryPolicyContext() = default;
 
-  // 构造函数初始化
   RetryPolicyContext(int retriesAttempted,
                      std::shared_ptr<Exception> httpException)
       : retriesAttempted_(retriesAttempted), exception_(httpException) {}
@@ -439,7 +431,6 @@ public:
   RetryPolicyContext &operator=(const RetryPolicyContext &) = default;
   RetryPolicyContext &operator=(RetryPolicyContext &&) = default;
 
-  // Getter 和 Setter 方法
   int getRetriesAttempted() const { return retriesAttempted_; }
   RetryPolicyContext &setRetriesAttempted(int retries) {
     retriesAttempted_ = retries;
@@ -477,7 +468,6 @@ protected:
   std::shared_ptr<Darabonba::Http::Request> lastRequest_;
 };
 
-// 功能函数
 bool shouldRetry(const RetryOptions &options, const RetryPolicyContext &ctx);
 int getBackoffDelay(const RetryOptions &options, const RetryPolicyContext &ctx);
 } // namespace Policy

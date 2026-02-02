@@ -8,14 +8,27 @@
 namespace Darabonba {
 namespace Policy {
 
-// Helper function for generating random integers - 使用静态变量避免重复初始化
-static int getRandomInt(int cap) {
+// Helper function for generating random integers
+static int getRandomInt(int min, int max) {
   static std::random_device rd;
   static std::mt19937 mt(rd());
-  if (cap <= 0)
-    return 0;
-  std::uniform_int_distribution<int> dist(0, cap);
+  if (max < min)
+    return min;
+  std::uniform_int_distribution<int> dist(min, max);
   return dist(mt);
+}
+
+// FixedBackoffPolicy implementation
+int FixedBackoffPolicy::getDelayTime(const RetryPolicyContext & /* ctx */) const {
+  return period_;
+}
+
+// RandomBackoffPolicy implementation
+int RandomBackoffPolicy::getDelayTime(const RetryPolicyContext &ctx) const {
+  const int maxTime = ctx.getRetriesAttempted() * period_;
+  // Random delay should be at least period_ (lower bound)
+  const int randomTime = getRandomInt(period_, maxTime);
+  return std::min(randomTime, cap_);
 }
 
 // BackoffPolicy factory method
@@ -50,7 +63,7 @@ int EqualJitterBackoffPolicy::getDelayTime(
     const RetryPolicyContext &ctx) const {
   int ceil = std::min(
       cap_, static_cast<int>(std::pow(2, ctx.getRetriesAttempted() * period_)));
-  int jitter = getRandomInt(ceil / 2);
+  int jitter = getRandomInt(0, ceil / 2);
   return ceil / 2 + jitter;
 }
 
@@ -58,17 +71,15 @@ int EqualJitterBackoffPolicy::getDelayTime(
 int FullJitterBackoffPolicy::getDelayTime(const RetryPolicyContext &ctx) const {
   int ceil = std::min(
       cap_, static_cast<int>(std::pow(2, ctx.getRetriesAttempted() * period_)));
-  return getRandomInt(ceil);
+  return getRandomInt(0, ceil);
 }
 
 // shouldRetry function implementation
 bool shouldRetry(const RetryOptions &options, const RetryPolicyContext &ctx) {
-  // 第一次尝试，直接返回 true
   if (ctx.getRetriesAttempted() == 0) {
     return true;
   }
 
-  // 检查是否可重试
   if (!options.isRetryable()) {
     return false;
   }
@@ -82,7 +93,6 @@ bool shouldRetry(const RetryOptions &options, const RetryPolicyContext &ctx) {
   const std::string &exceptionCode = ex->getCode();
   int retriesAttempted = ctx.getRetriesAttempted();
 
-  // 检查 NoRetryCondition
   const auto &noRetryConditions = options.getNoRetryCondition();
   for (const auto &condition : noRetryConditions) {
     const auto &exceptions = condition.getException();
@@ -96,7 +106,6 @@ bool shouldRetry(const RetryOptions &options, const RetryPolicyContext &ctx) {
     }
   }
 
-  // 检查 RetryCondition
   const auto &retryConditions = options.getRetryCondition();
   for (const auto &condition : retryConditions) {
     const auto &exceptions = condition.getException();
@@ -153,7 +162,6 @@ int getBackoffDelay(const RetryOptions &options,
       }
     }
 
-    // 如果没有 backoff 策略，返回最小延迟时间
     auto backoff = condition.getBackoff();
     if (!backoff) {
       return MinDelayTime;
