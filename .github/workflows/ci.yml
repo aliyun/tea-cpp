@@ -1,5 +1,8 @@
 name: C++ CI
 
+permissions:
+  contents: read
+
 on:
   push:
     branches: [ "master", "main" ]
@@ -52,6 +55,16 @@ jobs:
       shell: bash
       run: |
         vcpkg install curl:x64-windows openssl:x64-windows
+
+    - name: Cache vcpkg packages (Windows)
+      if: runner.os == 'Windows'
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.VCPKG_INSTALLATION_ROOT }}/installed
+        key: ${{ runner.os }}-vcpkg-${{ matrix.cxx_standard }}-${{ hashFiles('**/vcpkg.json') }}
+        restore-keys: |
+          ${{ runner.os }}-vcpkg-${{ matrix.cxx_standard }}-
+          ${{ runner.os }}-vcpkg-
 
     - name: Configure CMake
       shell: bash

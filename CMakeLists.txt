@@ -74,12 +74,11 @@ write_basic_package_version_file(
     COMPATIBILITY SameMajorVersion
 )
 
-# Generate the Config file that downstream projects will use
-file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
-"include(CMakeFindDependencyMacro)\n"
-"find_dependency(OpenSSL)\n"
-"find_dependency(CURL)\n"
-"include(\"\${CMAKE_CURRENT_LIST_DIR}/${PROJECT_NAME}Targets.cmake\")\n"
+# Configure the Config file from template
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/${PROJECT_NAME}Config.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
+    @ONLY
 )
 
 install(FILES

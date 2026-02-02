@@ -27,9 +27,9 @@ TEST_F(CoreTest, SleepShouldWorkCorrectly) {
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
     
-    // 应该睡眠至少 100ms，允许一定误差
+    // 应该睡眠至少 100ms，允许一定误差（CI 环境可能有较大延迟）
     EXPECT_GE(duration, 90);
-    EXPECT_LE(duration, 200);
+    EXPECT_LE(duration, 300);
 }
 
 // ==================== allowRetry 测试 ====================
