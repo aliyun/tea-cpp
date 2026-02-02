@@ -43,12 +43,6 @@ jobs:
         brew install openssl curl
         echo "OPENSSL_ROOT_DIR=$(brew --prefix openssl)" >> $GITHUB_ENV
 
-    - name: Setup vcpkg (Windows)
-      if: runner.os == 'Windows'
-      shell: bash
-      run: |
-        vcpkg install curl:x64-windows openssl:x64-windows
-
     - name: Cache vcpkg packages (Windows)
       if: runner.os == 'Windows'
       uses: actions/cache@v4
@@ -58,6 +52,12 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-vcpkg-${{ matrix.cxx_standard }}-
           ${{ runner.os }}-vcpkg-
+
+    - name: Setup vcpkg (Windows)
+      if: runner.os == 'Windows'
+      shell: bash
+      run: |
+        vcpkg install curl:x64-windows openssl:x64-windows
 
     # Build and test both shared and static libraries in one job
     - name: Build Shared Library
@@ -83,15 +83,9 @@ jobs:
 
     - name: Test Shared Library
       shell: bash
-      timeout-minutes: 15
       run: |
         cd build-shared
-        # Increase timeout for Windows due to slower network tests
-        if [ "${{ runner.os }}" = "Windows" ]; then
-          ctest --output-on-failure -C Release --timeout 600
-        else
-          ctest --output-on-failure -C Release --timeout 300
-        fi
+        ctest --output-on-failure -C Release
 
     - name: Install Shared Library
       run: cmake --install build-shared --config Release --prefix ./install-shared
@@ -143,15 +137,9 @@ jobs:
 
     - name: Test Static Library
       shell: bash
-      timeout-minutes: 15
       run: |
         cd build-static
-        # Increase timeout for Windows due to slower network tests
-        if [ "${{ runner.os }}" = "Windows" ]; then
-          ctest --output-on-failure -C Release --timeout 600
-        else
-          ctest --output-on-failure -C Release --timeout 300
-        fi
+        ctest --output-on-failure -C Release
 
     - name: Install Static Library
       run: cmake --install build-static --config Release --prefix ./install-static

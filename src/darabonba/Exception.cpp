@@ -24,7 +24,6 @@ RetryError::RetryError(const std::string &message) : message_(message) {}
 
 const char *RetryError::what() const noexcept { return message_.c_str(); }
 
-// UnretryableException Implementation
 UnretryableException::UnretryableException(
     const Policy::RetryPolicyContext &context)
     : Exception() {
@@ -41,16 +40,13 @@ UnretryableException::UnretryableException(
     }
   }
 
-  // Store the inner exception and request
-  innerException_ = exception;
-  request_ = context.getLastRequest();
-
-  // Set the message from inner exception if available
-  if (innerException_) {
-    msg_ = innerException_->what();
+  lastException_ = exception;
+  lastRequest_ = context.getLastRequest();
+  if (lastException_) {
+    msg_ = lastException_->what();
   } else {
     msg_ = "Unretryable exception occurred";
   }
 }
 
-} // namespace Darabonba
+}

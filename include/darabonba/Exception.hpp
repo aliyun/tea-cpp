@@ -159,24 +159,24 @@ public:
   UnretryableException &operator=(UnretryableException &&) = default;
 
   // Get the inner exception
-  std::shared_ptr<Exception> getInnerException() const {
-    return innerException_;
+  std::shared_ptr<Exception> getLastException() const {
+    return lastException_;
   }
 
   // Get the HTTP request
-  std::shared_ptr<Http::Request> getRequest() const { return request_; }
+  std::shared_ptr<Http::Request> getLastRequest() const { return lastRequest_; }
 
   // Override what() to return inner exception's message
   const char *what() const noexcept override {
-    if (innerException_) {
-      return innerException_->what();
+    if (lastException_) {
+      return lastException_->what();
     }
     return msg_.c_str();
   }
 
 private:
-  std::shared_ptr<Exception> innerException_;
-  std::shared_ptr<Http::Request> request_;
+  std::shared_ptr<Exception> lastException_;
+  std::shared_ptr<Http::Request> lastRequest_;
 };
 
 } // namespace Darabonba
