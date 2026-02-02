@@ -10,14 +10,26 @@ on:
     branches: [ "master", "main" ]
 
 jobs:
+  format-check:
+    name: Code Format Check
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install clang-format
+      run: sudo apt-get update && sudo apt-get install -y clang-format
+    
+    - name: Check code formatting
+      run: |
+        find src include tests -name '*.hpp' -o -name '*.cpp' | xargs clang-format --dry-run --Werror
+
   build:
-    name: ${{ matrix.os }} - ${{ matrix.lib_type }} - C++${{ matrix.cxx_standard }}
+    name: ${{ matrix.os }} - C++${{ matrix.cxx_standard }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        lib_type: [shared, static]
         cxx_standard: [11, 14, 17]
         # Restrict combinations to save time
         exclude:
@@ -32,12 +44,6 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-
-    - name: Format Check
-      if: runner.os == 'Linux'
-      run: |
-        sudo apt-get update && sudo apt-get install -y clang-format
-        find src include tests -name '*.hpp' -o -name '*.cpp' | xargs clang-format --dry-run --Werror || echo "Format check failed"
 
     - name: Install dependencies (Linux)
       if: runner.os == 'Linux'
@@ -66,62 +72,113 @@ jobs:
           ${{ runner.os }}-vcpkg-${{ matrix.cxx_standard }}-
           ${{ runner.os }}-vcpkg-
 
-    - name: Configure CMake
+    # Build and test both shared and static libraries in one job
+    - name: Build Shared Library
       shell: bash
       run: |
-        LIB_SHARED=OFF
-        if [ "${{ matrix.lib_type }}" = "shared" ]; then LIB_SHARED=ON; fi
-        
-        # Windows needs toolchain file
         if [ "${{ runner.os }}" = "Windows" ]; then
-          cmake -B build \
+          cmake -B build-shared \
             -DCMAKE_BUILD_TYPE=Release \
-            -DBUILD_SHARED_LIBS=$LIB_SHARED \
+            -DBUILD_SHARED_LIBS=ON \
             -DCMAKE_CXX_STANDARD=${{ matrix.cxx_standard }} \
             -DENABLE_UNIT_TESTS=ON \
-            -DCMAKE_INSTALL_PREFIX=./install \
+            -DCMAKE_INSTALL_PREFIX=./install-shared \
             -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
         else
-          cmake -B build \
+          cmake -B build-shared \
             -DCMAKE_BUILD_TYPE=Release \
-            -DBUILD_SHARED_LIBS=$LIB_SHARED \
+            -DBUILD_SHARED_LIBS=ON \
             -DCMAKE_CXX_STANDARD=${{ matrix.cxx_standard }} \
             -DENABLE_UNIT_TESTS=ON \
-            -DCMAKE_INSTALL_PREFIX=./install
+            -DCMAKE_INSTALL_PREFIX=./install-shared
         fi
+        cmake --build build-shared --config Release
 
-    - name: Build
-      run: cmake --build build --config Release
-
-    - name: Test
+    - name: Test Shared Library
       shell: bash
       timeout-minutes: 10
       run: |
-        cd build
+        cd build-shared
         ctest --output-on-failure -C Release --timeout 300
 
-    - name: Install
-      run: cmake --install build --config Release --prefix ./install
+    - name: Install Shared Library
+      run: cmake --install build-shared --config Release --prefix ./install-shared
 
-    - name: Test find_package Integration
+    - name: Test find_package Integration (Shared)
       shell: bash
       run: |
-        mkdir -p sample_test
-        cat > sample_test/CMakeLists.txt << 'EOF'
+        mkdir -p sample_test_shared
+        cat > sample_test_shared/CMakeLists.txt << 'EOF'
         cmake_minimum_required(VERSION 3.13)
         project(sample_test CXX)
         find_package(darabonba_core REQUIRED)
         add_executable(sample_app main.cpp)
         target_link_libraries(sample_app darabonba_core::darabonba_core)
         EOF
-        echo "int main() { return 0; }" > sample_test/main.cpp
+        echo "int main() { return 0; }" > sample_test_shared/main.cpp
         
         if [ "${{ runner.os }}" = "Windows" ]; then
-          cmake -S sample_test -B sample_test/build \
-            -DCMAKE_PREFIX_PATH=$(pwd)/install \
+          cmake -S sample_test_shared -B sample_test_shared/build \
+            -DCMAKE_PREFIX_PATH=$(pwd)/install-shared \
             -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
         else
-          cmake -S sample_test -B sample_test/build \
-            -DCMAKE_PREFIX_PATH=$(pwd)/install \
+          cmake -S sample_test_shared -B sample_test_shared/build \
+            -DCMAKE_PREFIX_PATH=$(pwd)/install-shared \
             -DOPENSSL_ROOT_DIR=${{ env.OPENSSL_ROOT_DIR }}
         fi
+        cmake --build sample_test_shared/build --config Release
+
+    - name: Build Static Library
+      shell: bash
+      run: |
+        if [ "${{ runner.os }}" = "Windows" ]; then
+          cmake -B build-static \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DCMAKE_CXX_STANDARD=${{ matrix.cxx_standard }} \
+            -DENABLE_UNIT_TESTS=ON \
+            -DCMAKE_INSTALL_PREFIX=./install-static \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
+        else
+          cmake -B build-static \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DCMAKE_CXX_STANDARD=${{ matrix.cxx_standard }} \
+            -DENABLE_UNIT_TESTS=ON \
+            -DCMAKE_INSTALL_PREFIX=./install-static
+        fi
+        cmake --build build-static --config Release
+
+    - name: Test Static Library
+      shell: bash
+      timeout-minutes: 10
+      run: |
+        cd build-static
+        ctest --output-on-failure -C Release --timeout 300
+
+    - name: Install Static Library
+      run: cmake --install build-static --config Release --prefix ./install-static
+
+    - name: Test find_package Integration (Static)
+      shell: bash
+      run: |
+        mkdir -p sample_test_static
+        cat > sample_test_static/CMakeLists.txt << 'EOF'
+        cmake_minimum_required(VERSION 3.13)
+        project(sample_test CXX)
+        find_package(darabonba_core REQUIRED)
+        add_executable(sample_app main.cpp)
+        target_link_libraries(sample_app darabonba_core::darabonba_core)
+        EOF
+        echo "int main() { return 0; }" > sample_test_static/main.cpp
+        
+        if [ "${{ runner.os }}" = "Windows" ]; then
+          cmake -S sample_test_static -B sample_test_static/build \
+            -DCMAKE_PREFIX_PATH=$(pwd)/install-static \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
+        else
+          cmake -S sample_test_static -B sample_test_static/build \
+            -DCMAKE_PREFIX_PATH=$(pwd)/install-static \
+            -DOPENSSL_ROOT_DIR=${{ env.OPENSSL_ROOT_DIR }}
+        fi
+        cmake --build sample_test_static/build --config Release
