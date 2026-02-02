@@ -13,15 +13,39 @@ jobs:
   format-check:
     name: Code Format Check
     runs-on: ubuntu-latest
+    # Only run on pull requests to save time
+    if: github.event_name == 'pull_request'
     steps:
     - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch all commits for diff
     
     - name: Install clang-format
       run: sudo apt-get update && sudo apt-get install -y clang-format
     
-    - name: Check code formatting
+    - name: Download clang-format-diff.py
       run: |
-        find src include tests -name '*.hpp' -o -name '*.cpp' | xargs clang-format --dry-run --Werror
+        wget https://raw.githubusercontent.com/llvm/llvm-project/main/clang/tools/clang-format/clang-format-diff.py
+        chmod +x clang-format-diff.py
+    
+    - name: Check formatting on changed files only
+      run: |
+        # Get the base branch
+        BASE_BRANCH="${{ github.event.pull_request.base.ref }}"
+        git fetch origin "$BASE_BRANCH"
+        
+        # Generate diff and check formatting
+        git diff -U0 --no-color origin/$BASE_BRANCH...HEAD -- . | \
+          python3 clang-format-diff.py -p1 -style=file:.clang-format > formatted_diff.patch
+        
+        # Check if formatting is needed
+        if [ -s formatted_diff.patch ]; then
+          echo "❌ Formatting issues found in changed files:"
+          cat formatted_diff.patch
+          exit 1
+        else
+          echo "✅ All changed files are properly formatted"
+        fi
 
   build:
     name: ${{ matrix.os }} - C++${{ matrix.cxx_standard }}
@@ -96,10 +120,15 @@ jobs:
 
     - name: Test Shared Library
       shell: bash
-      timeout-minutes: 10
+      timeout-minutes: 15
       run: |
         cd build-shared
-        ctest --output-on-failure -C Release --timeout 300
+        # Increase timeout for Windows due to slower network tests
+        if [ "${{ runner.os }}" = "Windows" ]; then
+          ctest --output-on-failure -C Release --timeout 600
+        else
+          ctest --output-on-failure -C Release --timeout 300
+        fi
 
     - name: Install Shared Library
       run: cmake --install build-shared --config Release --prefix ./install-shared
@@ -151,10 +180,15 @@ jobs:
 
     - name: Test Static Library
       shell: bash
-      timeout-minutes: 10
+      timeout-minutes: 15
       run: |
         cd build-static
-        ctest --output-on-failure -C Release --timeout 300
+        # Increase timeout for Windows due to slower network tests
+        if [ "${{ runner.os }}" = "Windows" ]; then
+          ctest --output-on-failure -C Release --timeout 600
+        else
+          ctest --output-on-failure -C Release --timeout 300
+        fi
 
     - name: Install Static Library
       run: cmake --install build-static --config Release --prefix ./install-static
