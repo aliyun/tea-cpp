@@ -74,11 +74,12 @@ write_basic_package_version_file(
     COMPATIBILITY SameMajorVersion
 )
 
-# Configure the Config file from template
-configure_file(
+# Configure the Config file from template using configure_package_config_file
+# This properly handles @PACKAGE_INIT@ and provides check_required_components
+configure_package_config_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/cmake/${PROJECT_NAME}Config.cmake.in"
     "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake"
-    @ONLY
+    INSTALL_DESTINATION ${INSTALL_CMAKEDIR}
 )
 
 install(FILES
