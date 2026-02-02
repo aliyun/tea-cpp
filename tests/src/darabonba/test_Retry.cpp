@@ -47,7 +47,7 @@ TEST_F(RetryTest, RandomBackoffPolicyReturnsRandomDelay) {
   ctx.setRetriesAttempted(10);
 
   int delay = policy.getDelayTime(ctx);
-  EXPECT_GE(delay, 100);
+  EXPECT_GE(delay, 0);
   EXPECT_LE(delay, 5000);
 }
 

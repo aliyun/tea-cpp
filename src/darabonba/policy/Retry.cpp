@@ -25,10 +25,13 @@ int FixedBackoffPolicy::getDelayTime(const RetryPolicyContext & /* ctx */) const
 
 // RandomBackoffPolicy implementation
 int RandomBackoffPolicy::getDelayTime(const RetryPolicyContext &ctx) const {
-  const int maxTime = ctx.getRetriesAttempted() * period_;
-  // Random delay should be at least period_ (lower bound)
-  const int randomTime = getRandomInt(period_, maxTime);
-  return std::min(randomTime, cap_);
+    double limit = std::min((double)cap_, (double)(period_ * ctx.getRetriesAttempted()));
+    
+    static std::random_device rd;
+    static std::mt19937 gen(rd());
+    std::uniform_real_distribution<double> dis(0.0, limit);
+    
+    return static_cast<int>(dis(gen));
 }
 
 // BackoffPolicy factory method
