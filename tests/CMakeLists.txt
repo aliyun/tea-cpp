@@ -9,6 +9,23 @@ target_include_directories(${PROJECT_NAME}Test
 # googletest
 target_link_libraries(${PROJECT_NAME}Test ${PROJECT_NAME} gtest gmock gtest_main)
 
+# On Windows, ensure we use dynamic runtime and exclude static runtime libraries
+if(MSVC)
+  # Force dynamic runtime library (/MD for Release, /MDd for Debug)
+  target_compile_options(${PROJECT_NAME}Test PRIVATE
+    $<$<CONFIG:Release>:/MD>
+    $<$<CONFIG:Debug>:/MDd>
+  )
+  
+  # Explicitly exclude static C++ runtime libraries to avoid conflicts
+  target_link_options(${PROJECT_NAME}Test PRIVATE
+    /NODEFAULTLIB:libcmt
+    /NODEFAULTLIB:libcmtd
+    /NODEFAULTLIB:libcpmt
+    /NODEFAULTLIB:libcpmtd
+  )
+endif()
+
 # On Windows, copy DLLs to the test executable directory so they can be found at runtime
 if(WIN32 AND BUILD_SHARED_LIBS)
   # Copy darabonba_core DLL

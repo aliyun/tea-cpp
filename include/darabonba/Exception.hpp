@@ -3,11 +3,17 @@
 
 #include <darabonba/Model.hpp>
 #include <darabonba/Type.hpp>
+#include <darabonba/http/Request.hpp>
 #include <exception>
 #include <memory>
 #include <string>
 
 namespace Darabonba {
+
+// Forward declarations
+namespace Policy {
+class RetryPolicyContext;
+}
 
 // Exception Class
 class Exception : public std::exception {
@@ -138,5 +144,40 @@ public:
 private:
   std::string message_;
 };
+
+// UnretryableException Class
+class UnretryableException : public Exception {
+public:
+  // Constructor that takes RetryPolicyContext
+  explicit UnretryableException(const Policy::RetryPolicyContext &context);
+
+  UnretryableException(const UnretryableException &) = default;
+  UnretryableException(UnretryableException &&) = default;
+  virtual ~UnretryableException() = default;
+
+  UnretryableException &operator=(const UnretryableException &) = default;
+  UnretryableException &operator=(UnretryableException &&) = default;
+
+  // Get the inner exception
+  std::shared_ptr<Exception> getInnerException() const {
+    return innerException_;
+  }
+
+  // Get the HTTP request
+  std::shared_ptr<Http::Request> getRequest() const { return request_; }
+
+  // Override what() to return inner exception's message
+  const char *what() const noexcept override {
+    if (innerException_) {
+      return innerException_->what();
+    }
+    return msg_.c_str();
+  }
+
+private:
+  std::shared_ptr<Exception> innerException_;
+  std::shared_ptr<Http::Request> request_;
+};
+
 } // namespace Darabonba
 #endif // DARABONBA_EXCEPTIONS_HPP
