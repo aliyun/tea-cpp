@@ -47,8 +47,8 @@ jobs:
       if: runner.os == 'Windows'
       uses: actions/cache@v4
       with:
-        path: ${{ env.VCPKG_INSTALLATION_ROOT }}/installed
-        key: ${{ runner.os }}-vcpkg-${{ matrix.cxx_standard }}-${{ hashFiles('**/vcpkg.json') }}
+        path: C:/vcpkg/installed
+        key: ${{ runner.os }}-vcpkg-${{ matrix.cxx_standard }}-curl-openssl
         restore-keys: |
           ${{ runner.os }}-vcpkg-${{ matrix.cxx_standard }}-
           ${{ runner.os }}-vcpkg-
@@ -85,6 +85,10 @@ jobs:
       shell: bash
       run: |
         cd build-shared
+        # Windows dynamic library: Add DLL directory to PATH
+        if [ "${{ runner.os }}" = "Windows" ]; then
+          export PATH="$PWD/src/Release:$PWD/src:$PATH"
+        fi
         ctest --output-on-failure -C Release
 
     - name: Install Shared Library
