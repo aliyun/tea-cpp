@@ -39,7 +39,7 @@ public:
   static const std::string &get(const std::vector<std::string> &raw,
                                 int index) {
     if (index < 0 || static_cast<size_t>(index) >= raw.size())
-      throw Darabonba::Exception("Invalid index.");
+      throw Darabonba::DaraException("Invalid index.");
     return raw[index];
   }
 

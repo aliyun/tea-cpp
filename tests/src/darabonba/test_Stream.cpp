@@ -115,7 +115,7 @@ TEST_F(StreamTest, ReadAsJSONWithInvalidJSON) {
   auto stream = Stream::toReadable(invalidJson);
 
   // 应该抛出异常
-  EXPECT_THROW(Stream::readAsJSON(stream), Darabonba::Exception);
+  EXPECT_THROW(Stream::readAsJSON(stream), Darabonba::DaraException);
 }
 
 TEST_F(StreamTest, ReadAsJSONWithEmptyStream) {

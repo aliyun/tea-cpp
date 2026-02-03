@@ -24,7 +24,9 @@ public:
   MCurlHttpClient() : mCurl_(curl_multi_init()) {}
   ~MCurlHttpClient() {
     stop();
-    performThread_.join();
+    if (performThread_.joinable()) {
+      performThread_.join();
+    }
     clearQueue();
     curl_multi_cleanup(mCurl_);
     mCurl_ = nullptr;

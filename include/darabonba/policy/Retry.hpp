@@ -425,7 +425,7 @@ public:
   ~RetryPolicyContext() = default;
 
   RetryPolicyContext(int retriesAttempted,
-                     std::shared_ptr<Exception> httpException)
+                     std::shared_ptr<DaraException> httpException)
       : retriesAttempted_(retriesAttempted), exception_(httpException) {}
 
   RetryPolicyContext &operator=(const RetryPolicyContext &) = default;
@@ -437,8 +437,8 @@ public:
     return *this;
   }
 
-  std::shared_ptr<Exception> getException() const { return exception_; }
-  RetryPolicyContext &setException(std::shared_ptr<Exception> ex) {
+  std::shared_ptr<DaraException> getException() const { return exception_; }
+  RetryPolicyContext &setException(std::shared_ptr<DaraException> ex) {
     exception_ = ex;
     return *this;
   }
@@ -463,7 +463,7 @@ public:
 
 protected:
   int retriesAttempted_ = 0;             // 已尝试的重试次数
-  std::shared_ptr<Exception> exception_; // HTTP 异常
+  std::shared_ptr<DaraException> exception_; // HTTP 异常
   std::shared_ptr<Darabonba::Http::MCurlResponse> lastResponse_;
   std::shared_ptr<Darabonba::Http::Request> lastRequest_;
 };

@@ -52,10 +52,10 @@ TEST(Darabonba_Array, get) {
 
   // Test exception handling
   std::vector<std::string> empty_raw = {};
-  ASSERT_THROW(Array::get(empty_raw, 0), Darabonba::Exception);
+  ASSERT_THROW(Array::get(empty_raw, 0), Darabonba::DaraException);
 
-  ASSERT_THROW(Array::get(raw, -1), Darabonba::Exception);
-  ASSERT_THROW(Array::get(raw, 3), Darabonba::Exception); // Out of bounds
+  ASSERT_THROW(Array::get(raw, -1), Darabonba::DaraException);
+  ASSERT_THROW(Array::get(raw, 3), Darabonba::DaraException); // Out of bounds
 }
 
 TEST(Darabonba_Array, join) {

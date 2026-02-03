@@ -83,6 +83,7 @@ jobs:
 
     - name: Test Shared Library
       shell: bash
+      timeout-minutes: 5
       run: |
         cd build-shared
         if [ "${{ runner.os }}" = "Windows" ]; then
@@ -143,6 +144,7 @@ jobs:
 
     - name: Test Static Library
       shell: bash
+      timeout-minutes: 5
       run: |
         cd build-static
         if [ "${{ runner.os }}" = "Windows" ]; then

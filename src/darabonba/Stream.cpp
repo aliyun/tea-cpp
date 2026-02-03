@@ -47,7 +47,7 @@ Json Stream::readAsJSON(std::shared_ptr<IStream> raw) {
   try {
     return Json::parse(str);
   } catch (const nlohmann::json::parse_error &e) {
-    throw Darabonba::Exception(std::string("JSON parse error: ") + e.what());
+    throw Darabonba::DaraException(std::string("JSON parse error: ") + e.what());
   }
 }
 

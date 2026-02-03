@@ -25,7 +25,7 @@ Ini Ini::parse(std::basic_istream<char> &content, CommentType type) {
     } else if (line[0] == '[') {
       // section name
       if (line.back() != ']')
-        throw Exception(std::string("There is no ] in section name"));
+        throw DaraException(std::string("There is no ] in section name"));
       auto secName = std::string(line.begin() + 1, line.end() - 1);
       // if(obj.has(secName))
       //   throw Darabonba::Exception("Duplicated section name.");
@@ -34,9 +34,9 @@ Ini Ini::parse(std::basic_istream<char> &content, CommentType type) {
     } else {
       auto pos = line.find_first_of('=');
       if (pos == std::string::npos)
-        throw Exception(std::string("There is no = in the key-value pair"));
+        throw DaraException(std::string("There is no = in the key-value pair"));
       else if (pSec == nullptr)
-        throw Exception(std::string("The key-value pair has no section name."));
+        throw DaraException(std::string("The key-value pair has no section name."));
       else {
         auto name = String::trim(line.substr(0, pos)),
              value = String::trim(line.substr(pos + 1));

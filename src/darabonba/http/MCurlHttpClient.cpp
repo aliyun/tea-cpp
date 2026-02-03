@@ -204,7 +204,12 @@ bool MCurlHttpClient::stop() {
   running_ = false;
   curl_multi_wakeup(mCurl_);
   std::unique_lock<std::mutex> lock(stopMutex_);
+#ifdef _WIN32
+  // Windows: Use timeout to prevent deadlock during DLL unload
+  stopCV_.wait_for(lock, std::chrono::seconds(5), [this]() { return stop_.load(); });
+#else
   stopCV_.wait(lock, [this]() { return stop_.load(); });
+#endif
   return true;
 }
 

@@ -207,7 +207,7 @@ TEST_F(RetryTest, ShouldRetryWithNoRetryCondition) {
   options.setRetryCondition(retryConditions);
   options.setNoRetryCondition(noRetryConditions);
 
-  auto ex = std::make_shared<Exception>("Validation failed");
+  auto ex = std::make_shared<DaraException>("Validation failed");
 
   RetryPolicyContext ctx;
   ctx.setRetriesAttempted(1);
@@ -341,7 +341,7 @@ TEST_F(RetryTest, RetryPolicyContextJsonSerialization) {
   RetryPolicyContext ctx;
   ctx.setRetriesAttempted(3);
 
-  auto ex = std::make_shared<Exception>("Test exception");
+  auto ex = std::make_shared<DaraException>("Test exception");
   ctx.setException(ex);
 
   Json j;

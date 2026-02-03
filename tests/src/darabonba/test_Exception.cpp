@@ -10,68 +10,68 @@ protected:
   virtual void TearDown() override {}
 };
 
-// ==================== Exception 基类测试 ====================
-TEST_F(ExceptionTest, InitBaseExceptionWithMessage) {
-  Exception ex("Test error message");
+// ==================== DaraException 基类测试 ====================
+TEST_F(ExceptionTest, InitBaseDaraExceptionWithMessage) {
+  DaraException ex("Test error message");
 
   EXPECT_EQ(ex.getMessage(), "Test error message");
-  EXPECT_EQ(ex.getName(), "Exception");
+  EXPECT_EQ(ex.getName(), "DaraException");
 }
 
-TEST_F(ExceptionTest, InitBaseExceptionDefault) {
-  Exception ex;
+TEST_F(ExceptionTest, InitBaseDaraExceptionDefault) {
+  DaraException ex;
 
   EXPECT_TRUE(ex.getMessage().empty());
-  EXPECT_EQ(ex.getName(), "Exception");
+  EXPECT_EQ(ex.getName(), "DaraException");
 }
 
-TEST_F(ExceptionTest, ExceptionFromJsonSerialization) {
+TEST_F(ExceptionTest, DaraExceptionFromJsonSerialization) {
   // 测试 from_json/to_json
-  Exception ex("Original message");
+  DaraException ex("Original message");
   Json j;
   to_json(j, ex);
 
   EXPECT_EQ(j["message"], "Original message");
 
-  Exception ex2;
+  DaraException ex2;
   from_json(j, ex2);
   EXPECT_EQ(ex2.getMessage(), "Original message");
 }
 
-TEST_F(ExceptionTest, ExceptionWhat) {
-  Exception ex("Error message");
+TEST_F(ExceptionTest, DaraExceptionWhat) {
+  DaraException ex("Error message");
 
   std::string what = ex.what();
   EXPECT_FALSE(what.empty());
   EXPECT_NE(what.find("Error message"), std::string::npos);
 }
 
-TEST_F(ExceptionTest, ExceptionCopyConstructor) {
-  Exception ex1("Original error");
-  Exception ex2(ex1);
+TEST_F(ExceptionTest, DaraExceptionCopyConstructor) {
+  DaraException ex1("Original error");
+  DaraException ex2(ex1);
 
   EXPECT_EQ(ex2.getMessage(), ex1.getMessage());
   EXPECT_EQ(ex2.getName(), ex1.getName());
 }
 
-TEST_F(ExceptionTest, ExceptionMoveConstructor) {
-  Exception ex1("Move test");
-  Exception ex2(std::move(ex1));
+TEST_F(ExceptionTest, DaraExceptionMoveConstructor) {
+  DaraException ex1("Move test");
+  DaraException ex2(std::move(ex1));
 
   EXPECT_EQ(ex2.getMessage(), "Move test");
 }
 
-TEST_F(ExceptionTest, ExceptionAssignment) {
-  Exception ex1("First error");
-  Exception ex2("Second error");
+TEST_F(ExceptionTest, DaraExceptionAssignment) {
+  DaraException ex1("First error");
+  DaraException ex2("Second error");
   ex2 = ex1;
 
   EXPECT_EQ(ex2.getMessage(), "First error");
 }
 
-TEST_F(ExceptionTest, ExceptionMoveAssignment) {
-  Exception ex1("Move assign test");
-  Exception ex2("Original");
+TEST_F(ExceptionTest, DaraExceptionMoveAssignment) {
+  DaraException ex1("Move assign test");
+  DaraException ex2("Original");
   ex2 = std::move(ex1);
 
   EXPECT_EQ(ex2.getMessage(), "Move assign test");
@@ -173,8 +173,8 @@ TEST_F(ExceptionTest, InitValidateExceptionWithCodeAndMessage) {
 TEST_F(ExceptionTest, ValidateExceptionInheritance) {
   ValidateException ex("RequiredFieldError", "Required field missing");
 
-  // ValidateException 继承自 Exception
-  Exception &baseRef = ex;
+  // ValidateException 继承自 DaraException
+  DaraException &baseRef = ex;
   EXPECT_NE(baseRef.getMessage().find("Required field missing"),
             std::string::npos);
 }
@@ -213,11 +213,11 @@ TEST_F(ExceptionTest, RetryErrorInheritance) {
 }
 
 // ==================== 异常抛出和捕获测试 ====================
-TEST_F(ExceptionTest, ThrowAndCatchException) {
+TEST_F(ExceptionTest, ThrowAndCatchDaraException) {
   try {
-    throw Exception("Test throw");
+    throw DaraException("Test throw");
     FAIL() << "Expected exception to be thrown";
-  } catch (const Exception &e) {
+  } catch (const DaraException &e) {
     EXPECT_EQ(e.getMessage(), "Test throw");
   }
 }
@@ -234,32 +234,32 @@ TEST_F(ExceptionTest, ThrowAndCatchResponseException) {
   }
 }
 
-TEST_F(ExceptionTest, CatchResponseExceptionAsBaseException) {
+TEST_F(ExceptionTest, CatchResponseExceptionAsBaseDaraException) {
   try {
     Json json;
     json["message"] = "Server Error";
     json["statusCode"] = 500;
     throw ResponseException(json);
-  } catch (const Exception &e) {
-    // ResponseException 可以被捕获为 Exception
+  } catch (const DaraException &e) {
+    // ResponseException 可以被捕获为 DaraException
     EXPECT_EQ(e.getName(), "ResponseException");
   }
 }
 
-TEST_F(ExceptionTest, CatchValidateExceptionAsBaseException) {
+TEST_F(ExceptionTest, CatchValidateExceptionAsBaseDaraException) {
   try {
     throw ValidateException("ValidationError", "Invalid input");
-  } catch (const Exception &e) {
-    // ValidateException 可以被捕获为 Exception
+  } catch (const DaraException &e) {
+    // ValidateException 可以被捕获为 DaraException
     EXPECT_NE(e.getMessage().find("Invalid input"), std::string::npos);
   }
 }
 
 TEST_F(ExceptionTest, CatchAsStdException) {
   try {
-    throw Exception("Standard exception test");
+    throw DaraException("Standard exception test");
   } catch (const std::exception &e) {
-    // Exception 继承自 std::exception
+    // DaraException 继承自 std::exception
     std::string what = e.what();
     EXPECT_FALSE(what.empty());
   }
@@ -269,7 +269,7 @@ TEST_F(ExceptionTest, ThrowAndCatchRequiredArgumentException) {
   try {
     throw RequiredArgumentException("apiKey");
     FAIL() << "Expected exception to be thrown";
-  } catch (const Exception &e) {
+  } catch (const DaraException &e) {
     EXPECT_NE(std::string(e.what()).find("apiKey"), std::string::npos);
   }
 }
@@ -285,14 +285,14 @@ TEST_F(ExceptionTest, ThrowAndCatchRetryError) {
 }
 
 // ==================== 边界条件测试 ====================
-TEST_F(ExceptionTest, ExceptionWithEmptyMessage) {
-  Exception ex("");
+TEST_F(ExceptionTest, DaraExceptionWithEmptyMessage) {
+  DaraException ex("");
   EXPECT_TRUE(ex.getMessage().empty());
 }
 
-TEST_F(ExceptionTest, ExceptionWithLongMessage) {
+TEST_F(ExceptionTest, DaraExceptionWithLongMessage) {
   std::string longMessage(1000, 'A');
-  Exception ex(longMessage);
+  DaraException ex(longMessage);
 
   EXPECT_EQ(ex.getMessage().length(), 1000u);
 }
@@ -322,7 +322,7 @@ TEST_F(ExceptionTest, ResponseExceptionWithPartialJSON) {
 
 // ==================== retryAfter 测试 ====================
 TEST_F(ExceptionTest, RetryAfterInitializedToZero) {
-  Exception ex("test");
+  DaraException ex("test");
   EXPECT_EQ(ex.getRetryAfter(), 0);
 }
 
@@ -343,13 +343,13 @@ TEST_F(ExceptionTest, ResponseExceptionRetryAfterZeroWhenNotSet) {
 }
 
 // ==================== Getters 测试 ====================
-TEST_F(ExceptionTest, ExceptionGetName) {
-  Exception ex("test");
-  EXPECT_EQ(ex.getName(), "Exception");
+TEST_F(ExceptionTest, DaraExceptionGetName) {
+  DaraException ex("test");
+  EXPECT_EQ(ex.getName(), "DaraException");
 }
 
-TEST_F(ExceptionTest, ExceptionGetCode) {
-  Exception ex("test");
+TEST_F(ExceptionTest, DaraExceptionGetCode) {
+  DaraException ex("test");
   // code_ 默认为空
   EXPECT_TRUE(ex.getCode().empty());
 }

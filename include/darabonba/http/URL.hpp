@@ -3,16 +3,125 @@
 
 #include <cstdint>
 #include <darabonba/http/Query.hpp>
+#include <iomanip>
 #include <map>
+#include <sstream>
 #include <string>
 
 namespace Darabonba {
 namespace Http {
+
+/**
+ * URL class with encoding utilities aligned with tea-python's Url class
+ */
 class URL {
 public:
   explicit URL(const std::string &);
   explicit URL(const char *s) : URL(std::string(s)) {}
   URL() = default;
+
+  /**
+   * Parse a URL string and create a URL object (aligned with tea-python)
+   * @param urlStr The URL string to parse
+   * @return URL object
+   */
+  static URL parse(const std::string &urlStr) {
+    return URL(urlStr);
+  }
+
+  /**
+   * URL encode a string (aligned with tea-python's url_encode)
+   * Encodes each path segment separately, preserving '/' characters
+   * @param urlStr The string to encode
+   * @return URL encoded string
+   */
+  static std::string urlEncode(const std::string &urlStr) {
+    if (urlStr.empty()) {
+      return "";
+    }
+
+    std::string result;
+    size_t start = 0;
+    size_t pos = 0;
+
+    while ((pos = urlStr.find('/', start)) != std::string::npos) {
+      if (pos > start) {
+        result += percentEncode(urlStr.substr(start, pos - start));
+      }
+      result += '/';
+      start = pos + 1;
+    }
+
+    if (start < urlStr.length()) {
+      result += percentEncode(urlStr.substr(start));
+    }
+
+    return result;
+  }
+
+  /**
+   * Percent encode a URI string (aligned with tea-python's percent_encode)
+   * @param uri The URI string to encode
+   * @return Percent encoded string
+   */
+  static std::string percentEncode(const std::string &uri) {
+    if (uri.empty()) {
+      return "";
+    }
+
+    std::ostringstream encoded;
+    encoded.fill('0');
+    encoded << std::hex << std::uppercase;
+
+    for (unsigned char c : uri) {
+      // Keep alphanumeric and unreserved characters
+      if (std::isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~') {
+        encoded << c;
+      } else {
+        encoded << '%' << std::setw(2) << static_cast<int>(c);
+      }
+    }
+
+    std::string result = encoded.str();
+    // Apply tea-python specific replacements
+    // Replace %2B with %20 (space), keep %2A as is, replace %7E with ~
+    size_t pos = 0;
+    while ((pos = result.find("%7E", pos)) != std::string::npos) {
+      result.replace(pos, 3, "~");
+    }
+
+    return result;
+  }
+
+  /**
+   * Path encode a path string (aligned with tea-python's path_encode)
+   * Similar to urlEncode but specifically for paths
+   * @param path The path string to encode
+   * @return Path encoded string
+   */
+  static std::string pathEncode(const std::string &path) {
+    if (path.empty() || path == "/") {
+      return path;
+    }
+
+    std::string result;
+    size_t start = 0;
+    size_t pos = 0;
+
+    while ((pos = path.find('/', start)) != std::string::npos) {
+      if (pos > start) {
+        result += percentEncode(path.substr(start, pos - start));
+      }
+      result += '/';
+      start = pos + 1;
+    }
+
+    if (start < path.length()) {
+      result += percentEncode(path.substr(start));
+    }
+
+    return result;
+  }
 
   explicit operator std::string() const;
 

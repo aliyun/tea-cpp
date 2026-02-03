@@ -109,7 +109,7 @@ bool allowRetry(const RetryOptions &options, const RetryPolicyContext &ctx) {
   }
 
   int retriesAttempted = ctx.getRetriesAttempted();
-  shared_ptr<Exception> ex = ctx.getException();
+  shared_ptr<DaraException> ex = ctx.getException();
 
   auto noRetryConditions = options.getNoRetryCondition();
   for (const auto &condition : noRetryConditions) {
@@ -144,7 +144,7 @@ bool allowRetry(const RetryOptions &options, const RetryPolicyContext &ctx) {
 }
 
 int getBackoffTime(const RetryOptions &options, const RetryPolicyContext &ctx) {
-  shared_ptr<Exception> ex = ctx.getException();
+  shared_ptr<DaraException> ex = ctx.getException();
   auto conditions = options.getRetryCondition();
 
   for (const auto &condition : conditions) {

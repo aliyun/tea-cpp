@@ -5,18 +5,18 @@
 namespace Darabonba {
 
 // ResponseException Implementation
-ResponseException::ResponseException() : Exception() {
+ResponseException::ResponseException() : DaraException() {
   name_ = "ResponseException";
 }
 
 // RequiredArgumentException Implementation
 RequiredArgumentException::RequiredArgumentException(const std::string &arg)
-    : Exception("\"" + arg + "\" is required.") {
+    : DaraException("\"" + arg + "\" is required."), arg_(arg) {
   name_ = "RequiredArgumentException";
 }
 
 const char *RequiredArgumentException::what() const noexcept {
-  return msg_.c_str();
+  return message_.c_str();
 }
 
 // RetryError Implementation
@@ -24,9 +24,10 @@ RetryError::RetryError(const std::string &message) : message_(message) {}
 
 const char *RetryError::what() const noexcept { return message_.c_str(); }
 
+// UnretryableException Implementation
 UnretryableException::UnretryableException(
     const Policy::RetryPolicyContext &context)
-    : Exception() {
+    : DaraException() {
   name_ = "UnretryableException";
 
   // Get the exception from context
@@ -43,9 +44,9 @@ UnretryableException::UnretryableException(
   lastException_ = exception;
   lastRequest_ = context.getLastRequest();
   if (lastException_) {
-    msg_ = lastException_->what();
+    message_ = lastException_->what();
   } else {
-    msg_ = "Unretryable exception occurred";
+    message_ = "Unretryable exception occurred";
   }
 }
 
