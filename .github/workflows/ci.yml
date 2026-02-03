@@ -85,11 +85,13 @@ jobs:
       shell: bash
       run: |
         cd build-shared
-        # Windows dynamic library: Add DLL directory to PATH
         if [ "${{ runner.os }}" = "Windows" ]; then
-          export PATH="$PWD/src/Release:$PWD/src:$PATH"
+          # Windows: Copy DLL to test directory and run directly
+          cp src/Release/*.dll tests/Release/ 2>/dev/null || true
+          ./tests/Release/darabonba_coreTest.exe
+        else
+          ctest --output-on-failure -C Release
         fi
-        ctest --output-on-failure -C Release
 
     - name: Install Shared Library
       run: cmake --install build-shared --config Release --prefix ./install-shared
@@ -143,7 +145,12 @@ jobs:
       shell: bash
       run: |
         cd build-static
-        ctest --output-on-failure -C Release
+        if [ "${{ runner.os }}" = "Windows" ]; then
+          # Windows: Run test directly
+          ./tests/Release/darabonba_coreTest.exe
+        else
+          ctest --output-on-failure -C Release
+        fi
 
     - name: Install Static Library
       run: cmake --install build-static --config Release --prefix ./install-static
