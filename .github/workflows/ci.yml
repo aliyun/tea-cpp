@@ -17,17 +17,21 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        cxx_standard: [11, 14, 17]
+        cxx_standard: [11, 14, 17, 20]
         # Restrict combinations to save time
         exclude:
           - os: macos-latest
             cxx_standard: 14
           - os: macos-latest
             cxx_standard: 17
+          - os: macos-latest
+            cxx_standard: 20
           - os: windows-latest
             cxx_standard: 14
           - os: windows-latest
             cxx_standard: 17
+          - os: windows-latest
+            cxx_standard: 20
 
     steps:
     - uses: actions/checkout@v4
