@@ -8,7 +8,10 @@ if(ENABLE_UNIT_TESTS)
     set(gtest_force_shared_crt ON CACHE BOOL "Use shared (DLL) run-time lib even when Google Test is built as static lib." FORCE)
   endif()
   
+  # Suppress deprecation warnings from GoogleTest v1.12.1 (last C++11 compatible version)
+  set(CMAKE_WARN_DEPRECATED OFF CACHE BOOL "" FORCE)
   add_subdirectory(googletest)
+  set(CMAKE_WARN_DEPRECATED ON CACHE BOOL "" FORCE)
   
   # Restore original BUILD_SHARED_LIBS setting
   if(WIN32)
