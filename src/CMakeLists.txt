@@ -23,12 +23,73 @@ target_link_libraries(${PROJECT_NAME}
     CURL::libcurl
 )
 
-# 5. Conditional dependencies
-# ZLIB (Required for static curl or compressed responses)
+# 5. Conditional dependencies for static builds
 if(NOT BUILD_SHARED_LIBS)
+  # ZLIB (Required for static curl or compressed responses)
   find_package(ZLIB QUIET)
   if(TARGET ZLIB::ZLIB)
     target_link_libraries(${PROJECT_NAME} PUBLIC ZLIB::ZLIB)
+  endif()
+  
+  # Linux static curl dependencies
+  # Ubuntu/Debian's static libcurl is built with many optional features that require additional libraries
+  # Set CURL_AUTO_DEPS=OFF if you're using a minimal/custom libcurl build
+  if(CURL_AUTO_DEPS AND UNIX AND NOT APPLE)
+    # nghttp2 - HTTP/2 support
+    find_library(NGHTTP2_LIBRARY NAMES nghttp2)
+    if(NGHTTP2_LIBRARY)
+      target_link_libraries(${PROJECT_NAME} PUBLIC ${NGHTTP2_LIBRARY})
+    endif()
+    
+    # libssh - SSH/SFTP support
+    find_library(SSH_LIBRARY NAMES ssh)
+    if(SSH_LIBRARY)
+      target_link_libraries(${PROJECT_NAME} PUBLIC ${SSH_LIBRARY})
+    endif()
+    
+    # libpsl - Public Suffix List support
+    find_library(PSL_LIBRARY NAMES psl)
+    if(PSL_LIBRARY)
+      target_link_libraries(${PROJECT_NAME} PUBLIC ${PSL_LIBRARY})
+    endif()
+    
+    # GSS-API/Kerberos support
+    find_library(GSSAPI_LIBRARY NAMES gssapi_krb5)
+    if(GSSAPI_LIBRARY)
+      target_link_libraries(${PROJECT_NAME} PUBLIC ${GSSAPI_LIBRARY})
+    endif()
+    
+    # Kerberos 5
+    find_library(KRB5_LIBRARY NAMES krb5)
+    if(KRB5_LIBRARY)
+      target_link_libraries(${PROJECT_NAME} PUBLIC ${KRB5_LIBRARY})
+    endif()
+    
+    # LDAP support
+    find_library(LDAP_LIBRARY NAMES ldap)
+    find_library(LBER_LIBRARY NAMES lber)
+    if(LDAP_LIBRARY AND LBER_LIBRARY)
+      target_link_libraries(${PROJECT_NAME} PUBLIC ${LDAP_LIBRARY} ${LBER_LIBRARY})
+    endif()
+    
+    # IDN support (internationalized domain names)
+    find_library(IDN2_LIBRARY NAMES idn2)
+    if(IDN2_LIBRARY)
+      target_link_libraries(${PROJECT_NAME} PUBLIC ${IDN2_LIBRARY})
+    endif()
+    
+    # Brotli compression
+    find_library(BROTLIDEC_LIBRARY NAMES brotlidec)
+    find_library(BROTLICOMMON_LIBRARY NAMES brotlicommon)
+    if(BROTLIDEC_LIBRARY AND BROTLICOMMON_LIBRARY)
+      target_link_libraries(${PROJECT_NAME} PUBLIC ${BROTLIDEC_LIBRARY} ${BROTLICOMMON_LIBRARY})
+    endif()
+    
+    # zstd compression
+    find_library(ZSTD_LIBRARY NAMES zstd)
+    if(ZSTD_LIBRARY)
+      target_link_libraries(${PROJECT_NAME} PUBLIC ${ZSTD_LIBRARY})
+    endif()
   endif()
 endif()
 

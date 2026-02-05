@@ -86,6 +86,7 @@ sudo apt-get install -y \
 |------|--------|------|------|
 | `BUILD_SHARED_LIBS` | ON | 构建共享库而非静态库 | `-DBUILD_SHARED_LIBS=OFF` |
 | `ENABLE_UNIT_TESTS` | OFF | 启用单元测试编译 | `-DENABLE_UNIT_TESTS=ON` |
+| `CURL_AUTO_DEPS` | ON | 自动检测 curl 的传递依赖（用于静态构建） | `-DCURL_AUTO_DEPS=OFF` |
 | `CMAKE_CXX_STANDARD` | 11 | C++ 标准版本 (11/14/17/20/23) | `-DCMAKE_CXX_STANDARD=20` |
 | `CMAKE_BUILD_TYPE` | - | 构建类型 (Debug/Release/RelWithDebInfo/MinSizeRel) | `-DCMAKE_BUILD_TYPE=Release` |
 | `CMAKE_INSTALL_PREFIX` | `/usr/local` | 安装目录 | `-DCMAKE_INSTALL_PREFIX=/opt/alibabacloud` |

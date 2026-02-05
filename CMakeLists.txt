@@ -5,6 +5,7 @@ project(darabonba_core VERSION "1.0.0" LANGUAGES CXX)
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Options >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> #
 option(BUILD_SHARED_LIBS "Build shared libraries" ON)
 option(ENABLE_UNIT_TESTS "Enable unit tests" OFF)
+option(CURL_AUTO_DEPS "Auto-detect and link curl's transitive dependencies (for static builds)" ON)
 
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< C++ Standard >>>>>>>>>>>>>>>>>>>>>>>>>>>>>> #
 if(NOT CMAKE_CXX_STANDARD)
