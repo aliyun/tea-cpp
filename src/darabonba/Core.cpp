@@ -7,6 +7,10 @@
 #include <iomanip>
 #include <sstream>
 #include <thread>
+#include <mutex>
+#include <atomic>
+#include <map>
+#include <memory>
 
 #ifdef _WIN32
 #include <Windows.h>
@@ -30,12 +34,80 @@ const int MIN_DELAY_TIME = 100;
 
 namespace Darabonba {
 
-struct Deleter {
-  void operator()(Http::MCurlHttpClient *ptr) {
-    delete ptr;
-    curl_global_cleanup();
-  }
+// Global SDK state management
+namespace {
+struct SDKState {
+  std::atomic<bool> initialized{false};
+  std::mutex mutex;
+  std::map<ConnectionPoolConfig, std::unique_ptr<Http::MCurlHttpClient>> http_clients;
 };
+
+SDKState& GetSDKState() {
+  static SDKState state;
+  return state;
+}
+
+// Internal initialization - called automatically on first use
+void EnsureInitialized() {
+  auto& state = GetSDKState();
+  if (state.initialized.load()) {
+    return;
+  }
+  std::lock_guard<std::mutex> lock(state.mutex);
+  if (!state.initialized.load()) {
+    curl_global_init(CURL_GLOBAL_ALL);
+    state.initialized.store(true);
+  }
+}
+
+// Helper to extract connection pool config from request
+ConnectionPoolConfig getConnectionPoolConfig(Http::Request &request, const Darabonba::Json &runtime) {
+  ConnectionPoolConfig config;
+  
+  auto &url = request.getUrl();
+  auto &header = request.getHeader();
+  
+  // Extract host from URL or header
+  if (!url.getHost().empty()) {
+    config.host = url.getHost();
+  } else {
+    auto it = header.find("host");
+    if (it != header.end()) {
+      config.host = it->second;
+    }
+  }
+  
+  // Extract connection pool configuration from runtime options
+  if (!runtime.is_null()) {
+    config.max_connections = runtime.value("maxConnections", 5UL);
+    config.connection_idle_timeout = runtime.value("connectionIdleTimeout", 300L);
+    config.pipelining = runtime.value("pipelining", false);
+    config.max_host_connections = runtime.value("maxHostConnections", 2UL);
+  }
+  
+  return config;
+}
+
+// Helper to extract request-level config
+RequestConfig getRequestConfig(const Darabonba::Json &runtime) {
+  RequestConfig config;
+  
+  if (!runtime.is_null()) {
+    config.connect_timeout_ms = runtime.value("connectTimeout", 5000L);
+    config.read_timeout_ms = runtime.value("readTimeout", 0L);
+    config.ignore_ssl = runtime.value("ignoreSSL", false);
+    config.http_proxy = runtime.value("httpProxy", "");
+    config.https_proxy = runtime.value("httpsProxy", "");
+    config.no_proxy = runtime.value("noProxy", "");
+    config.credential = runtime.value("credential", "");
+  }
+  
+  return config;
+}
+
+} // anonymous namespace
+
+
 
 string Core::uuid() {
 #ifdef _WIN32
@@ -77,26 +149,79 @@ string Core::uuid() {
 
 std::future<std::shared_ptr<Http::MCurlResponse>>
 Core::doAction(Http::Request &request, const Darabonba::Json &runtime) {
-  static auto client = []() {
-    curl_global_init(CURL_GLOBAL_ALL);
-    auto ret = std::unique_ptr<Http::MCurlHttpClient, Deleter>(
-        new Http::MCurlHttpClient());
-    ret->start();
-    return ret;
-  }();
-  // modfiy the request url
+  // Ensure SDK is initialized (lazy initialization)
+  EnsureInitialized();
+  
+  auto& state = GetSDKState();
+  
+  // Get connection pool configuration (host-level)
+  ConnectionPoolConfig pool_config = getConnectionPoolConfig(request, runtime);
+  // Get request-level configuration
+  RequestConfig request_config = getRequestConfig(runtime);
+  
+  std::lock_guard<std::mutex> lock(state.mutex);
+  
+  // Check if we have a client for this host/connection pool
+  auto it = state.http_clients.find(pool_config);
+  if (it == state.http_clients.end()) {
+    // Create new client for this connection pool configuration
+    auto newClient = std::unique_ptr<Http::MCurlHttpClient>(new Http::MCurlHttpClient());
+    // TODO: Apply connection pool settings to the client
+    newClient->start();
+    it = state.http_clients.insert({pool_config, std::move(newClient)}).first;
+  }
+  
+  // Modify the request URL if needed before using the client
   auto &header = request.getHeader();
   auto &url = request.getUrl();
   if (url.getHost().empty()) {
-    auto it = header.find("host");
-    if (it != header.end()) {
-      url.setHost(it->second);
+    auto it_header = header.find("host");
+    if (it_header != header.end()) {
+      url.setHost(it_header->second);
     }
   }
   if (url.getScheme().empty()) {
     url.setScheme("https");
   }
-  return client->makeRequest(request, runtime);
+  
+  // Use the appropriate client for this host/connection pool
+  // Pass request-level configuration to be applied per-request
+  Darabonba::Json request_runtime = Darabonba::Json::object();
+  request_runtime["connectTimeout"] = request_config.connect_timeout_ms;
+  request_runtime["readTimeout"] = request_config.read_timeout_ms;
+  request_runtime["ignoreSSL"] = request_config.ignore_ssl;
+  request_runtime["httpProxy"] = request_config.http_proxy;
+  request_runtime["httpsProxy"] = request_config.https_proxy;
+  request_runtime["noProxy"] = request_config.no_proxy;
+  
+  return it->second->makeRequest(request, request_runtime);
+}
+
+// Function to clear specific client configuration
+void Core::ClearHttpClient(const ConnectionPoolConfig& config) {
+  auto& state = GetSDKState();
+  std::lock_guard<std::mutex> lock(state.mutex);
+  
+  auto it = state.http_clients.find(config);
+  if (it != state.http_clients.end()) {
+    state.http_clients.erase(it);
+  }
+}
+
+// Function to clear all clients
+void Core::ClearAllHttpClients() {
+  auto& state = GetSDKState();
+  std::lock_guard<std::mutex> lock(state.mutex);
+  
+  state.http_clients.clear();
+}
+
+// Function to get client count
+size_t Core::GetHttpClientCount() {
+  auto& state = GetSDKState();
+  std::lock_guard<std::mutex> lock(state.mutex);
+  
+  return state.http_clients.size();
 }
 
 bool allowRetry(const RetryOptions &options, const RetryPolicyContext &ctx) {
