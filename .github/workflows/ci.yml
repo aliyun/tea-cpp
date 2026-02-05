@@ -39,7 +39,10 @@ jobs:
     - name: Install dependencies (Linux)
       if: runner.os == 'Linux'
       run: |
-        sudo apt-get install -y libcurl4-openssl-dev libssl-dev uuid-dev
+        sudo apt-get update
+        sudo apt-get install -y libcurl4-openssl-dev libssl-dev uuid-dev zlib1g-dev
+        # Static curl dependencies (for static builds)
+        sudo apt-get install -y libnghttp2-dev libssh-dev libpsl-dev libkrb5-dev libldap2-dev libidn2-dev libbrotli-dev libzstd-dev
 
     - name: Install dependencies (macOS)
       if: runner.os == 'macOS'

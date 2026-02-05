@@ -41,7 +41,7 @@ This library requires the following system libraries:
 - **zlib**: For compression (required by curl)
 - **uuid** (Linux only): For UUID generation
 
-### Quick Install Dependencies
+### Quick Install Dependencies (Dynamic Build)
 
 ```bash
 # Ubuntu/Debian
@@ -56,6 +56,29 @@ brew install openssl curl
 # Windows (vcpkg)
 vcpkg install openssl curl zlib
 ```
+
+### Additional Dependencies for Static Build (Linux)
+
+When building static libraries on Linux, the system's static libcurl may require additional dependencies. Ubuntu/Debian's libcurl is built with many optional features enabled:
+
+```bash
+# Ubuntu/Debian - Additional static build dependencies
+sudo apt-get install -y \
+  libnghttp2-dev \
+  libssh-dev \
+  libpsl-dev \
+  libkrb5-dev \
+  libldap2-dev \
+  libidn2-dev \
+  libbrotli-dev \
+  libzstd-dev
+```
+
+**Note**: These are only required when:
+1. Building with `-DBUILD_SHARED_LIBS=OFF`
+2. Your system has a static libcurl (`libcurl.a`) that was built with these features enabled
+
+If you encounter linker errors like `undefined reference to 'nghttp2_*'` or `'gss_*'`, install the corresponding development packages above.
 
 ## Build Configuration Options
 

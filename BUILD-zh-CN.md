@@ -41,7 +41,7 @@
 - **zlib**: 用于压缩（curl 依赖）
 - **uuid** (仅 Linux): 用于生成 UUID
 
-### 快速安装依赖
+### 快速安装依赖（动态库构建）
 
 ```bash
 # Ubuntu/Debian
@@ -56,6 +56,29 @@ brew install openssl curl
 # Windows (vcpkg)
 vcpkg install openssl curl zlib
 ```
+
+### 静态库构建的额外依赖（Linux）
+
+在 Linux 上构建静态库时，系统的静态 libcurl 可能需要额外的依赖。Ubuntu/Debian 的 libcurl 编译时启用了许多可选功能：
+
+```bash
+# Ubuntu/Debian - 静态构建额外依赖
+sudo apt-get install -y \
+  libnghttp2-dev \
+  libssh-dev \
+  libpsl-dev \
+  libkrb5-dev \
+  libldap2-dev \
+  libidn2-dev \
+  libbrotli-dev \
+  libzstd-dev
+```
+
+**注意**：仅在以下情况需要这些依赖：
+1. 使用 `-DBUILD_SHARED_LIBS=OFF` 构建静态库
+2. 系统上的静态 libcurl（`libcurl.a`）编译时启用了这些功能
+
+如果遇到类似 `undefined reference to 'nghttp2_*'` 或 `'gss_*'` 的链接错误，请安装上述对应的开发包。
 
 ## 构建配置选项
 

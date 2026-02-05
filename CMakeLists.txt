@@ -28,6 +28,8 @@ endif()
 if(NOT BUILD_SHARED_LIBS)
   set(OPENSSL_USE_STATIC_LIBS ON)
   set(CURL_STATICLIB ON)
+  # Prefer static libraries in find_library calls
+  set(CMAKE_FIND_LIBRARY_SUFFIXES ".a" ".lib" ${CMAKE_FIND_LIBRARY_SUFFIXES})
 endif()
 
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Dependencies >>>>>>>>>>>>>>>>>>>>>>>>>>>>>> #
