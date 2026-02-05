@@ -57,28 +57,35 @@ brew install openssl curl
 vcpkg install openssl curl zlib
 ```
 
-### 静态库构建的额外依赖（Linux）
+### 静态库构建与 libcurl（Linux）
 
-在 Linux 上构建静态库时，系统的静态 libcurl 可能需要额外的依赖。Ubuntu/Debian 的 libcurl 编译时启用了许多可选功能：
+Ubuntu/Debian 系统的 libcurl 编译时启用了许多可选功能（HTTP/2、Kerberos、LDAP、SSH 等），这会产生复杂的传递依赖。对于静态构建，我们推荐编译一个精简版的 libcurl：
 
 ```bash
-# Ubuntu/Debian - 静态构建额外依赖
-sudo apt-get install -y \
-  libnghttp2-dev \
-  libssh-dev \
-  libpsl-dev \
-  libkrb5-dev \
-  libldap2-dev \
-  libidn2-dev \
-  libbrotli-dev \
-  libzstd-dev
+# 编译精简版静态 libcurl（仅支持 HTTPS）
+curl -L https://curl.se/download/curl-8.5.0.tar.gz -o curl.tar.gz
+tar -xzf curl.tar.gz
+cd curl-8.5.0
+./configure --prefix=/usr/local/curl-minimal \
+  --disable-shared --enable-static \
+  --with-openssl \
+  --without-libpsl --without-nghttp2 --without-libssh2 --without-libssh \
+  --without-gssapi --without-libidn2 --without-librtmp \
+  --disable-ldap --disable-ldaps --disable-rtsp --disable-dict \
+  --disable-telnet --disable-tftp --disable-pop3 --disable-imap \
+  --disable-smb --disable-smtp --disable-gopher --disable-mqtt \
+  --disable-manual --disable-docs
+make -j$(nproc)
+sudo make install
+
+# 然后使用精简版 libcurl 进行构建
+cmake -B build -DBUILD_SHARED_LIBS=OFF \
+  -DCURL_ROOT=/usr/local/curl-minimal \
+  -DCURL_LIBRARY=/usr/local/curl-minimal/lib/libcurl.a \
+  -DCURL_INCLUDE_DIR=/usr/local/curl-minimal/include
 ```
 
-**注意**：仅在以下情况需要这些依赖：
-1. 使用 `-DBUILD_SHARED_LIBS=OFF` 构建静态库
-2. 系统上的静态 libcurl（`libcurl.a`）编译时启用了这些功能
-
-如果遇到类似 `undefined reference to 'nghttp2_*'` 或 `'gss_*'` 的链接错误，请安装上述对应的开发包。
+这个精简版 libcurl 仅支持 HTTPS，对于大多数云 SDK 使用场景已经足够。
 
 ## 构建配置选项
 
@@ -86,7 +93,6 @@ sudo apt-get install -y \
 |------|--------|------|------|
 | `BUILD_SHARED_LIBS` | ON | 构建共享库而非静态库 | `-DBUILD_SHARED_LIBS=OFF` |
 | `ENABLE_UNIT_TESTS` | OFF | 启用单元测试编译 | `-DENABLE_UNIT_TESTS=ON` |
-| `CURL_AUTO_DEPS` | ON | 自动检测 curl 的传递依赖（用于静态构建） | `-DCURL_AUTO_DEPS=OFF` |
 | `CMAKE_CXX_STANDARD` | 11 | C++ 标准版本 (11/14/17/20/23) | `-DCMAKE_CXX_STANDARD=20` |
 | `CMAKE_BUILD_TYPE` | - | 构建类型 (Debug/Release/RelWithDebInfo/MinSizeRel) | `-DCMAKE_BUILD_TYPE=Release` |
 | `CMAKE_INSTALL_PREFIX` | `/usr/local` | 安装目录 | `-DCMAKE_INSTALL_PREFIX=/opt/alibabacloud` |

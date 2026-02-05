@@ -57,28 +57,35 @@ brew install openssl curl
 vcpkg install openssl curl zlib
 ```
 
-### Additional Dependencies for Static Build (Linux)
+### Static Build with libcurl (Linux)
 
-When building static libraries on Linux, the system's static libcurl may require additional dependencies. Ubuntu/Debian's libcurl is built with many optional features enabled:
+Ubuntu/Debian's system libcurl is built with many optional features (HTTP/2, Kerberos, LDAP, SSH, etc.) that create complex transitive dependencies. For static builds, we recommend compiling a minimal libcurl:
 
 ```bash
-# Ubuntu/Debian - Additional static build dependencies
-sudo apt-get install -y \
-  libnghttp2-dev \
-  libssh-dev \
-  libpsl-dev \
-  libkrb5-dev \
-  libldap2-dev \
-  libidn2-dev \
-  libbrotli-dev \
-  libzstd-dev
+# Build minimal static libcurl (HTTPS only)
+curl -L https://curl.se/download/curl-8.5.0.tar.gz -o curl.tar.gz
+tar -xzf curl.tar.gz
+cd curl-8.5.0
+./configure --prefix=/usr/local/curl-minimal \
+  --disable-shared --enable-static \
+  --with-openssl \
+  --without-libpsl --without-nghttp2 --without-libssh2 --without-libssh \
+  --without-gssapi --without-libidn2 --without-librtmp \
+  --disable-ldap --disable-ldaps --disable-rtsp --disable-dict \
+  --disable-telnet --disable-tftp --disable-pop3 --disable-imap \
+  --disable-smb --disable-smtp --disable-gopher --disable-mqtt \
+  --disable-manual --disable-docs
+make -j$(nproc)
+sudo make install
+
+# Then build with the minimal libcurl
+cmake -B build -DBUILD_SHARED_LIBS=OFF \
+  -DCURL_ROOT=/usr/local/curl-minimal \
+  -DCURL_LIBRARY=/usr/local/curl-minimal/lib/libcurl.a \
+  -DCURL_INCLUDE_DIR=/usr/local/curl-minimal/include
 ```
 
-**Note**: These are only required when:
-1. Building with `-DBUILD_SHARED_LIBS=OFF`
-2. Your system has a static libcurl (`libcurl.a`) that was built with these features enabled
-
-If you encounter linker errors like `undefined reference to 'nghttp2_*'` or `'gss_*'`, install the corresponding development packages above.
+This minimal libcurl only supports HTTPS, which is sufficient for most cloud SDK use cases.
 
 ## Build Configuration Options
 
@@ -86,7 +93,6 @@ If you encounter linker errors like `undefined reference to 'nghttp2_*'` or `'gs
 |--------|---------|-------------|---------|
 | `BUILD_SHARED_LIBS` | ON | Build shared libraries instead of static | `-DBUILD_SHARED_LIBS=OFF` |
 | `ENABLE_UNIT_TESTS` | OFF | Enable unit tests compilation | `-DENABLE_UNIT_TESTS=ON` |
-| `CURL_AUTO_DEPS` | ON | Auto-detect curl's transitive dependencies (for static builds) | `-DCURL_AUTO_DEPS=OFF` |
 | `CMAKE_CXX_STANDARD` | 11 | C++ standard version (11/14/17/20/23) | `-DCMAKE_CXX_STANDARD=20` |
 | `CMAKE_BUILD_TYPE` | - | Build type (Debug/Release/RelWithDebInfo/MinSizeRel) | `-DCMAKE_BUILD_TYPE=Release` |
 | `CMAKE_INSTALL_PREFIX` | `/usr/local` | Installation directory | `-DCMAKE_INSTALL_PREFIX=/opt/alibabacloud` |

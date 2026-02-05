@@ -40,9 +40,28 @@ jobs:
       if: runner.os == 'Linux'
       run: |
         sudo apt-get update
-        sudo apt-get install -y libcurl4-openssl-dev libssl-dev uuid-dev zlib1g-dev
-        # Static curl dependencies (for static builds)
-        sudo apt-get install -y libnghttp2-dev libssh-dev libpsl-dev libkrb5-dev libldap2-dev libidn2-dev libbrotli-dev libzstd-dev
+        sudo apt-get install -y libssl-dev uuid-dev zlib1g-dev
+        # Install dynamic libcurl for shared builds
+        sudo apt-get install -y libcurl4-openssl-dev
+        
+    - name: Build minimal static libcurl (Linux)
+      if: runner.os == 'Linux'
+      run: |
+        # Build a minimal libcurl with only HTTPS support for static linking
+        curl -L https://curl.se/download/curl-8.5.0.tar.gz -o curl.tar.gz
+        tar -xzf curl.tar.gz
+        cd curl-8.5.0
+        ./configure --prefix=/usr/local/curl-minimal \
+          --disable-shared --enable-static \
+          --with-openssl \
+          --without-libpsl --without-nghttp2 --without-libssh2 --without-libssh \
+          --without-gssapi --without-libidn2 --without-librtmp \
+          --disable-ldap --disable-ldaps --disable-rtsp --disable-dict \
+          --disable-telnet --disable-tftp --disable-pop3 --disable-imap \
+          --disable-smb --disable-smtp --disable-gopher --disable-mqtt \
+          --disable-manual --disable-docs
+        make -j$(nproc)
+        sudo make install
 
     - name: Install dependencies (macOS)
       if: runner.os == 'macOS'
@@ -139,6 +158,17 @@ jobs:
             -DENABLE_UNIT_TESTS=ON \
             -DCMAKE_INSTALL_PREFIX=./install-static \
             -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
+        elif [ "${{ runner.os }}" = "Linux" ]; then
+          # Use minimal static libcurl for Linux static builds
+          cmake -B build-static \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DCMAKE_CXX_STANDARD=${{ matrix.cxx_standard }} \
+            -DENABLE_UNIT_TESTS=ON \
+            -DCMAKE_INSTALL_PREFIX=./install-static \
+            -DCURL_ROOT=/usr/local/curl-minimal \
+            -DCURL_LIBRARY=/usr/local/curl-minimal/lib/libcurl.a \
+            -DCURL_INCLUDE_DIR=/usr/local/curl-minimal/include
         else
           cmake -B build-static \
             -DCMAKE_BUILD_TYPE=Release \
@@ -181,6 +211,9 @@ jobs:
           cmake -S sample_test_static -B sample_test_static/build \
             -DCMAKE_PREFIX_PATH=$(pwd)/install-static \
             -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
+        elif [ "${{ runner.os }}" = "Linux" ]; then
+          cmake -S sample_test_static -B sample_test_static/build \
+            -DCMAKE_PREFIX_PATH="$(pwd)/install-static;/usr/local/curl-minimal"
         else
           cmake -S sample_test_static -B sample_test_static/build \
             -DCMAKE_PREFIX_PATH=$(pwd)/install-static \

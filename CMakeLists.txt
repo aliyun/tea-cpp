@@ -5,7 +5,6 @@ project(darabonba_core VERSION "1.0.0" LANGUAGES CXX)
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Options >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> #
 option(BUILD_SHARED_LIBS "Build shared libraries" ON)
 option(ENABLE_UNIT_TESTS "Enable unit tests" OFF)
-option(CURL_AUTO_DEPS "Auto-detect and link curl's transitive dependencies (for static builds)" ON)
 
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< C++ Standard >>>>>>>>>>>>>>>>>>>>>>>>>>>>>> #
 if(NOT CMAKE_CXX_STANDARD)
@@ -25,12 +24,13 @@ else()
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-# For static builds, prefer static dependencies
+# For static builds, prefer static OpenSSL but use dynamic curl
+# Note: Static libcurl on Ubuntu has too many transitive dependencies (nghttp2, ssh, psl, 
+# gssapi, rtmp, idn2, unistring, etc.) that make full static linking impractical.
+# If you need fully static builds, compile a minimal libcurl yourself or use vcpkg.
 if(NOT BUILD_SHARED_LIBS)
   set(OPENSSL_USE_STATIC_LIBS ON)
-  set(CURL_STATICLIB ON)
-  # Prefer static libraries in find_library calls
-  set(CMAKE_FIND_LIBRARY_SUFFIXES ".a" ".lib" ${CMAKE_FIND_LIBRARY_SUFFIXES})
+  # Don't set CURL_STATICLIB or CMAKE_FIND_LIBRARY_SUFFIXES - use dynamic libcurl
 endif()
 
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Dependencies >>>>>>>>>>>>>>>>>>>>>>>>>>>>>> #
