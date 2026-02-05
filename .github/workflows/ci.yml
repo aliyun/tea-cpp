@@ -55,11 +55,12 @@ jobs:
           --disable-shared --enable-static \
           --with-openssl \
           --without-libpsl --without-nghttp2 --without-libssh2 --without-libssh \
-          --without-gssapi --without-libidn2 --without-librtmp \
+          --without-gssapi --without-libidn2 --without-librtmp --without-zstd \
+          --without-brotli --without-zlib \
           --disable-ldap --disable-ldaps --disable-rtsp --disable-dict \
           --disable-telnet --disable-tftp --disable-pop3 --disable-imap \
           --disable-smb --disable-smtp --disable-gopher --disable-mqtt \
-          --disable-manual --disable-docs
+          --disable-manual --disable-docs --disable-unix-sockets
         make -j$(nproc)
         sudo make install
 
