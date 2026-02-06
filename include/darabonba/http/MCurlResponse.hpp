@@ -98,6 +98,7 @@ class MCurlResponse : public ResponseBase {
 public:
   MCurlResponse() = default;
   MCurlResponse(const MCurlResponse &other) = default;
+  MCurlResponse(MCurlResponse &&) = default;
   virtual ~MCurlResponse() = default;
 
   MCurlResponse &setHeader(const Header &header) {

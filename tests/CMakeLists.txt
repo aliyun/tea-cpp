@@ -6,8 +6,8 @@ add_executable(${PROJECT_NAME}Test ${CPP_FILES})
 target_include_directories(${PROJECT_NAME}Test
                            PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-# googletest
-target_link_libraries(${PROJECT_NAME}Test ${PROJECT_NAME} gtest gmock gtest_main)
+# googletest - gtest_main already includes gtest transitively
+target_link_libraries(${PROJECT_NAME}Test ${PROJECT_NAME} gtest_main gmock)
 
 # On Windows with shared libs, copy the DLL to the test executable directory
 if(WIN32 AND BUILD_SHARED_LIBS)

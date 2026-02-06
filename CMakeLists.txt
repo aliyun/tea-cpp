@@ -5,6 +5,8 @@ project(darabonba_core VERSION "1.0.0" LANGUAGES CXX)
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Options >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> #
 option(BUILD_SHARED_LIBS "Build shared libraries" ON)
 option(ENABLE_UNIT_TESTS "Enable unit tests" OFF)
+option(ENABLE_RTTI "Enable Run-Time Type Information" ON)
+option(MINIMIZE_SIZE "Minimize binary size (may affect performance)" OFF)
 
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< C++ Standard >>>>>>>>>>>>>>>>>>>>>>>>>>>>>> #
 if(NOT CMAKE_CXX_STANDARD)
@@ -15,13 +17,36 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Platform Setup >>>>>>>>>>>>>>>>>>>>>>>>>>>> #
 if(MSVC)
-  # Standardize MSVC runtime (MD/MDd)
-  # For CMake 3.15+, use CMAKE_MSVC_RUNTIME_LIBRARY. 
-  # For 3.13, we use a more robust target-based approach later.
+  # Standardize MSVC runtime (MD/MDd for shared, MT/MTd for static)
   add_definitions(-D_CRT_SECURE_NO_WARNINGS -DNOMINMAX)
   add_compile_options(/W4 /WX /Zc:__cplusplus /utf-8)
+  
+  # Runtime library selection
+  if(BUILD_SHARED_LIBS)
+    # Use dynamic runtime for shared libraries
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+  else()
+    # Use static runtime for static libraries
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+  endif()
 else()
   add_compile_options(-Wall -Wextra -Wpedantic -Werror)
+  # Enable additional deprecation warnings for better C++ compliance
+  add_compile_options(-Wdeprecated -Wdeprecated-copy)
+  
+  # RTTI control for GCC/Clang
+  if(NOT ENABLE_RTTI)
+    add_compile_options(-fno-rtti)
+  endif()
+  
+  # Size optimization
+  if(MINIMIZE_SIZE)
+    add_compile_options(-Os -ffunction-sections -fdata-sections)
+    if(NOT APPLE)
+      set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--gc-sections")
+      set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--gc-sections")
+    endif()
+  endif()
 endif()
 
 # For static builds, prefer static OpenSSL but use dynamic curl
