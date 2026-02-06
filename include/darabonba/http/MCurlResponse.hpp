@@ -158,23 +158,36 @@ template <>
 struct adl_serializer<std::shared_ptr<Darabonba::Http::MCurlResponse>> {
   static void
   to_json(json &j,
-          const std::shared_ptr<Darabonba::Http::MCurlResponse> &body) {
-    if (body) {
-      j = reinterpret_cast<uintptr_t>(body.get());
-    } else {
+          const std::shared_ptr<Darabonba::Http::MCurlResponse> &resp) {
+    if (!resp) {
       j = nullptr;
+      return;
     }
+    // Serialize actual response data
+    j = json{
+      {"statusCode", resp->getStatusCode()},
+      {"statusMessage", resp->getStatusMessage()},
+      {"headers", resp->getHeaders()}
+      // Note: body is not serialized as it's a stream
+    };
   }
 
   static std::shared_ptr<Darabonba::Http::MCurlResponse>
   from_json(const json &j) {
-    if (!j.is_null() && j.is_number_unsigned()) {
-      Darabonba::Http::MCurlResponse *ptr =
-          reinterpret_cast<Darabonba::Http::MCurlResponse *>(
-              j.get<uintptr_t>());
-      return std::make_shared<Darabonba::Http::MCurlResponse>(*ptr);
+    if (j.is_null()) {
+      return nullptr;
     }
-    return nullptr;
+    auto resp = std::make_shared<Darabonba::Http::MCurlResponse>();
+    if (j.contains("statusCode") && !j["statusCode"].is_null()) {
+      resp->setStatusCode(j["statusCode"].get<int64_t>());
+    }
+    if (j.contains("statusMessage") && !j["statusMessage"].is_null()) {
+      resp->setStatusMessage(j["statusMessage"].get<std::string>());
+    }
+    if (j.contains("headers") && j["headers"].is_object()) {
+      resp->setHeader(j["headers"].get<Darabonba::Http::Header>());
+    }
+    return resp;
   }
 };
 } // namespace nlohmann

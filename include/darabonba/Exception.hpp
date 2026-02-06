@@ -80,12 +80,20 @@ public:
     }
     if (j.contains("data") && !j["data"].is_null()) {
       ex.data_ = j["data"];
+      // Extract statusCode from data if present
+      if (ex.data_.contains("statusCode") && !ex.data_["statusCode"].is_null()) {
+        ex.statusCode_ = ex.data_["statusCode"].get<int64_t>();
+      }
     }
     if (j.contains("description") && !j["description"].is_null()) {
       ex.description_ = j["description"].get<std::string>();
     }
     if (j.contains("accessDeniedDetail") && !j["accessDeniedDetail"].is_null()) {
       ex.accessDeniedDetail_ = j["accessDeniedDetail"];
+    }
+    // Also support statusCode at top level
+    if (j.contains("statusCode") && !j["statusCode"].is_null()) {
+      ex.statusCode_ = j["statusCode"].get<int64_t>();
     }
   }
 
