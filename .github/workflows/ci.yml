@@ -79,17 +79,34 @@ jobs:
       if: runner.os == 'Windows'
       uses: actions/cache@v4
       with:
-        path: C:/vcpkg/installed
-        key: ${{ runner.os }}-vcpkg-${{ matrix.cxx_standard }}-curl-openssl
+        path: |
+          C:/vcpkg/installed
+          C:/vcpkg/packages
+          C:/vcpkg/buildtrees
+          C:/vcpkg/downloads
+          ~/AppData/Local/vcpkg/archives
+        # Key based on fixed dependencies: curl + openssl
+        # Change this key if you modify vcpkg dependencies
+        key: ${{ runner.os }}-vcpkg-curl-openssl-v1-${{ matrix.cxx_standard }}
         restore-keys: |
-          ${{ runner.os }}-vcpkg-${{ matrix.cxx_standard }}-
+          ${{ runner.os }}-vcpkg-curl-openssl-v1-
           ${{ runner.os }}-vcpkg-
+
+    - name: Setup vcpkg binary cache (Windows)
+      if: runner.os == 'Windows'
+      shell: bash
+      run: |
+        # Enable vcpkg binary caching to GitHub Actions cache
+        export VCPKG_BINARY_SOURCES="clear;x-gha,readwrite"
+        echo "VCPKG_BINARY_SOURCES=$VCPKG_BINARY_SOURCES" >> $GITHUB_ENV
 
     - name: Setup vcpkg (Windows)
       if: runner.os == 'Windows'
       shell: bash
       run: |
-        vcpkg install curl:x64-windows openssl:x64-windows
+        # Use parallel build and binary caching
+        export VCPKG_MAX_CONCURRENCY=$NUMBER_OF_PROCESSORS
+        vcpkg install curl:x64-windows openssl:x64-windows --no-print-usage
 
     # Build and test both shared and static libraries in one job
     - name: Build Shared Library

@@ -30,13 +30,6 @@ public:
 
   SSEEvent(const Darabonba::Json &obj) { from_json(obj, *this); };
 
-  // Rule of Five: explicitly default copy/move operations
-  SSEEvent(const SSEEvent &) = default;
-  SSEEvent &operator=(const SSEEvent &) = default;
-  SSEEvent(SSEEvent &&) = default;
-  SSEEvent &operator=(SSEEvent &&) = default;
-  ~SSEEvent() = default;
-
   void validate() const override {};
 
   virtual bool empty() const override {

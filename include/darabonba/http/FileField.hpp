@@ -32,14 +32,7 @@ class FileField : public Model {
 
 public:
   FileField() = default;
-  FileField(const FileField &) = default;
-  FileField(FileField &&) = default;
   FileField(const Darabonba::Json &obj) { from_json(obj, *this); }
-
-  virtual ~FileField() = default;
-
-  FileField &operator=(const FileField &) = default;
-  FileField &operator=(FileField &&) = default;
 
   virtual void validate() const override {}
 

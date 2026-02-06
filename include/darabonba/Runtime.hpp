@@ -20,12 +20,7 @@ public:
     DARABONBA_PTR_FROM_JSON(queries, queries_);
   };
   ExtendsParameters() = default;
-  ExtendsParameters(const ExtendsParameters &) = default;
-  ExtendsParameters(ExtendsParameters &&) = default;
   ExtendsParameters(const Darabonba::Json &obj) { from_json(obj, *this); };
-  virtual ~ExtendsParameters() = default;
-  ExtendsParameters &operator=(const ExtendsParameters &) = default;
-  ExtendsParameters &operator=(ExtendsParameters &&) = default;
   virtual void validate() const override {};
   virtual void fromMap(const Darabonba::Json &obj) override {
     from_json(obj, *this);
@@ -123,12 +118,7 @@ public:
     DARABONBA_PTR_FROM_JSON(retryOptions, retryOptions_);
   };
   RuntimeOptions() = default;
-  RuntimeOptions(const RuntimeOptions &) = default;
-  RuntimeOptions(RuntimeOptions &&) = default;
   RuntimeOptions(const Darabonba::Json &obj) { from_json(obj, *this); };
-  virtual ~RuntimeOptions() = default;
-  RuntimeOptions &operator=(const RuntimeOptions &) = default;
-  RuntimeOptions &operator=(RuntimeOptions &&) = default;
   virtual void validate() const override {};
   virtual void fromMap(const Darabonba::Json &obj) override {
     from_json(obj, *this);
