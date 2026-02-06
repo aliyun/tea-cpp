@@ -18,7 +18,7 @@ public:
   RSASigner(const void *privatePemKey, size_t keyLen,
             std::unique_ptr<Encode::Hash> hash)
       : hash_(std::move(hash)) {
-    BIO *bioKey = BIO_new_mem_buf(privatePemKey, keyLen);
+    BIO *bioKey = BIO_new_mem_buf(privatePemKey, static_cast<int>(keyLen));
     if (!bioKey) {
       throw Darabonba::DaraException(
           "Can't create the memory buffer for private key.");

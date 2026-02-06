@@ -31,10 +31,10 @@ public:
   static int index(const std::vector<std::string> &raw,
                    const std::string &str) {
     auto pos = std::find(raw.begin(), raw.end(), str);
-    return pos == raw.end() ? -1 : pos - raw.begin();
+    return pos == raw.end() ? -1 : static_cast<int>(pos - raw.begin());
   }
 
-  static int size(const std::vector<std::string> &raw) { return raw.size(); }
+  static int size(const std::vector<std::string> &raw) { return static_cast<int>(raw.size()); }
 
   static const std::string &get(const std::vector<std::string> &raw,
                                 int index) {
@@ -112,7 +112,7 @@ public:
   static int32_t unshift(std::vector<std::string> &arr,
                          const std::string &element) {
     arr.insert(arr.begin(), element);
-    return arr.size();
+    return static_cast<int32_t>(arr.size());
   }
 
   // Push: Adds one or more elements to the end of an array and returns the new
@@ -120,7 +120,7 @@ public:
   static int32_t push(std::vector<std::string> &arr,
                       const std::string &element) {
     arr.push_back(element);
-    return arr.size();
+    return static_cast<int32_t>(arr.size());
   }
 
   // Ascending Sort: Sorts the elements of an array in ascending order
