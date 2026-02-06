@@ -138,7 +138,11 @@ public:
     message_ = code + ": " + msg;
   }
 
+  ValidateException(const ValidateException &) = default;
+  ValidateException(ValidateException &&) = default;
   virtual ~ValidateException() = default;
+  ValidateException &operator=(const ValidateException &) = default;
+  ValidateException &operator=(ValidateException &&) = default;
 };
 
 // ResponseException Class (aligned with tea-python)
@@ -250,6 +254,12 @@ class RequiredArgumentException : public DaraException {
 public:
   explicit RequiredArgumentException(const std::string &arg);
 
+  RequiredArgumentException(const RequiredArgumentException &) = default;
+  RequiredArgumentException(RequiredArgumentException &&) = default;
+  virtual ~RequiredArgumentException() = default;
+  RequiredArgumentException &operator=(const RequiredArgumentException &) = default;
+  RequiredArgumentException &operator=(RequiredArgumentException &&) = default;
+
   const char *what() const noexcept override;
 
 private:
@@ -260,6 +270,12 @@ private:
 class RetryError : public std::exception {
 public:
   explicit RetryError(const std::string &message);
+
+  RetryError(const RetryError &) = default;
+  RetryError(RetryError &&) = default;
+  virtual ~RetryError() = default;
+  RetryError &operator=(const RetryError &) = default;
+  RetryError &operator=(RetryError &&) = default;
 
   const char *what() const noexcept override;
 
