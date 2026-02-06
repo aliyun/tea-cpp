@@ -45,7 +45,7 @@ URL::URL(const std::string &url) {
     pathName_ = path;
   }
   if (port) {
-    port_ = std::stoi(port);
+    port_ = static_cast<uint16_t>(std::stoi(port));
   }
   if (query) {
     query_ = Query(query);
@@ -179,7 +179,7 @@ URL &URL::setAuthority(const std::string &authority) {
 
   setUserInfo(userinfo);
   setHost(host);
-  setPort(!port.empty() ? std::stoi(port) : INVALID_PORT);
+  setPort(!port.empty() ? static_cast<uint16_t>(std::stoi(port)) : INVALID_PORT);
   return *this;
 }
 

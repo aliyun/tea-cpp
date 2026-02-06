@@ -90,7 +90,7 @@ public:
 
   static int index(const std::string &s, const std::string &substr) {
     auto ret = s.find(substr);
-    return ret == std::string::npos ? -1 : ret;
+    return ret == std::string::npos ? -1 : static_cast<int>(ret);
   }
 
   static std::string toLower(const std::string &s) {
