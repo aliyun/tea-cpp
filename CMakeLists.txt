@@ -19,9 +19,9 @@ if(MSVC)
   # For CMake 3.15+, use CMAKE_MSVC_RUNTIME_LIBRARY. 
   # For 3.13, we use a more robust target-based approach later.
   add_definitions(-D_CRT_SECURE_NO_WARNINGS -DNOMINMAX)
-  add_compile_options(/W4 /Zc:__cplusplus /utf-8)
+  add_compile_options(/W4 /WX /Zc:__cplusplus /utf-8)
 else()
-  add_compile_options(-Wall -Wextra -Wpedantic)
+  add_compile_options(-Wall -Wextra -Wpedantic -Werror)
 endif()
 
 # For static builds, prefer static OpenSSL but use dynamic curl

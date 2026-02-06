@@ -195,7 +195,7 @@ public:
   }
 
 protected:
-  enum { INVALID_PORT = 0 };
+  static constexpr uint16_t INVALID_PORT = 0;
 
   std::string scheme_;
   std::string user_;
