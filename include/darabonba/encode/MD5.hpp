@@ -9,6 +9,10 @@ class MD5 : Hash {
 public:
   MD5() : Hash(EVP_md5()) {}
 
+  MD5(const MD5 &) = default;
+  MD5(MD5 &&) = default;
+  MD5 &operator=(const MD5 &) = default;
+  MD5 &operator=(MD5 &&) = default;
   virtual ~MD5() {}
 
   virtual Bytes final() override { return final(16); }

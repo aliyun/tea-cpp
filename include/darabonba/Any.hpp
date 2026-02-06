@@ -36,6 +36,11 @@ public:
 
 private:
   struct Base {
+    Base() = default;
+    Base(const Base &) = default;
+    Base(Base &&) = default;
+    Base &operator=(const Base &) = default;
+    Base &operator=(Base &&) = default;
     virtual ~Base() {}
     virtual const std::type_info &typeInfo() const = 0;
     virtual Base *clone() const = 0;

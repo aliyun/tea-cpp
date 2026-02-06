@@ -9,6 +9,10 @@ class SHA256 : public Hash {
 public:
   SHA256() : Hash(EVP_sha256()) {}
 
+  SHA256(const SHA256 &) = default;
+  SHA256(SHA256 &&) = default;
+  SHA256 &operator=(const SHA256 &) = default;
+  SHA256 &operator=(SHA256 &&) = default;
   virtual ~SHA256() {}
 
   virtual Bytes final() override { return final(32); }

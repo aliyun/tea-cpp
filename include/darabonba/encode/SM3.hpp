@@ -8,6 +8,10 @@ class SM3 : public Hash {
 public:
   SM3() : Hash(EVP_sm3()) {}
 
+  SM3(const SM3 &) = default;
+  SM3(SM3 &&) = default;
+  SM3 &operator=(const SM3 &) = default;
+  SM3 &operator=(SM3 &&) = default;
   virtual ~SM3() {}
 
   virtual Bytes final() override { return final(32); }

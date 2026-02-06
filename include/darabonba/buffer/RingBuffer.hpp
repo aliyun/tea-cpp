@@ -69,7 +69,7 @@ public:
     obj.nRead_ = obj.nWrite_ = 0;
     obj.writeIter_ = obj.data_.begin();
   }
-  virtual ~RingBuffer() {}
+  virtual ~RingBuffer() = default;
 
   RingBuffer &operator=(const RingBuffer &) = delete;
   RingBuffer &operator=(RingBuffer &&obj) {

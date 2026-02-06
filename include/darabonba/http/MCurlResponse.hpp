@@ -25,7 +25,7 @@ public:
 
   MCurlResponseBody &operator=(MCurlResponseBody &&) = delete;
 
-  virtual ~MCurlResponseBody() {}
+  virtual ~MCurlResponseBody() = default;
 
   size_t getMaxSize() const { return maxSize_; }
   // size_t setMaxSize(size_t maxSize) { maxSize_ = maxSize; }
