@@ -152,6 +152,14 @@ namespace Darabonba {
 class Model {
 public:
   virtual ~Model() = default;
+  
+  // Rule of Five: explicitly default copy/move operations
+  Model() = default;
+  Model(const Model&) = default;
+  Model(Model&&) = default;
+  Model& operator=(const Model&) = default;
+  Model& operator=(Model&&) = default;
+  
   virtual void validate() const = 0;
   virtual Json toMap() const = 0;
   virtual void fromMap(const Json &) = 0;
