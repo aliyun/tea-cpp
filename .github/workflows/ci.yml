@@ -75,9 +75,10 @@ jobs:
         brew install openssl curl
         echo "OPENSSL_ROOT_DIR=$(brew --prefix openssl)" >> $GITHUB_ENV
 
-    - name: Cache vcpkg packages (Windows)
+    - name: Restore vcpkg cache (Windows)
       if: runner.os == 'Windows'
-      uses: actions/cache@v4
+      id: cache-vcpkg-restore
+      uses: actions/cache/restore@v4
       with:
         path: |
           C:/vcpkg/installed
@@ -243,3 +244,16 @@ jobs:
             -DOPENSSL_ROOT_DIR=${{ env.OPENSSL_ROOT_DIR }}
         fi
         cmake --build sample_test_static/build --config Release
+
+    # Save vcpkg cache even if build/test fails
+    - name: Save vcpkg cache (Windows)
+      if: runner.os == 'Windows' && always()
+      uses: actions/cache/save@v4
+      with:
+        path: |
+          C:/vcpkg/installed
+          C:/vcpkg/packages
+          C:/vcpkg/buildtrees
+          C:/vcpkg/downloads
+          ~/AppData/Local/vcpkg/archives
+        key: ${{ runner.os }}-vcpkg-curl-openssl-v1-${{ matrix.cxx_standard }}
