@@ -40,6 +40,11 @@ jobs:
       if: runner.os == 'Linux'
       run: |
         sudo apt-get update
+        # Install GCC 13 for better C++ standard compliance
+        sudo apt-get install -y gcc-13 g++-13
+        sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 100
+        sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 100
+        # Install dependencies
         sudo apt-get install -y libssl-dev uuid-dev zlib1g-dev
         # Install dynamic libcurl for shared builds
         sudo apt-get install -y libcurl4-openssl-dev

@@ -84,6 +84,10 @@ public:
   };
 
   ResponseBase() = default;
+  ResponseBase(const ResponseBase &) = default;
+  ResponseBase(ResponseBase &&) = default;
+  ResponseBase &operator=(const ResponseBase &) = default;
+  ResponseBase &operator=(ResponseBase &&) = default;
   virtual ~ResponseBase() = default;
 
   std::string getHeaders(const std::string &key) const {
