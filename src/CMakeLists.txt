@@ -6,10 +6,11 @@ add_library(${PROJECT_NAME} ${CPP_FILES})
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 
 # 3. Public header directories
-# Using CMAKE_CURRENT_SOURCE_DIR to ensure paths are absolute and robust
+# Using PROJECT_SOURCE_DIR ensures absolute path resolution even in nested FetchContent scenarios
+# This fixes include path propagation when darabonba_core is used as a transitive dependency
 target_include_directories(${PROJECT_NAME}
   PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include>
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
