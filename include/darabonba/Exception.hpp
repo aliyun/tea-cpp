@@ -46,8 +46,8 @@ public:
       accessDeniedDetail_ = dic["accessDeniedDetail"];
     }
     // Extract statusCode from data if present
-    if (data_.contains("statusCode") && !data_["statusCode"].is_null()) {
-      statusCode_ = data_["statusCode"].get<int64_t>();
+    if (dic.contains("statusCode") && !dic["statusCode"].is_null()) {
+      statusCode_ = dic["statusCode"].get<int64_t>();
     }
   }
 
