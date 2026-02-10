@@ -67,7 +67,7 @@ public:
   static Bytes from(const std::string &str, const std::string &format) {
     if (format == "base64") {
       BIO *bio, *b64;
-      int strLen = static_cast<int>(str.length())
+      int strLen = static_cast<int>(str.length());
       std::vector<unsigned char> buffer((strLen * 3) / 4 + 1);
 
       bio = BIO_new_mem_buf(str.data(), strLen);
