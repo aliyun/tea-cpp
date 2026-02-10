@@ -73,6 +73,15 @@ TEST(SimpleAny, AssignDifferentTypes) {
 }
 
 // ==================== cast 类型不匹配 ====================
+// GCC 13 的 -Warray-bounds 会在 EXPECT_THROW 内联后误报：
+// 它看到 static_cast<Holder<string>*>(ptr)->held 路径（实际运行时
+// typeid 检查会先抛 bad_cast，永远不会走到），但 GCC 仍认为
+// Holder<int>(16B) 被当作 Holder<string>(更大) 访问，产生越界警告。
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
+#endif
+
 TEST(SimpleAny, CastWrongType) {
   SimpleAny a(42);
   EXPECT_THROW(a.cast<std::string>(), std::bad_cast);
@@ -82,6 +91,10 @@ TEST(SimpleAny, CastWrongTypeDouble) {
   SimpleAny a(3.14);
   EXPECT_THROW(a.cast<int>(), std::bad_cast);
 }
+
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 
 // ==================== type ====================
 TEST(SimpleAny, TypeInfo) {
