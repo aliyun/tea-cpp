@@ -33,14 +33,6 @@ UnretryableException::UnretryableException(
   // Get the exception from context
   auto exception = context.getException();
 
-  // If the exception is a ResponseException, rethrow it directly
-  if (exception) {
-    auto responseEx = std::dynamic_pointer_cast<ResponseException>(exception);
-    if (responseEx) {
-      throw *responseEx;
-    }
-  }
-
   lastException_ = exception;
   lastRequest_ = context.getLastRequest();
   if (lastException_) {

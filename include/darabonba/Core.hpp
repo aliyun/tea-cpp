@@ -73,7 +73,7 @@ public:
    * @brief Clear a specific connection pool configuration
    * @param config The configuration to clear
    */
-  static void ClearHttpClient(const ConnectionPoolConfig& config);
+  static void ClearHttpClient(const ConnectionPoolConfig &config);
   
   /**
    * @brief Clear all HttpClients

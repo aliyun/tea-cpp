@@ -39,7 +39,8 @@ namespace {
 struct SDKState {
   std::atomic<bool> initialized{false};
   std::mutex mutex;
-  std::map<ConnectionPoolConfig, std::unique_ptr<Http::MCurlHttpClient>> http_clients;
+  // One HTTP client per host (scheme + host + port as key)
+  std::map<std::string, std::unique_ptr<Http::MCurlHttpClient>> http_clients;
 };
 
 SDKState& GetSDKState() {
@@ -61,12 +62,13 @@ void EnsureInitialized() {
 }
 
 // Helper to extract connection pool config from request
-ConnectionPoolConfig getConnectionPoolConfig(Http::Request &request, const Darabonba::Json &runtime) {
+ConnectionPoolConfig getConnectionPoolConfig(Http::Request &request,
+                                             const Darabonba::Json &runtime) {
   ConnectionPoolConfig config;
-  
+
   auto &url = request.getUrl();
   auto &header = request.getHeader();
-  
+
   // Extract host from URL or header
   if (!url.getHost().empty()) {
     config.host = url.getHost();
@@ -76,32 +78,56 @@ ConnectionPoolConfig getConnectionPoolConfig(Http::Request &request, const Darab
       config.host = it->second;
     }
   }
-  
-  // Extract connection pool configuration from runtime options
+
+  // Extract connection pool configuration from runtime options if present
   if (!runtime.is_null()) {
-    config.max_connections = runtime.value("maxConnections", 5UL);
-    config.connection_idle_timeout = runtime.value("connectionIdleTimeout", 300L);
-    config.pipelining = runtime.value("pipelining", false);
-    config.max_host_connections = runtime.value("maxHostConnections", 2UL);
+    if (runtime.contains("maxConnections")) {
+      config.max_connections = runtime["maxConnections"].get<size_t>();
+    }
+    if (runtime.contains("connectionIdleTimeout")) {
+      config.connection_idle_timeout =
+          runtime["connectionIdleTimeout"].get<long>();
+    }
+    if (runtime.contains("pipelining")) {
+      config.pipelining = runtime["pipelining"].get<bool>();
+    }
+    if (runtime.contains("maxHostConnections")) {
+      config.max_host_connections =
+          runtime["maxHostConnections"].get<size_t>();
+    }
   }
-  
+
   return config;
 }
 
 // Helper to extract request-level config
 RequestConfig getRequestConfig(const Darabonba::Json &runtime) {
   RequestConfig config;
-  
+
   if (!runtime.is_null()) {
-    config.connect_timeout_ms = runtime.value("connectTimeout", 5000L);
-    config.read_timeout_ms = runtime.value("readTimeout", 0L);
-    config.ignore_ssl = runtime.value("ignoreSSL", false);
-    config.http_proxy = runtime.value("httpProxy", "");
-    config.https_proxy = runtime.value("httpsProxy", "");
-    config.no_proxy = runtime.value("noProxy", "");
-    config.credential = runtime.value("credential", "");
+    if (runtime.contains("connectTimeout")) {
+      config.connect_timeout_ms = runtime["connectTimeout"].get<long>();
+    }
+    if (runtime.contains("readTimeout")) {
+      config.read_timeout_ms = runtime["readTimeout"].get<long>();
+    }
+    if (runtime.contains("ignoreSSL")) {
+      config.ignore_ssl = runtime["ignoreSSL"].get<bool>();
+    }
+    if (runtime.contains("httpProxy")) {
+      config.http_proxy = runtime["httpProxy"].get<std::string>();
+    }
+    if (runtime.contains("httpsProxy")) {
+      config.https_proxy = runtime["httpsProxy"].get<std::string>();
+    }
+    if (runtime.contains("noProxy")) {
+      config.no_proxy = runtime["noProxy"].get<std::string>();
+    }
+    if (runtime.contains("credential")) {
+      config.credential = runtime["credential"].get<std::string>();
+    }
   }
-  
+
   return config;
 }
 
@@ -151,27 +177,10 @@ std::future<std::shared_ptr<Http::MCurlResponse>>
 Core::doAction(Http::Request &request, const Darabonba::Json &runtime) {
   // Ensure SDK is initialized (lazy initialization)
   EnsureInitialized();
-  
-  auto& state = GetSDKState();
-  
-  // Get connection pool configuration (host-level)
-  ConnectionPoolConfig pool_config = getConnectionPoolConfig(request, runtime);
-  // Get request-level configuration
-  RequestConfig request_config = getRequestConfig(runtime);
-  
-  std::lock_guard<std::mutex> lock(state.mutex);
-  
-  // Check if we have a client for this host/connection pool
-  auto it = state.http_clients.find(pool_config);
-  if (it == state.http_clients.end()) {
-    // Create new client for this connection pool configuration
-    auto newClient = std::unique_ptr<Http::MCurlHttpClient>(new Http::MCurlHttpClient());
-    // TODO: Apply connection pool settings to the client
-    newClient->start();
-    it = state.http_clients.insert({pool_config, std::move(newClient)}).first;
-  }
-  
-  // Modify the request URL if needed before using the client
+
+  auto &state = GetSDKState();
+
+  // Prepare URL host and scheme before accessing per-host state
   auto &header = request.getHeader();
   auto &url = request.getUrl();
   if (url.getHost().empty()) {
@@ -183,8 +192,27 @@ Core::doAction(Http::Request &request, const Darabonba::Json &runtime) {
   if (url.getScheme().empty()) {
     url.setScheme("https");
   }
-  
-  // Use the appropriate client for this host/connection pool
+  std::string hostKey = url.getHost();
+
+  std::lock_guard<std::mutex> lock(state.mutex);
+
+  // Extract connection pool configuration from runtime
+  ConnectionPoolConfig pool_config = getConnectionPoolConfig(request, runtime);
+
+  // Extract request-level configuration from runtime
+  RequestConfig request_config = getRequestConfig(runtime);
+
+  // Check if we have a client for this host
+  auto it = state.http_clients.find(hostKey);
+  if (it == state.http_clients.end()) {
+    // Create new client for this host
+    auto newClient =
+        std::unique_ptr<Http::MCurlHttpClient>(new Http::MCurlHttpClient());
+    // TODO: Apply connection pool settings to the client using pool_config
+    newClient->start();
+    it = state.http_clients.insert({hostKey, std::move(newClient)}).first;
+  }
+
   // Pass request-level configuration to be applied per-request
   Darabonba::Json request_runtime = Darabonba::Json::object();
   request_runtime["connectTimeout"] = request_config.connect_timeout_ms;
@@ -193,16 +221,16 @@ Core::doAction(Http::Request &request, const Darabonba::Json &runtime) {
   request_runtime["httpProxy"] = request_config.http_proxy;
   request_runtime["httpsProxy"] = request_config.https_proxy;
   request_runtime["noProxy"] = request_config.no_proxy;
-  
+
   return it->second->makeRequest(request, request_runtime);
 }
 
-// Function to clear specific client configuration
-void Core::ClearHttpClient(const ConnectionPoolConfig& config) {
-  auto& state = GetSDKState();
+// Function to clear specific client configuration by ConnectionPoolConfig
+void Core::ClearHttpClient(const ConnectionPoolConfig &config) {
+  auto &state = GetSDKState();
   std::lock_guard<std::mutex> lock(state.mutex);
-  
-  auto it = state.http_clients.find(config);
+
+  auto it = state.http_clients.find(config.host);
   if (it != state.http_clients.end()) {
     state.http_clients.erase(it);
   }
@@ -210,17 +238,17 @@ void Core::ClearHttpClient(const ConnectionPoolConfig& config) {
 
 // Function to clear all clients
 void Core::ClearAllHttpClients() {
-  auto& state = GetSDKState();
+  auto &state = GetSDKState();
   std::lock_guard<std::mutex> lock(state.mutex);
-  
+
   state.http_clients.clear();
 }
 
 // Function to get client count
 size_t Core::GetHttpClientCount() {
-  auto& state = GetSDKState();
+  auto &state = GetSDKState();
   std::lock_guard<std::mutex> lock(state.mutex);
-  
+
   return state.http_clients.size();
 }
 
