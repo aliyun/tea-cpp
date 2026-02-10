@@ -18,7 +18,6 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         cxx_standard: [11, 14, 17, 20]
-        # Restrict combinations to save time
         exclude:
           - os: macos-latest
             cxx_standard: 14
@@ -40,19 +39,15 @@ jobs:
       if: runner.os == 'Linux'
       run: |
         sudo apt-get update
-        # Install GCC 13 for better C++ standard compliance
         sudo apt-get install -y gcc-13 g++-13
         sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 100
         sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 100
-        # Install dependencies
         sudo apt-get install -y libssl-dev uuid-dev zlib1g-dev
-        # Install dynamic libcurl for shared builds
         sudo apt-get install -y libcurl4-openssl-dev
-        
+
     - name: Build minimal static libcurl (Linux)
       if: runner.os == 'Linux'
       run: |
-        # Build a minimal libcurl with only HTTPS support for static linking
         curl -L https://curl.se/download/curl-8.5.0.tar.gz -o curl.tar.gz
         tar -xzf curl.tar.gz
         cd curl-8.5.0
@@ -86,8 +81,6 @@ jobs:
           C:/vcpkg/buildtrees
           C:/vcpkg/downloads
           ~/AppData/Local/vcpkg/archives
-        # Key based on fixed dependencies: curl + openssl
-        # Change this key if you modify vcpkg dependencies
         key: ${{ runner.os }}-vcpkg-curl-openssl-v1-${{ matrix.cxx_standard }}
         restore-keys: |
           ${{ runner.os }}-vcpkg-curl-openssl-v1-
@@ -97,7 +90,6 @@ jobs:
       if: runner.os == 'Windows'
       shell: bash
       run: |
-        # Enable vcpkg binary caching to GitHub Actions cache
         export VCPKG_BINARY_SOURCES="clear;x-gha,readwrite"
         echo "VCPKG_BINARY_SOURCES=$VCPKG_BINARY_SOURCES" >> $GITHUB_ENV
 
@@ -105,11 +97,10 @@ jobs:
       if: runner.os == 'Windows'
       shell: bash
       run: |
-        # Use parallel build and binary caching
         export VCPKG_MAX_CONCURRENCY=$NUMBER_OF_PROCESSORS
         vcpkg install curl:x64-windows openssl:x64-windows --no-print-usage
 
-    # Build and test both shared and static libraries in one job
+    # Build and test both shared and static libraries
     - name: Build Shared Library
       shell: bash
       run: |
@@ -137,8 +128,10 @@ jobs:
       run: |
         cd build-shared
         if [ "${{ runner.os }}" = "Windows" ]; then
-          # Windows: Copy DLL to test directory and run directly
+          echo "DLLs in src/Release:"
+          ls -la src/Release/*.dll 2>/dev/null || echo "No DLLs found"
           cp src/Release/*.dll tests/Release/ 2>/dev/null || true
+          echo "Running test..."
           ./tests/Release/darabonba_coreTest.exe
         else
           ctest --output-on-failure -C Release
@@ -158,7 +151,8 @@ jobs:
         add_executable(sample_app main.cpp)
         target_link_libraries(sample_app darabonba_core::darabonba_core)
         EOF
-        echo "int main() { return 0; }" > sample_test_shared/main.cpp
+        echo '#include <darabonba/Core.hpp>
+        int main() { return 0; }' > sample_test_shared/main.cpp
         
         if [ "${{ runner.os }}" = "Windows" ]; then
           cmake -S sample_test_shared -B sample_test_shared/build \
@@ -183,7 +177,6 @@ jobs:
             -DCMAKE_INSTALL_PREFIX=./install-static \
             -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
         elif [ "${{ runner.os }}" = "Linux" ]; then
-          # Use minimal static libcurl for Linux static builds
           cmake -B build-static \
             -DCMAKE_BUILD_TYPE=Release \
             -DBUILD_SHARED_LIBS=OFF \
@@ -209,7 +202,8 @@ jobs:
       run: |
         cd build-static
         if [ "${{ runner.os }}" = "Windows" ]; then
-          # Windows: Run test directly
+          echo "Listing tests/Release directory:"
+          ls -la tests/Release/ || echo "Directory not found"
           ./tests/Release/darabonba_coreTest.exe
         else
           ctest --output-on-failure -C Release
@@ -229,7 +223,8 @@ jobs:
         add_executable(sample_app main.cpp)
         target_link_libraries(sample_app darabonba_core::darabonba_core)
         EOF
-        echo "int main() { return 0; }" > sample_test_static/main.cpp
+        echo '#include <darabonba/Core.hpp>
+        int main() { return 0; }' > sample_test_static/main.cpp
         
         if [ "${{ runner.os }}" = "Windows" ]; then
           cmake -S sample_test_static -B sample_test_static/build \

@@ -3,7 +3,7 @@
 
 # Darabonba SDK Core for C++
 [![codecov](https://codecov.io/gh/aliyun/tea-cpp/branch/master/graph/badge.svg)](https://codecov.io/gh/aliyun/tea-cpp)
-[![Travis Build Status](https://travis-ci.org/aliyun/tea-cpp.svg?branch=master)](https://travis-ci.org/aliyun/tea-cpp)
+[![CI](https://github.com/aliyun/tea-cpp/actions/workflows/ci.yml/badge.svg)](https://github.com/aliyun/tea-cpp/actions/workflows/ci.yml)
 
 
 ![](https://aliyunsdk-pages.alicdn.com/icons/AlibabaCloud.svg)
@@ -77,7 +77,7 @@ sh scripts/install.sh
 
 Copyright (c) 2009-present, Alibaba Cloud All rights reserved.
 
-[open-api]: https://next.api.aliyun.com
+[open-api]: https://api.aliyun.com
 [latest-release]: https://github.com/aliyun/tea-cpp/releases
 [console]: https://home.console.aliyun.com
 [aliyun]: https://www.aliyun.com

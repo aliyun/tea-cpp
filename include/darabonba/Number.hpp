@@ -1,8 +1,9 @@
 #ifndef DARABONBA_NUMBER_H_
 #define DARABONBA_NUMBER_H_
-namespace Darabonba {
 
 #include <string>
+
+namespace Darabonba {
 
 class Number {
 public:

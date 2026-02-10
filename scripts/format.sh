@@ -1,9 +1,8 @@
 #!/bin/bash
 
-basepath=$(cd `dirname $0`/../; pwd)
+basepath=$(cd "$(dirname "$0")/../" || exit; pwd)
+cd "$basepath/" || exit
 
-cd $basepath/
-
-find ./src -iname *.hpp -o -iname *.cpp | xargs clang-format -i -style=llvm
-find ./include -iname *.hpp -o -iname *.cpp | xargs clang-format -i -style=llvm
-find ./tests -iname *.hpp -o -iname *.cpp | xargs clang-format -i -style=llvm
+find ./src -iname '*.hpp' -o -iname '*.cpp' | xargs clang-format -i -style=llvm
+find ./include -iname '*.hpp' -o -iname '*.cpp' | xargs clang-format -i -style=llvm
+find ./tests -iname '*.hpp' -o -iname '*.cpp' | xargs clang-format -i -style=llvm
