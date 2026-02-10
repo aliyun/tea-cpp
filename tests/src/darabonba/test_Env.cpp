@@ -71,8 +71,11 @@ TEST_F(EnvTest, getSystemEnv) {
 }
 
 TEST_F(EnvTest, getHomeEnv) {
+#ifdef _WIN32
+  std::string home = Env::getEnv("USERPROFILE");
+#else
   std::string home = Env::getEnv("HOME");
-  // HOME 在 Unix 系统中应该存在
+#endif
   EXPECT_FALSE(home.empty());
 }
 

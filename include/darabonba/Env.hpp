@@ -31,7 +31,7 @@ public:
 
   static void unsetEnv(const std::string &name) {
 #ifdef _WIN32
-    _putenv_s(name.c_str(), nullptr);
+    _putenv_s(name.c_str(), "");
 #else
     unsetenv(name.c_str());
 #endif
