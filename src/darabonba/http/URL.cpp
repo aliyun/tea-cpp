@@ -8,14 +8,18 @@ namespace Darabonba {
 namespace Http {
 
 URL::URL(const std::string &url) {
+  // 空URL直接返回
+  if (url.empty()) {
+    return;
+  }
+
   // TODO can't parse when url = "baidu.com"
   CURLU *curlu = curl_url();
   if (curlu == nullptr)
     return;
   curl_url_set(curlu, CURLUPART_URL, url.c_str(), 0);
-  char *scheme = nullptr, *user = nullptr, *password = nullptr,
-       *host = nullptr, *port = nullptr, *path = nullptr, *query = nullptr,
-       *fragment = nullptr;
+  char *scheme = nullptr, *user = nullptr, *password = nullptr, *host = nullptr,
+       *port = nullptr, *path = nullptr, *query = nullptr, *fragment = nullptr;
   curl_url_get(curlu, CURLUPART_SCHEME, &scheme, 0);
   curl_url_get(curlu, CURLUPART_USER, &user, 0);
   curl_url_get(curlu, CURLUPART_PASSWORD, &password, 0);
@@ -41,7 +45,7 @@ URL::URL(const std::string &url) {
     pathName_ = path;
   }
   if (port) {
-    port_ = std::stoi(port);
+    port_ = static_cast<uint16_t>(std::stoi(port));
   }
   if (query) {
     query_ = Query(query);
@@ -175,7 +179,7 @@ URL &URL::setAuthority(const std::string &authority) {
 
   setUserInfo(userinfo);
   setHost(host);
-  setPort(!port.empty() ? std::stoi(port) : INVALID_PORT);
+  setPort(!port.empty() ? static_cast<uint16_t>(std::stoi(port)) : INVALID_PORT);
   return *this;
 }
 

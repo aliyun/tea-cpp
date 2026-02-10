@@ -17,7 +17,12 @@ class OStream;
 
 class Stream {
 public:
-  virtual ~Stream() {}
+  Stream() = default;
+  Stream(const Stream &) = default;
+  Stream(Stream &&) = default;
+  Stream &operator=(const Stream &) = default;
+  Stream &operator=(Stream &&) = default;
+  virtual ~Stream() = default;
 
   static Bytes readAsBytes(std::shared_ptr<IStream> raw);
 
@@ -42,11 +47,17 @@ public:
   static void reset(std::shared_ptr<Stream> raw);
 
 private:
-  static std::string cleanString(const std::string& str);
+  static std::string cleanString(const std::string &str);
 };
 
 class IStream : public Stream {
 public:
+  IStream() = default;
+  IStream(const IStream &) = default;
+  IStream(IStream &&) = default;
+  IStream &operator=(const IStream &) = default;
+  IStream &operator=(IStream &&) = default;
+  
   /**
    * @brief Read the data from stream
    * @param buffer The buffer storing data to be read.
@@ -56,7 +67,7 @@ public:
    */
   virtual size_t read(char *buffer, size_t expectSize) = 0;
   virtual bool isFinished() const = 0;
-  virtual ~IStream() {}
+  virtual ~IStream() = default;
 };
 
 class ISStream : public IStream, protected std::istringstream {
@@ -89,20 +100,18 @@ public:
     return *this;
   }
 
-  ISStream(const ISStream& other)
-    : std::basic_ios<char>(nullptr), std::istringstream() {
+  ISStream(const ISStream &other)
+      : std::basic_ios<char>(nullptr), std::istringstream() {
     std::ostringstream oss;
     oss << other.rdbuf();
     std::istringstream tempStream(oss.str());
     std::istringstream::swap(tempStream);
   }
 
-  ISStream(ISStream&& other) noexcept {
-    std::istringstream::swap(other);
-  }
+  ISStream(ISStream &&other) noexcept { std::istringstream::swap(other); }
 
-// 移动赋值运算符
-  ISStream& operator=(ISStream&& other) noexcept {
+  // 移动赋值运算符
+  ISStream &operator=(ISStream &&other) noexcept {
     if (this != &other) {
       std::istringstream::swap(other);
     }
@@ -111,50 +120,47 @@ public:
 
   virtual size_t read(char *buffer, size_t expectSize) override;
 
-  virtual bool isFinished() const override {
-    return eof();
-  }
+  virtual bool isFinished() const override { return eof(); }
 };
 
 class IFStream : public IStream, protected std::ifstream {
 public:
   IFStream() : m_openmode(std::ios_base::in) {}
 
-  IFStream(const std::string& filepath, std::ios_base::openmode mode = std::ios_base::in)
-      : std::ifstream(filepath, mode), m_filepath(filepath), m_openmode(mode) {
-  }
+  IFStream(const std::string &filepath,
+           std::ios_base::openmode mode = std::ios_base::in)
+      : std::ifstream(filepath, mode), m_filepath(filepath), m_openmode(mode) {}
 
-  IFStream(const char* filepath, std::ios_base::openmode mode = std::ios_base::in)
-      : std::ifstream(filepath, mode), m_filepath(filepath), m_openmode(mode) {
-  }
+  IFStream(const char *filepath,
+           std::ios_base::openmode mode = std::ios_base::in)
+      : std::ifstream(filepath, mode), m_filepath(filepath), m_openmode(mode) {}
 
   // 深拷贝构造函数
-  IFStream(const IFStream& other)
-      : std::basic_ios<char>(nullptr), std::ifstream(), m_filepath(other.m_filepath), m_openmode(other.m_openmode) {
+  IFStream(const IFStream &other)
+      : std::basic_ios<char>(nullptr), std::ifstream(),
+        m_filepath(other.m_filepath), m_openmode(other.m_openmode) {
 
     if (!m_filepath.empty()) {
       this->open(m_filepath, m_openmode);
 
       if (this->is_open() && other.is_open()) {
         // 使用 const_cast 来调用 tellg()
-        auto pos = const_cast<IFStream&>(other).tellg();
+        auto pos = const_cast<IFStream &>(other).tellg();
         if (pos != std::streampos(-1)) {
           this->seekg(pos);
         }
         // 获取状态也需要 const_cast
-        this->clear(const_cast<IFStream&>(other).rdstate());
+        this->clear(const_cast<IFStream &>(other).rdstate());
       }
     }
   }
 
-  IFStream(IFStream&& other) noexcept
+  IFStream(IFStream &&other) noexcept
       : std::ifstream(std::move(other)),
-        m_filepath(std::move(other.m_filepath)),
-        m_openmode(other.m_openmode) {
-  }
+        m_filepath(std::move(other.m_filepath)), m_openmode(other.m_openmode) {}
 
   // 深拷贝赋值操作符
-  IFStream& operator=(const IFStream& other) {
+  IFStream &operator=(const IFStream &other) {
     if (this == &other) {
       return *this;
     }
@@ -170,18 +176,18 @@ public:
       this->open(m_filepath, m_openmode);
 
       if (this->is_open() && other.is_open()) {
-        auto pos = const_cast<IFStream&>(other).tellg();
+        auto pos = const_cast<IFStream &>(other).tellg();
         if (pos != std::streampos(-1)) {
           this->seekg(pos);
         }
-        this->clear(const_cast<IFStream&>(other).rdstate());
+        this->clear(const_cast<IFStream &>(other).rdstate());
       }
     }
 
     return *this;
   }
 
-  IFStream& operator=(IFStream&& other) noexcept {
+  IFStream &operator=(IFStream &&other) noexcept {
     if (this != &other) {
       if (this->is_open()) {
         this->close();
@@ -194,23 +200,26 @@ public:
     return *this;
   }
 
-  virtual ~IFStream() {}
+  virtual ~IFStream() = default;
 
   virtual size_t read(char *buffer, size_t expectSize) override;
 
-  virtual bool isFinished() const override {
-    return eof();
-  }
+  virtual bool isFinished() const override { return eof(); }
 
 private:
   std::string m_filepath;
   std::ios_base::openmode m_openmode;
 };
 
-
-  class OStream : public Stream {
+class OStream : public Stream {
 public:
-  virtual ~OStream(){};
+  OStream() = default;
+  OStream(const OStream &) = default;
+  OStream(OStream &&) = default;
+  OStream &operator=(const OStream &) = default;
+  OStream &operator=(OStream &&) = default;
+  virtual ~OStream() = default;
+  
   /**
    * @brief Write the data to stream.
    * @param buffer The buffer storing the data to be written.
@@ -225,7 +234,12 @@ class OSStream : public OStream, protected std::ostringstream {
 public:
   OSStream() = default;
   OSStream(std::ostringstream &&obj) : std::ostringstream(std::move(obj)) {}
-  virtual ~OSStream() {}
+  
+  OSStream(const OSStream &) = delete;
+  OSStream(OSStream &&) = delete;
+  OSStream &operator=(const OSStream &) = delete;
+  OSStream &operator=(OSStream &&) = delete;
+  virtual ~OSStream() = default;
 
   OSStream &operator=(std::ostringstream &&obj) {
     if (this == &obj)
@@ -241,7 +255,12 @@ class OFStream : public OStream, public std::ofstream {
 public:
   OFStream() = default;
   OFStream(std::ofstream &&obj) : std::ofstream(std::move(obj)) {}
-  virtual ~OFStream() {}
+  
+  OFStream(const OFStream &) = delete;
+  OFStream(OFStream &&) = delete;
+  OFStream &operator=(const OFStream &) = delete;
+  OFStream &operator=(OFStream &&) = delete;
+  virtual ~OFStream() = default;
 
   OFStream &operator=(std::ofstream &&obj) {
     if (this == &obj)
@@ -250,54 +269,65 @@ public:
     return *this;
   }
 
-  virtual size_t write(char *buffer, size_t expectSize) = 0;
+  virtual size_t write(char *buffer, size_t expectSize) override {
+    std::ofstream::write(buffer, expectSize);
+    return expectSize;
+  }
 };
 
 class IOStream : public IStream, public OStream {
 public:
-  virtual ~IOStream() {}
+  IOStream() = default;
+  IOStream(const IOStream &) = default;
+  IOStream(IOStream &&) = default;
+  IOStream &operator=(const IOStream &) = default;
+  IOStream &operator=(IOStream &&) = default;
+  virtual ~IOStream() = default;
 };
 
 } // namespace Darabonba
 
 namespace nlohmann {
-  template <>
-  struct adl_serializer<std::shared_ptr<Darabonba::IStream>> {
-    static void to_json(json &j, const std::shared_ptr<Darabonba::IStream> &body) {
-      j = reinterpret_cast<uintptr_t>(body.get());
-    }
+template <> struct adl_serializer<std::shared_ptr<Darabonba::IStream>> {
+  static void to_json(json &j,
+                      const std::shared_ptr<Darabonba::IStream> &body) {
+    j = reinterpret_cast<uintptr_t>(body.get());
+  }
 
-    static std::shared_ptr<Darabonba::IStream> from_json(const json &j) {
-      if (j.is_number_unsigned()) {
-        Darabonba::IStream *ptr = reinterpret_cast<Darabonba::IStream *>(j.get<uintptr_t>());
-        if (auto* isStreamPtr = dynamic_cast<Darabonba::ISStream*>(ptr)) {
-          return std::make_shared<Darabonba::ISStream>(*isStreamPtr);
-        } else if (auto* ifStreamPtr = dynamic_cast<Darabonba::IFStream*>(ptr)) {
-          return std::make_shared<Darabonba::IFStream>(*ifStreamPtr);
-        }
-        return std::shared_ptr<Darabonba::IStream>(ptr, [](Darabonba::IStream* ptr) {
-          if(ptr && ptr->isFinished()) {
-            delete ptr;
-          }
-        });
+  static std::shared_ptr<Darabonba::IStream> from_json(const json &j) {
+    if (j.is_number_unsigned()) {
+      Darabonba::IStream *ptr =
+          reinterpret_cast<Darabonba::IStream *>(j.get<uintptr_t>());
+      if (auto *isStreamPtr = dynamic_cast<Darabonba::ISStream *>(ptr)) {
+        return std::make_shared<Darabonba::ISStream>(*isStreamPtr);
+      } else if (auto *ifStreamPtr = dynamic_cast<Darabonba::IFStream *>(ptr)) {
+        return std::make_shared<Darabonba::IFStream>(*ifStreamPtr);
       }
-      return nullptr;
+      return std::shared_ptr<Darabonba::IStream>(
+          ptr, [](Darabonba::IStream *ptr) {
+            if (ptr && ptr->isFinished()) {
+              delete ptr;
+            }
+          });
     }
-  };
+    return nullptr;
+  }
+};
 
-  template <>
-  struct adl_serializer<std::shared_ptr<Darabonba::OStream>> {
-    static void to_json(json &j, const std::shared_ptr<Darabonba::OStream> &body) {
-      j = reinterpret_cast<uintptr_t>(body.get());
-    }
+template <> struct adl_serializer<std::shared_ptr<Darabonba::OStream>> {
+  static void to_json(json &j,
+                      const std::shared_ptr<Darabonba::OStream> &body) {
+    j = reinterpret_cast<uintptr_t>(body.get());
+  }
 
-    static std::shared_ptr<Darabonba::OStream> from_json(const json &j) {
-      if (j.is_number_unsigned()) {
-        Darabonba::OStream *ptr = reinterpret_cast<Darabonba::OStream *>(j.get<uintptr_t>());
-        return std::shared_ptr<Darabonba::OStream>(ptr);
-      }
-      return nullptr;
+  static std::shared_ptr<Darabonba::OStream> from_json(const json &j) {
+    if (j.is_number_unsigned()) {
+      Darabonba::OStream *ptr =
+          reinterpret_cast<Darabonba::OStream *>(j.get<uintptr_t>());
+      return std::shared_ptr<Darabonba::OStream>(ptr);
     }
-  };
-}
+    return nullptr;
+  }
+};
+} // namespace nlohmann
 #endif

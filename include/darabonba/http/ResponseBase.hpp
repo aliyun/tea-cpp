@@ -84,6 +84,10 @@ public:
   };
 
   ResponseBase() = default;
+  ResponseBase(const ResponseBase &) = default;
+  ResponseBase(ResponseBase &&) = default;
+  ResponseBase &operator=(const ResponseBase &) = default;
+  ResponseBase &operator=(ResponseBase &&) = default;
   virtual ~ResponseBase() = default;
 
   std::string getHeaders(const std::string &key) const {
@@ -110,8 +114,16 @@ public:
     return *this;
   }
 
+  // Status message (aligned with tea-python's DaraResponse.status_message)
+  const std::string &getStatusMessage() const { return statusMessage_; }
+  ResponseBase &setStatusMessage(const std::string &statusMessage) {
+    statusMessage_ = statusMessage;
+    return *this;
+  }
+
 protected:
   mutable int64_t statusCode_ = StatusCode::INVALID_CODE;
+  std::string statusMessage_;
   Header header_;
 };
 

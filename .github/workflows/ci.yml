@@ -1,4 +1,5 @@
 name: C++ CI
+
 permissions:
   contents: read
 
@@ -10,12 +11,26 @@ on:
 
 jobs:
   build:
+    name: ${{ matrix.os }} - C++${{ matrix.cxx_standard }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        build_type: [Release]
+        cxx_standard: [11, 14, 17, 20]
+        exclude:
+          - os: macos-latest
+            cxx_standard: 14
+          - os: macos-latest
+            cxx_standard: 17
+          - os: macos-latest
+            cxx_standard: 20
+          - os: windows-latest
+            cxx_standard: 14
+          - os: windows-latest
+            cxx_standard: 17
+          - os: windows-latest
+            cxx_standard: 20
 
     steps:
     - uses: actions/checkout@v4
@@ -24,7 +39,30 @@ jobs:
       if: runner.os == 'Linux'
       run: |
         sudo apt-get update
-        sudo apt-get install -y libcurl4-openssl-dev libssl-dev uuid-dev
+        sudo apt-get install -y gcc-13 g++-13
+        sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 100
+        sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 100
+        sudo apt-get install -y libssl-dev uuid-dev zlib1g-dev
+        sudo apt-get install -y libcurl4-openssl-dev
+
+    - name: Build minimal static libcurl (Linux)
+      if: runner.os == 'Linux'
+      run: |
+        curl -L https://curl.se/download/curl-8.5.0.tar.gz -o curl.tar.gz
+        tar -xzf curl.tar.gz
+        cd curl-8.5.0
+        ./configure --prefix=/usr/local/curl-minimal \
+          --disable-shared --enable-static \
+          --with-openssl \
+          --without-libpsl --without-nghttp2 --without-libssh2 --without-libssh \
+          --without-gssapi --without-libidn2 --without-librtmp --without-zstd \
+          --without-brotli --without-zlib \
+          --disable-ldap --disable-ldaps --disable-rtsp --disable-dict \
+          --disable-telnet --disable-tftp --disable-pop3 --disable-imap \
+          --disable-smb --disable-smtp --disable-gopher --disable-mqtt \
+          --disable-manual --disable-docs --disable-unix-sockets
+        make -j$(nproc)
+        sudo make install
 
     - name: Install dependencies (macOS)
       if: runner.os == 'macOS'
@@ -32,48 +70,185 @@ jobs:
         brew install openssl curl
         echo "OPENSSL_ROOT_DIR=$(brew --prefix openssl)" >> $GITHUB_ENV
 
-    - name: Setup vcpkg (Windows)
+    - name: Restore vcpkg cache (Windows)
       if: runner.os == 'Windows'
-      id: setup-vcpkg
-      run: |
-        $vcpkgRoot = "$env:RUNNER_TEMP\vcpkg"
-        git clone https://github.com/Microsoft/vcpkg.git $vcpkgRoot
-        & "$vcpkgRoot\bootstrap-vcpkg.bat"
-        echo "VCPKG_ROOT=$vcpkgRoot" >> $env:GITHUB_ENV
-        echo "vcpkg-root=$vcpkgRoot" >> $env:GITHUB_OUTPUT
-
-    - name: Cache vcpkg
-      if: runner.os == 'Windows'
-      uses: actions/cache@v4
-      id: vcpkg-cache
+      id: cache-vcpkg-restore
+      uses: actions/cache/restore@v4
       with:
-        path: ${{ steps.setup-vcpkg.outputs.vcpkg-root }}/installed
-        key: ${{ runner.os }}-vcpkg-curl-openssl-x64-windows
+        path: |
+          C:/vcpkg/installed
+          C:/vcpkg/packages
+          C:/vcpkg/buildtrees
+          C:/vcpkg/downloads
+          ~/AppData/Local/vcpkg/archives
+        key: ${{ runner.os }}-vcpkg-curl-openssl-v1-${{ matrix.cxx_standard }}
         restore-keys: |
+          ${{ runner.os }}-vcpkg-curl-openssl-v1-
           ${{ runner.os }}-vcpkg-
 
-    - name: Install dependencies (Windows)
+    - name: Setup vcpkg binary cache (Windows)
       if: runner.os == 'Windows'
-      run: |
-        $vcpkgRoot = $env:VCPKG_ROOT
-        $cacheHit = "${{ steps.vcpkg-cache.outputs.cache-hit }}" -eq "true"
-        if (-not $cacheHit) {
-          Write-Host "Cache miss, installing vcpkg packages..."
-          & "$vcpkgRoot\vcpkg.exe" install curl:x64-windows openssl:x64-windows
-        } else {
-          Write-Host "Cache hit! Using cached vcpkg packages."
-        }
-        echo "CMAKE_TOOLCHAIN_FILE=$vcpkgRoot/scripts/buildsystems/vcpkg.cmake" >> $env:GITHUB_ENV
-
-    - name: Configure CMake
-      run: cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DENABLE_UNIT_TESTS=ON
-
-    - name: Build
-      run: cmake --build build --config ${{ matrix.build_type }}
-
-    - name: Test
       shell: bash
       run: |
-        cd build
-        ctest --output-on-failure -C ${{ matrix.build_type }}
+        export VCPKG_BINARY_SOURCES="clear;x-gha,readwrite"
+        echo "VCPKG_BINARY_SOURCES=$VCPKG_BINARY_SOURCES" >> $GITHUB_ENV
 
+    - name: Setup vcpkg (Windows)
+      if: runner.os == 'Windows'
+      shell: bash
+      run: |
+        export VCPKG_MAX_CONCURRENCY=$NUMBER_OF_PROCESSORS
+        vcpkg install curl:x64-windows openssl:x64-windows --no-print-usage
+
+    # Build and test both shared and static libraries
+    - name: Build Shared Library
+      shell: bash
+      run: |
+        if [ "${{ runner.os }}" = "Windows" ]; then
+          cmake -B build-shared \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_SHARED_LIBS=ON \
+            -DCMAKE_CXX_STANDARD=${{ matrix.cxx_standard }} \
+            -DENABLE_UNIT_TESTS=ON \
+            -DCMAKE_INSTALL_PREFIX=./install-shared \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
+        else
+          cmake -B build-shared \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_SHARED_LIBS=ON \
+            -DCMAKE_CXX_STANDARD=${{ matrix.cxx_standard }} \
+            -DENABLE_UNIT_TESTS=ON \
+            -DCMAKE_INSTALL_PREFIX=./install-shared
+        fi
+        cmake --build build-shared --config Release
+
+    - name: Test Shared Library
+      shell: bash
+      timeout-minutes: 5
+      run: |
+        cd build-shared
+        if [ "${{ runner.os }}" = "Windows" ]; then
+          echo "DLLs in src/Release:"
+          ls -la src/Release/*.dll 2>/dev/null || echo "No DLLs found"
+          cp src/Release/*.dll tests/Release/ 2>/dev/null || true
+          echo "Running test..."
+          ./tests/Release/darabonba_coreTest.exe
+        else
+          ctest --output-on-failure -C Release
+        fi
+
+    - name: Install Shared Library
+      run: cmake --install build-shared --config Release --prefix ./install-shared
+
+    - name: Test find_package Integration (Shared)
+      shell: bash
+      run: |
+        mkdir -p sample_test_shared
+        cat > sample_test_shared/CMakeLists.txt << 'EOF'
+        cmake_minimum_required(VERSION 3.13)
+        project(sample_test CXX)
+        find_package(darabonba_core REQUIRED)
+        add_executable(sample_app main.cpp)
+        target_link_libraries(sample_app darabonba_core::darabonba_core)
+        EOF
+        echo '#include <darabonba/Core.hpp>
+        int main() { return 0; }' > sample_test_shared/main.cpp
+        
+        if [ "${{ runner.os }}" = "Windows" ]; then
+          cmake -S sample_test_shared -B sample_test_shared/build \
+            -DCMAKE_PREFIX_PATH=$(pwd)/install-shared \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
+        else
+          cmake -S sample_test_shared -B sample_test_shared/build \
+            -DCMAKE_PREFIX_PATH=$(pwd)/install-shared \
+            -DOPENSSL_ROOT_DIR=${{ env.OPENSSL_ROOT_DIR }}
+        fi
+        cmake --build sample_test_shared/build --config Release
+
+    - name: Build Static Library
+      shell: bash
+      run: |
+        if [ "${{ runner.os }}" = "Windows" ]; then
+          cmake -B build-static \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DCMAKE_CXX_STANDARD=${{ matrix.cxx_standard }} \
+            -DENABLE_UNIT_TESTS=ON \
+            -DCMAKE_INSTALL_PREFIX=./install-static \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
+        elif [ "${{ runner.os }}" = "Linux" ]; then
+          cmake -B build-static \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DCMAKE_CXX_STANDARD=${{ matrix.cxx_standard }} \
+            -DENABLE_UNIT_TESTS=ON \
+            -DCMAKE_INSTALL_PREFIX=./install-static \
+            -DCURL_ROOT=/usr/local/curl-minimal \
+            -DCURL_LIBRARY=/usr/local/curl-minimal/lib/libcurl.a \
+            -DCURL_INCLUDE_DIR=/usr/local/curl-minimal/include
+        else
+          cmake -B build-static \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DCMAKE_CXX_STANDARD=${{ matrix.cxx_standard }} \
+            -DENABLE_UNIT_TESTS=ON \
+            -DCMAKE_INSTALL_PREFIX=./install-static
+        fi
+        cmake --build build-static --config Release
+
+    - name: Test Static Library
+      shell: bash
+      timeout-minutes: 5
+      run: |
+        cd build-static
+        if [ "${{ runner.os }}" = "Windows" ]; then
+          echo "Listing tests/Release directory:"
+          ls -la tests/Release/ || echo "Directory not found"
+          ./tests/Release/darabonba_coreTest.exe
+        else
+          ctest --output-on-failure -C Release
+        fi
+
+    - name: Install Static Library
+      run: cmake --install build-static --config Release --prefix ./install-static
+
+    - name: Test find_package Integration (Static)
+      shell: bash
+      run: |
+        mkdir -p sample_test_static
+        cat > sample_test_static/CMakeLists.txt << 'EOF'
+        cmake_minimum_required(VERSION 3.13)
+        project(sample_test CXX)
+        find_package(darabonba_core REQUIRED)
+        add_executable(sample_app main.cpp)
+        target_link_libraries(sample_app darabonba_core::darabonba_core)
+        EOF
+        echo '#include <darabonba/Core.hpp>
+        int main() { return 0; }' > sample_test_static/main.cpp
+        
+        if [ "${{ runner.os }}" = "Windows" ]; then
+          cmake -S sample_test_static -B sample_test_static/build \
+            -DCMAKE_PREFIX_PATH=$(pwd)/install-static \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
+        elif [ "${{ runner.os }}" = "Linux" ]; then
+          cmake -S sample_test_static -B sample_test_static/build \
+            -DCMAKE_PREFIX_PATH="$(pwd)/install-static;/usr/local/curl-minimal"
+        else
+          cmake -S sample_test_static -B sample_test_static/build \
+            -DCMAKE_PREFIX_PATH=$(pwd)/install-static \
+            -DOPENSSL_ROOT_DIR=${{ env.OPENSSL_ROOT_DIR }}
+        fi
+        cmake --build sample_test_static/build --config Release
+
+    # Save vcpkg cache even if build/test fails
+    - name: Save vcpkg cache (Windows)
+      if: runner.os == 'Windows' && always()
+      uses: actions/cache/save@v4
+      with:
+        path: |
+          C:/vcpkg/installed
+          C:/vcpkg/packages
+          C:/vcpkg/buildtrees
+          C:/vcpkg/downloads
+          ~/AppData/Local/vcpkg/archives
+        key: ${{ runner.os }}-vcpkg-curl-openssl-v1-${{ matrix.cxx_standard }}

@@ -5,7 +5,6 @@
 #include <regex>
 #include <type_traits>
 
-
 #define DARABONBA_PTR_TO_JSON(key, attr)                                       \
   if (obj.attr) {                                                              \
     j[#key] = *(obj.attr);                                                     \
@@ -24,7 +23,7 @@
       obj.attr = nullptr;                                                      \
     } else {                                                                   \
       using Type = std::remove_reference<decltype(*obj.attr)>::type;           \
-      obj.attr = std::make_shared<Type>(j[#key].template get<Type>());                  \
+      obj.attr = std::make_shared<Type>(j[#key].template get<Type>());         \
     }                                                                          \
   }
 
@@ -35,7 +34,7 @@
 
 #define DARABONBA_FROM_JSON(key, attr)                                         \
   if (j.count(#key)) {                                                         \
-    if (j[#key].is_null()) {                                                  \
+    if (j[#key].is_null()) {                                                   \
       obj.attr = decltype(obj.attr)();                                         \
     } else {                                                                   \
       obj.attr =                                                               \
@@ -69,14 +68,14 @@
   }                                                                            \
   return __VA_ARGS__;
 
-#define DARABONBA_PTR_GET(attr, ...)                                          \
+#define DARABONBA_PTR_GET(attr, ...)                                           \
   if (this->attr) {                                                            \
     return *attr;                                                              \
   }                                                                            \
   return __VA_ARGS__();
 
 #define DARABONBA_PTR_GET_CONST(attr, ...)                                     \
-  static const  __VA_ARGS__ empty;                                             \
+  static const __VA_ARGS__ empty;                                              \
   if (this->attr) {                                                            \
     return *attr;                                                              \
   }                                                                            \
@@ -152,7 +151,15 @@
 namespace Darabonba {
 class Model {
 public:
-  // ~Model() {}
+  virtual ~Model() = default;
+  
+  // Rule of Five: explicitly default copy/move operations
+  Model() = default;
+  Model(const Model&) = default;
+  Model(Model&&) = default;
+  Model& operator=(const Model&) = default;
+  Model& operator=(Model&&) = default;
+  
   virtual void validate() const = 0;
   virtual Json toMap() const = 0;
   virtual void fromMap(const Json &) = 0;

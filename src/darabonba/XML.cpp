@@ -70,11 +70,11 @@ static Darabonba::Json xmlToJson(tinyxml2::XMLElement *elem) {
     }
   }
   if (result.empty()) {
-    const char* text = elem->GetText();
+    const char *text = elem->GetText();
     if (text) {
       try {
         result = Darabonba::Json::parse(text);
-      } catch (Darabonba::Json::parse_error&) {
+      } catch (Darabonba::Json::parse_error &) {
         result = Darabonba::Json::parse('"' + std::string(text) + '"');
       }
     } else {
@@ -98,6 +98,7 @@ static Darabonba::Json xmlToJson(const void *data, size_t size) {
 
 namespace Darabonba {
 Json XML::parseXml(const std::string &body, const void *resp) {
+  (void)resp; // unused parameter
   return xmlToJson(reinterpret_cast<const void *>(body.c_str()), body.size());
 }
 

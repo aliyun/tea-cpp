@@ -68,7 +68,7 @@ std::string Query::decode(const std::string &content) {
     auto c = content[i];
     if (c == '%' && (i + 2) < content.size() && isHexChar(content[i + 1]) &&
         isHexChar(content[i + 2])) {
-      ret.push_back((hexVal(content[i + 1]) << 4) | (hexVal(content[i + 2])));
+      ret.push_back(static_cast<char>((hexVal(content[i + 1]) << 4) | (hexVal(content[i + 2]))));
       i += 3;
     } else {
       ret.push_back(c);

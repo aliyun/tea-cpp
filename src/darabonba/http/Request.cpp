@@ -31,7 +31,7 @@ std::string Request::getMethod() const {
 Request &Request::setMethod(const std::string &method) {
   std::string upper = method;
   std::transform(upper.begin(), upper.end(), upper.begin(),
-                 [](char c) -> char { return toupper(c); });
+                 [](unsigned char c) -> char { return static_cast<char>(std::toupper(c)); });
   if (upper == "GET") {
     method_ = Method::GET;
   } else if (upper == "POST") {

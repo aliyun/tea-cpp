@@ -1,11 +1,14 @@
 #ifndef DARABONBA_HTTP_FILE_FIELD_H_
 #define DARABONBA_HTTP_FILE_FIELD_H_
 
+#include <algorithm>
+#include <cstring>
 #include <darabonba/Core.hpp>
 #include <darabonba/Model.hpp>
 #include <darabonba/Stream.hpp>
 #include <darabonba/Type.hpp>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -29,14 +32,7 @@ class FileField : public Model {
 
 public:
   FileField() = default;
-  FileField(const FileField &) = default;
-  FileField(FileField &&) = default;
   FileField(const Darabonba::Json &obj) { from_json(obj, *this); }
-
-  virtual ~FileField() = default;
-
-  FileField &operator=(const FileField &) = default;
-  FileField &operator=(FileField &&) = default;
 
   virtual void validate() const override {}
 
@@ -96,7 +92,13 @@ protected:
 class FileFormStream : public IStream {
 public:
   FileFormStream() = default;
-  FileFormStream(const Json obj) : form_(obj) {}
+  FileFormStream(const Json obj) : form_(obj) {
+    if (form_.is_object()) {
+      for (auto it = form_.begin(); it != form_.end(); ++it) {
+        keys_.push_back(it.key());
+      }
+    }
+  }
 
   virtual ~FileFormStream() { curl_mime_free(mime_); }
 
@@ -105,11 +107,76 @@ public:
    * libcurl
    */
   virtual size_t read(char *buffer, size_t expectSize) override {
-    (void)buffer;
-    return expectSize;
+    if (buffer == nullptr || expectSize == 0) {
+      return 0;
+    }
+
+    // 如果正在流式读取文件内容
+    if (streaming_ && streamingStream_) {
+      size_t bytesRead = streamingStream_->read(buffer, expectSize);
+      if (bytesRead > 0) {
+        return bytesRead;
+      }
+      // 文件读取完成,添加\r\n
+      streaming_ = false;
+      streamingStream_ = nullptr;
+      const char *fileEnd = "\r\n";
+      size_t endLen = 2;
+      if (endLen <= expectSize) {
+        std::memcpy(buffer, fileEnd, endLen);
+        index_++;
+        return endLen;
+      }
+      return 0;
+    }
+
+    // 读取表单字段
+    if (index_ < keys_.size()) {
+      std::string name = keys_[index_];
+      const auto &fieldValue = form_[name];
+
+      // 检查是否为文件字段
+      if (isFileFiled(fieldValue)) {
+        streaming_ = true;
+        streamingStream_ =
+            fieldValue["content"].get<std::shared_ptr<IStream>>();
+        std::string filename = fieldValue["filename"].get<std::string>();
+        std::string contentType = fieldValue["contentType"].get<std::string>();
+
+        std::ostringstream oss;
+        oss << "--" << boundary_ << "\r\n"
+            << "Content-Disposition: form-data; name=\"" << name
+            << "\"; filename=\"" << filename << "\"\r\n"
+            << "Content-Type: " << contentType << "\r\n\r\n";
+        std::string header = oss.str();
+
+        size_t copyLen = std::min(header.size(), expectSize);
+        std::memcpy(buffer, header.c_str(), copyLen);
+        return copyLen;
+      } else {
+        std::ostringstream oss;
+        oss << "--" << boundary_ << "\r\n"
+            << "Content-Disposition: form-data; name=\"" << name << "\"\r\n\r\n"
+            << fieldValue.dump() << "\r\n";
+        std::string formField = oss.str();
+
+        size_t copyLen = std::min(formField.size(), expectSize);
+        std::memcpy(buffer, formField.c_str(), copyLen);
+        index_++;
+        return copyLen;
+      }
+    } else if (index_ == keys_.size()) {
+      std::string endStr = "--" + boundary_ + "--\r\n";
+      size_t copyLen = std::min(endStr.size(), expectSize);
+      std::memcpy(buffer, endStr.c_str(), copyLen);
+      index_++;
+      return copyLen;
+    } else {
+      return 0;
+    }
   }
 
-  virtual bool isFinished() const override { return true; }
+  virtual bool isFinished() const override { return index_ > keys_.size(); }
 
   const Json &getForm() const { return form_; }
   curl_mime *getMime() const { return mime_; }
@@ -120,6 +187,10 @@ protected:
   curl_mime *mime_ = nullptr;
   Json form_ = nullptr;
   std::string boundary_;
+  std::vector<std::string> keys_;
+  size_t index_ = 0;
+  bool streaming_ = false;
+  std::shared_ptr<IStream> streamingStream_ = nullptr;
 };
 
 } // namespace Http

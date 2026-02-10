@@ -1,12 +1,16 @@
+#include <algorithm>
 #include <chrono>
 #include <darabonba/Core.hpp>
-#include <darabonba/policy/Retry.hpp>
 #include <darabonba/http/MCurlHttpClient.hpp>
-#include <algorithm>
+#include <darabonba/policy/Retry.hpp>
 #include <fstream>
 #include <iomanip>
 #include <sstream>
 #include <thread>
+#include <mutex>
+#include <atomic>
+#include <map>
+#include <memory>
 
 #ifdef _WIN32
 #include <Windows.h>
@@ -30,12 +34,106 @@ const int MIN_DELAY_TIME = 100;
 
 namespace Darabonba {
 
-struct Deleter {
-  void operator()(Http::MCurlHttpClient *ptr) {
-    delete ptr;
-    curl_global_cleanup();
-  }
+// Global SDK state management
+namespace {
+struct SDKState {
+  std::atomic<bool> initialized{false};
+  std::mutex mutex;
+  // One HTTP client per host (scheme + host + port as key)
+  std::map<std::string, std::unique_ptr<Http::MCurlHttpClient>> http_clients;
 };
+
+SDKState& GetSDKState() {
+  static SDKState state;
+  return state;
+}
+
+// Internal initialization - called automatically on first use
+void EnsureInitialized() {
+  auto& state = GetSDKState();
+  if (state.initialized.load()) {
+    return;
+  }
+  std::lock_guard<std::mutex> lock(state.mutex);
+  if (!state.initialized.load()) {
+    curl_global_init(CURL_GLOBAL_ALL);
+    state.initialized.store(true);
+  }
+}
+
+// Helper to extract connection pool config from request
+ConnectionPoolConfig getConnectionPoolConfig(Http::Request &request,
+                                             const Darabonba::Json &runtime) {
+  ConnectionPoolConfig config;
+
+  auto &url = request.getUrl();
+  auto &header = request.getHeader();
+
+  // Extract host from URL or header
+  if (!url.getHost().empty()) {
+    config.host = url.getHost();
+  } else {
+    auto it = header.find("host");
+    if (it != header.end()) {
+      config.host = it->second;
+    }
+  }
+
+  // Extract connection pool configuration from runtime options if present
+  if (!runtime.is_null()) {
+    if (runtime.contains("maxConnections")) {
+      config.max_connections = runtime["maxConnections"].get<size_t>();
+    }
+    if (runtime.contains("connectionIdleTimeout")) {
+      config.connection_idle_timeout =
+          runtime["connectionIdleTimeout"].get<long>();
+    }
+    if (runtime.contains("pipelining")) {
+      config.pipelining = runtime["pipelining"].get<bool>();
+    }
+    if (runtime.contains("maxHostConnections")) {
+      config.max_host_connections =
+          runtime["maxHostConnections"].get<size_t>();
+    }
+  }
+
+  return config;
+}
+
+// Helper to extract request-level config
+RequestConfig getRequestConfig(const Darabonba::Json &runtime) {
+  RequestConfig config;
+
+  if (!runtime.is_null()) {
+    if (runtime.contains("connectTimeout")) {
+      config.connect_timeout_ms = runtime["connectTimeout"].get<long>();
+    }
+    if (runtime.contains("readTimeout")) {
+      config.read_timeout_ms = runtime["readTimeout"].get<long>();
+    }
+    if (runtime.contains("ignoreSSL")) {
+      config.ignore_ssl = runtime["ignoreSSL"].get<bool>();
+    }
+    if (runtime.contains("httpProxy")) {
+      config.http_proxy = runtime["httpProxy"].get<std::string>();
+    }
+    if (runtime.contains("httpsProxy")) {
+      config.https_proxy = runtime["httpsProxy"].get<std::string>();
+    }
+    if (runtime.contains("noProxy")) {
+      config.no_proxy = runtime["noProxy"].get<std::string>();
+    }
+    if (runtime.contains("credential")) {
+      config.credential = runtime["credential"].get<std::string>();
+    }
+  }
+
+  return config;
+}
+
+} // anonymous namespace
+
+
 
 string Core::uuid() {
 #ifdef _WIN32
@@ -77,29 +175,84 @@ string Core::uuid() {
 
 std::future<std::shared_ptr<Http::MCurlResponse>>
 Core::doAction(Http::Request &request, const Darabonba::Json &runtime) {
-  static auto client = []() {
-    curl_global_init(CURL_GLOBAL_ALL);
-    auto ret = std::unique_ptr<Http::MCurlHttpClient, Deleter>(
-        new Http::MCurlHttpClient());
-    ret->start();
-    return ret;
-  }();
-  // modfiy the request url
+  // Ensure SDK is initialized (lazy initialization)
+  EnsureInitialized();
+
+  auto &state = GetSDKState();
+
+  // Prepare URL host and scheme before accessing per-host state
   auto &header = request.getHeader();
   auto &url = request.getUrl();
   if (url.getHost().empty()) {
-    auto it = header.find("host");
-    if (it != header.end()) {
-      url.setHost(it->second);
+    auto it_header = header.find("host");
+    if (it_header != header.end()) {
+      url.setHost(it_header->second);
     }
   }
   if (url.getScheme().empty()) {
     url.setScheme("https");
   }
-  return client->makeRequest(request, runtime);
+  std::string hostKey = url.getHost();
+
+  std::lock_guard<std::mutex> lock(state.mutex);
+
+  // Extract connection pool configuration from runtime
+  ConnectionPoolConfig pool_config = getConnectionPoolConfig(request, runtime);
+
+  // Extract request-level configuration from runtime
+  RequestConfig request_config = getRequestConfig(runtime);
+
+  // Check if we have a client for this host
+  auto it = state.http_clients.find(hostKey);
+  if (it == state.http_clients.end()) {
+    // Create new client for this host
+    auto newClient =
+        std::unique_ptr<Http::MCurlHttpClient>(new Http::MCurlHttpClient());
+    // TODO: Apply connection pool settings to the client using pool_config
+    newClient->start();
+    it = state.http_clients.insert({hostKey, std::move(newClient)}).first;
+  }
+
+  // Pass request-level configuration to be applied per-request
+  Darabonba::Json request_runtime = Darabonba::Json::object();
+  request_runtime["connectTimeout"] = request_config.connect_timeout_ms;
+  request_runtime["readTimeout"] = request_config.read_timeout_ms;
+  request_runtime["ignoreSSL"] = request_config.ignore_ssl;
+  request_runtime["httpProxy"] = request_config.http_proxy;
+  request_runtime["httpsProxy"] = request_config.https_proxy;
+  request_runtime["noProxy"] = request_config.no_proxy;
+
+  return it->second->makeRequest(request, request_runtime);
 }
 
-bool allowRetry(const RetryOptions& options, const RetryPolicyContext& ctx) {
+// Function to clear specific client configuration by ConnectionPoolConfig
+void Core::ClearHttpClient(const ConnectionPoolConfig &config) {
+  auto &state = GetSDKState();
+  std::lock_guard<std::mutex> lock(state.mutex);
+
+  auto it = state.http_clients.find(config.host);
+  if (it != state.http_clients.end()) {
+    state.http_clients.erase(it);
+  }
+}
+
+// Function to clear all clients
+void Core::ClearAllHttpClients() {
+  auto &state = GetSDKState();
+  std::lock_guard<std::mutex> lock(state.mutex);
+
+  state.http_clients.clear();
+}
+
+// Function to get client count
+size_t Core::GetHttpClientCount() {
+  auto &state = GetSDKState();
+  std::lock_guard<std::mutex> lock(state.mutex);
+
+  return state.http_clients.size();
+}
+
+bool allowRetry(const RetryOptions &options, const RetryPolicyContext &ctx) {
   if (ctx.getRetriesAttempted() == 0) {
     return true;
   }
@@ -109,22 +262,30 @@ bool allowRetry(const RetryOptions& options, const RetryPolicyContext& ctx) {
   }
 
   int retriesAttempted = ctx.getRetriesAttempted();
-  shared_ptr<Exception> ex = ctx.getException();
+  shared_ptr<DaraException> ex = ctx.getException();
 
   auto noRetryConditions = options.getNoRetryCondition();
-  for (const auto& condition : noRetryConditions) {
-    if (std::find(condition.getException().begin(), condition.getException().end(), ex->getName()) != condition.getException().end() ||
-        std::find(condition.getErrorCode().begin(), condition.getErrorCode().end(), ex->getCode()) != condition.getErrorCode().end()) {
+  for (const auto &condition : noRetryConditions) {
+    if (std::find(condition.getException().begin(),
+                  condition.getException().end(),
+                  ex->getName()) != condition.getException().end() ||
+        std::find(condition.getErrorCode().begin(),
+                  condition.getErrorCode().end(),
+                  ex->getCode()) != condition.getErrorCode().end()) {
       return false;
-        }
+    }
   }
 
   auto retryConditions = options.getRetryCondition();
-  for (const auto& condition : retryConditions) {
-    if (std::find(condition.getException().begin(), condition.getException().end(), ex->getName()) == condition.getException().end() &&
-        std::find(condition.getErrorCode().begin(), condition.getErrorCode().end(), ex->getCode()) == condition.getErrorCode().end()) {
+  for (const auto &condition : retryConditions) {
+    if (std::find(condition.getException().begin(),
+                  condition.getException().end(),
+                  ex->getName()) == condition.getException().end() &&
+        std::find(condition.getErrorCode().begin(),
+                  condition.getErrorCode().end(),
+                  ex->getCode()) == condition.getErrorCode().end()) {
       continue;
-        }
+    }
 
     if (retriesAttempted >= condition.getMaxAttempts()) {
       return false;
@@ -135,17 +296,22 @@ bool allowRetry(const RetryOptions& options, const RetryPolicyContext& ctx) {
   return false;
 }
 
-int getBackoffTime(const RetryOptions& options, const RetryPolicyContext& ctx) {
-  shared_ptr<Exception> ex = ctx.getException();
+int getBackoffTime(const RetryOptions &options, const RetryPolicyContext &ctx) {
+  shared_ptr<DaraException> ex = ctx.getException();
   auto conditions = options.getRetryCondition();
 
-  for (const auto& condition : conditions) {
-    if (std::find(condition.getException().begin(), condition.getException().end(), ex->getName()) == condition.getException().end() &&
-        std::find(condition.getErrorCode().begin(), condition.getErrorCode().end(), ex->getCode()) == condition.getErrorCode().end()) {
+  for (const auto &condition : conditions) {
+    if (std::find(condition.getException().begin(),
+                  condition.getException().end(),
+                  ex->getName()) == condition.getException().end() &&
+        std::find(condition.getErrorCode().begin(),
+                  condition.getErrorCode().end(),
+                  ex->getCode()) == condition.getErrorCode().end()) {
       continue;
-        }
+    }
 
-    int maxDelay = (condition.getMaxDelay() > 0) ? condition.getMaxDelay() : MAX_DELAY_TIME;
+    int maxDelay = (condition.getMaxDelay() > 0) ? condition.getMaxDelay()
+                                                 : MAX_DELAY_TIME;
     int retryAfter = ex->getRetryAfter();
 
     if (retryAfter > 0) {
@@ -156,7 +322,7 @@ int getBackoffTime(const RetryOptions& options, const RetryPolicyContext& ctx) {
       return MIN_DELAY_TIME;
     }
 
-    BackoffPolicy* strategy = condition.getBackoff().get();
+    BackoffPolicy *strategy = condition.getBackoff().get();
     if (strategy) {
       return (std::min)(strategy->getDelayTime(ctx), maxDelay);
     }
@@ -171,30 +337,29 @@ void sleep(int millisecond) {
   std::this_thread::sleep_for(std::chrono::milliseconds(millisecond));
 }
 
-Json defaultVal(const Json& a, const Json& b) {
+Json defaultVal(const Json &a, const Json &b) {
   if (a.is_null()) {
     return b;
   }
-  switch(a.type()) {
+  switch (a.type()) {
   case Json::value_t::string:
     return a.get<std::string>().empty() ? b : a;
   case Json::value_t::boolean:
-    return !a.get<bool>() ? b : a;;
+    return !a.get<bool>() ? b : a;
   case Json::value_t::number_integer:
-    return a.get<int>() == 0 ? b : a;;
+    return a.get<int>() == 0 ? b : a;
   case Json::value_t::number_unsigned:
-    return a.get<unsigned int>() == 0  ? b : a;;
+    return a.get<unsigned int>() == 0 ? b : a;
   case Json::value_t::number_float:
-    return a.get<float>() == 0.0 ? b : a;;
+    return a.get<float>() == 0.0 ? b : a;
   case Json::value_t::binary:
-    return a.get_binary().empty() ? b : a;;
+    return a.get_binary().empty() ? b : a;
   case Json::value_t::object:
   case Json::value_t::array:
-    return a.empty() ? b : a;;
+    return a.empty() ? b : a;
   default:
     return b; // All other non-valid or discarded cases
   }
-  return a;
 }
 
 } // namespace Darabonba

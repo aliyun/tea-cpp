@@ -7,9 +7,14 @@ namespace Encode {
 class SHA1 : public Hash {
 public:
   SHA1() : Hash(EVP_sha1()) {}
+
+  SHA1(const SHA1 &) = default;
+  SHA1(SHA1 &&) = default;
+  SHA1 &operator=(const SHA1 &) = default;
+  SHA1 &operator=(SHA1 &&) = default;
   virtual ~SHA1() {}
 
-  virtual Bytes final() { return final(20); }
+  virtual Bytes final() override { return final(20); }
 
   virtual SHA1 *clone() override { return new SHA1(*this); }
 

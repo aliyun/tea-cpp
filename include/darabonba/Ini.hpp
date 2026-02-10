@@ -52,6 +52,10 @@ public:
   };
 
   Ini() = default;
+  Ini(const Ini &) = default;
+  Ini(Ini &&) = default;
+  Ini &operator=(const Ini &) = default;
+  Ini &operator=(Ini &&) = default;
   ~Ini() = default;
 
   /**

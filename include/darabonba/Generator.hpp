@@ -6,91 +6,93 @@
 #define DARABONBA_CORE_GENERATOR_H
 
 namespace Darabonba {
-  template<typename T>
-  class Generator {
+template <typename T> class Generator {
+public:
+  using Container = std::vector<T>;
+
+  Generator(Container container) : container_(container), index_(0) {}
+
+  class Iterator {
   public:
-    using Container = std::vector<T>;
+    using iterator_category = std::forward_iterator_tag;
+    using difference_type = std::ptrdiff_t;
+    using value_type = T;
+    using pointer = T *;
+    using reference = T &;
 
-    Generator(Container container) : container_(container), index_(0) {}
+    Iterator(pointer ptr) : m_ptr(ptr) {}
 
-    class Iterator {
-    public:
-      using iterator_category = std::forward_iterator_tag;
-      using difference_type   = std::ptrdiff_t;
-      using value_type        = T;
-      using pointer           = T*;
-      using reference         = T&;
+    reference operator*() const { return *m_ptr; }
+    pointer operator->() { return m_ptr; }
 
-      Iterator(pointer ptr) : m_ptr(ptr) {}
+    // 前置递增
+    Iterator &operator++() {
+      m_ptr++;
+      return *this;
+    }
 
-      reference operator*() const { return *m_ptr; }
-      pointer operator->() { return m_ptr; }
-
-      // 前置递增
-      Iterator& operator++() {
-        m_ptr++;
-        return *this;
-      }
-
-      friend bool operator==(const Iterator& a, const Iterator& b) { return a.m_ptr == b.m_ptr; }
-      friend bool operator!=(const Iterator& a, const Iterator& b) { return a.m_ptr != b.m_ptr; }
-
-    private:
-      pointer m_ptr;
-    };
-
-    Iterator begin() const { return Iterator(&container_[0]); }
-    Iterator end() const { return Iterator(&container_[container_.size()]); }
+    friend bool operator==(const Iterator &a, const Iterator &b) {
+      return a.m_ptr == b.m_ptr;
+    }
+    friend bool operator!=(const Iterator &a, const Iterator &b) {
+      return a.m_ptr != b.m_ptr;
+    }
 
   private:
-    Container container_;
-    size_t index_;
+    pointer m_ptr;
   };
 
-  template<typename T>
-  class FutureGenerator {
+  Iterator begin() const { return Iterator(&container_[0]); }
+  Iterator end() const { return Iterator(&container_[container_.size()]); }
+
+private:
+  Container container_;
+  size_t index_;
+};
+
+template <typename T> class FutureGenerator {
+public:
+  using FutureContainer = std::vector<std::future<T>>;
+
+  FutureGenerator(FutureContainer futures) : futures_(std::move(futures)) {}
+
+  class Iterator {
   public:
-    using FutureContainer = std::vector<std::future<T>>;
+    using iterator_category = std::forward_iterator_tag;
+    using difference_type = std::ptrdiff_t;
+    using value_type = T;
+    using pointer = T *;
+    using reference = T &;
 
-    FutureGenerator(FutureContainer futures) : futures_(std::move(futures)) {}
+    Iterator(typename FutureContainer::iterator iter) : iter_(iter) {}
 
-    class Iterator {
-    public:
-      using iterator_category = std::forward_iterator_tag;
-      using difference_type   = std::ptrdiff_t;
-      using value_type        = T;
-      using pointer           = T*;
-      using reference         = T&;
+    T operator*() {
+      return iter_->get(); // 获取 future 结果
+    }
 
-      Iterator(typename FutureContainer::iterator iter) : iter_(iter) {}
+    Iterator &operator++() {
+      ++iter_;
+      return *this;
+    }
 
-      T operator*() {
-        return iter_->get(); // 获取 future 结果
-      }
+    friend bool operator==(const Iterator &a, const Iterator &b) {
+      return a.iter_ == b.iter_;
+    }
 
-      Iterator& operator++() {
-        ++iter_;
-        return *this;
-      }
-
-      friend bool operator==(const Iterator& a, const Iterator& b) {
-        return a.iter_ == b.iter_;
-      }
-
-      friend bool operator!=(const Iterator& a, const Iterator& b) {
-        return a.iter_ != b.iter_;
-      }
-
-    private:
-      typename FutureContainer::iterator iter_;
-    };
-
-    Iterator begin() { return Iterator(futures_.begin()); }
-    Iterator end() { return Iterator(futures_.end()); }
+    friend bool operator!=(const Iterator &a, const Iterator &b) {
+      return a.iter_ != b.iter_;
+    }
 
   private:
-    FutureContainer futures_;
+    typename FutureContainer::iterator iter_;
   };
-} // end Darabonba
+
+  Iterator begin() { return Iterator(futures_.begin()); }
+  Iterator end() { return Iterator(futures_.end()); }
+
+private:
+  FutureContainer futures_;
+};
+} // namespace Darabonba
 
 #endif // DARABONBA_CORE_GENERATOR_H

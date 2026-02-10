@@ -192,7 +192,8 @@ TEST(Darabonba_Signature_Signer, SHA256withRSASign) {
                         "81d0358ee281b81512681f2820ecc681e10bc7b653f732f3e";
   Bytes signedData = Signer::SHA256withRSASign(stringToSign, sk);
   std::string ans = Encoder::hexEncode(signedData);
-  EXPECT_EQ(expectString, Encoder::hexEncode(Signer::SHA256withRSASign(stringToSign, sk)));
+  EXPECT_EQ(expectString,
+            Encoder::hexEncode(Signer::SHA256withRSASign(stringToSign, sk)));
 }
 
 TEST(Darabonba_Signature_Signer, MD5Sign) {

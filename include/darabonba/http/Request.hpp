@@ -62,8 +62,8 @@ public:
   ~Request() = default;
 
   Request(const Request &other)
-      : url_(other.url_), method_(other.method_),
-        header_(other.header_), body_(other.body_ ? other.body_ : nullptr) {}
+      : url_(other.url_), method_(other.method_), header_(other.header_),
+        body_(other.body_ ? other.body_ : nullptr) {}
 
   Request &operator=(Request &&other) = default;
   Request &operator=(const Request &other) = default;
@@ -141,9 +141,7 @@ public:
 
   // New methods to access protocol and path
   std::string getProtocol() const { return url_.getScheme(); }
-  void setProtocol(const std::string &protocol) {
-    url_.setScheme(protocol);
-  }
+  void setProtocol(const std::string &protocol) { url_.setScheme(protocol); }
 
   std::string getPathname() const { return url_.getPathName(); }
   void setPathname(const std::string &path) { url_.setPathName(path); }
@@ -161,17 +159,43 @@ protected:
 namespace nlohmann {
 template <> struct adl_serializer<std::shared_ptr<Darabonba::Http::Request>> {
   static void to_json(json &j,
-                      const std::shared_ptr<Darabonba::Http::Request> &body) {
-    j = reinterpret_cast<uintptr_t>(body.get());
+                      const std::shared_ptr<Darabonba::Http::Request> &req) {
+    if (!req) {
+      j = nullptr;
+      return;
+    }
+    // Serialize actual request data
+    j = json{
+      {"url", static_cast<std::string>(req->getUrl())},
+      {"method", req->getMethod()},
+      {"headers", req->getHeaders()},
+      {"protocol", req->getProtocol()},
+      {"pathname", req->getPathname()}
+      // Note: body (IStream) is not serialized as it may be a stream
+    };
   }
 
   static std::shared_ptr<Darabonba::Http::Request> from_json(const json &j) {
     if (j.is_null()) {
-      Darabonba::Http::Request *ptr =
-          reinterpret_cast<Darabonba::Http::Request *>(j.get<uintptr_t>());
-      return std::make_shared<Darabonba::Http::Request>(*ptr);
+      return nullptr;
     }
-    return nullptr;
+    auto req = std::make_shared<Darabonba::Http::Request>();
+    if (j.contains("url") && !j["url"].is_null()) {
+      req->getUrl() = Darabonba::Http::URL(j["url"].get<std::string>());
+    }
+    if (j.contains("method") && !j["method"].is_null()) {
+      req->setMethod(j["method"].get<std::string>());
+    }
+    if (j.contains("headers") && j["headers"].is_object()) {
+      req->setHeaders(j["headers"].get<Darabonba::Http::Header>());
+    }
+    if (j.contains("protocol") && !j["protocol"].is_null()) {
+      req->setProtocol(j["protocol"].get<std::string>());
+    }
+    if (j.contains("pathname") && !j["pathname"].is_null()) {
+      req->setPathname(j["pathname"].get<std::string>());
+    }
+    return req;
   }
 };
 } // namespace nlohmann

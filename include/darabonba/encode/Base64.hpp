@@ -2,8 +2,8 @@
 #define DARABONBA_ENCODE_BASE64_H_
 
 #include <cstdint>
-#include <darabonba/Type.hpp>
 #include <darabonba/Exception.hpp>
+#include <darabonba/Type.hpp>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -60,7 +60,7 @@ public:
   static Bytes decode(ForwardIter first, ForwardIter last) {
     auto length = std::distance(first, last);
     if (length % 4 != 0) {
-      throw Darabonba::Exception("Invalid base64 encoded data.");
+      throw Darabonba::DaraException("Invalid base64 encoded data.");
     }
     Bytes ret;
     ret.reserve(length / 4 * 3);
@@ -92,24 +92,24 @@ public:
         ret.pop_back(); // remove the filling char
         break;
       } else {
-        throw Darabonba::Exception("Invalid base64 encoded data.");
+        throw Darabonba::DaraException("Invalid base64 encoded data.");
       }
     }
     for (; first != last;) {
       if (*first++ == '=')
         ++countOfPadding;
       else
-        throw Darabonba::Exception("Invalid base64 encoded data.");
+        throw Darabonba::DaraException("Invalid base64 encoded data.");
     }
     if (countOfPadding > 3) {
-      throw Darabonba::Exception("Invalid base64 encoded data.");
+      throw Darabonba::DaraException("Invalid base64 encoded data.");
     }
     return ret;
   }
 
 protected:
   // Header-only constexpr to avoid MSVC unresolved external across DLL/objects
-  static constexpr const char* base64Chars =
+  static constexpr const char *base64Chars =
       "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
   static inline int posOfBase64Char(const unsigned char c) {

@@ -1,10 +1,12 @@
 #include <algorithm>
+#include <darabonba/Exception.hpp>
 #include <darabonba/Stream.hpp>
 
 namespace Darabonba {
 
 Bytes Stream::readAsBytes(std::shared_ptr<IStream> raw) {
-  if (!raw) return Bytes();
+  if (!raw)
+    return Bytes();
 
   Bytes result;
   char buffer[1024];
@@ -15,16 +17,18 @@ Bytes Stream::readAsBytes(std::shared_ptr<IStream> raw) {
   return result;
 }
 
-std::string Stream::cleanString(const std::string& str) {
+std::string Stream::cleanString(const std::string &str) {
   std::string cleaned = str;
-  cleaned.erase(std::remove_if(cleaned.begin(), cleaned.end(),
-                               [](unsigned char c) { return !std::isprint(c); }),
-                cleaned.end());
+  cleaned.erase(
+      std::remove_if(cleaned.begin(), cleaned.end(),
+                     [](unsigned char c) { return !std::isprint(c); }),
+      cleaned.end());
   return cleaned;
 }
 
 std::string Stream::readAsString(std::shared_ptr<IStream> raw) {
-  if (!raw) return "";
+  if (!raw)
+    return "";
 
   std::ostringstream oss;
   char buffer[1024];
@@ -36,9 +40,15 @@ std::string Stream::readAsString(std::shared_ptr<IStream> raw) {
 }
 
 Json Stream::readAsJSON(std::shared_ptr<IStream> raw) {
-  // Assuming Json can be constructed from a string
   std::string str = readAsString(raw);
-  return Json::parse(str); // Adjust with your Json parse method
+  if (str.empty()) {
+    return Json();
+  }
+  try {
+    return Json::parse(str);
+  } catch (const nlohmann::json::parse_error &e) {
+    throw Darabonba::DaraException(std::string("JSON parse error: ") + e.what());
+  }
 }
 
 std::shared_ptr<IStream> Stream::toReadable(const std::string &raw) {
@@ -53,12 +63,12 @@ std::shared_ptr<OStream> Stream::toWritable(const std::string &raw) {
   return std::make_shared<OSStream>(std::ostringstream(raw));
 }
 std::shared_ptr<OStream> Stream::toWritable(const Bytes &raw) {
-  return std::make_shared<OSStream>(std::ostringstream(std::string(raw.begin(), raw.end())));
+  return std::make_shared<OSStream>(
+      std::ostringstream(std::string(raw.begin(), raw.end())));
 }
 
 std::shared_ptr<IStream> Stream::readFromFilePath(const std::string &path) {
-  return std::shared_ptr<IStream>(
-      new IFStream(path, std::ios::binary));
+  return std::shared_ptr<IStream>(new IFStream(path, std::ios::binary));
 }
 
 std::shared_ptr<IStream> Stream::readFromBytes(Bytes &raw) {

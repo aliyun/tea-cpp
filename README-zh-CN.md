@@ -3,7 +3,7 @@
 
 # Darabonba SDK Core for C++
 [![codecov](https://codecov.io/gh/aliyun/tea-cpp/branch/master/graph/badge.svg)](https://codecov.io/gh/aliyun/tea-cpp)
-[![Travis Build Status](https://travis-ci.org/aliyun/tea-cpp.svg?branch=master)](https://travis-ci.org/aliyun/tea-cpp)
+[![CI](https://github.com/aliyun/tea-cpp/actions/workflows/ci.yml/badge.svg)](https://github.com/aliyun/tea-cpp/actions/workflows/ci.yml)
 
 
 ![](https://aliyunsdk-pages.alicdn.com/icons/AlibabaCloud.svg)
@@ -11,7 +11,23 @@
 
 ## 安装
 
-### Linux
+### 快速构建
+
+```bash
+# 克隆并构建
+git clone https://github.com/aliyun/tea-cpp.git
+cd tea-cpp
+mkdir build && cd build
+cmake -S .. -B . -DCMAKE_BUILD_TYPE=Release
+cmake --build . --config Release
+cmake --install .
+```
+
+**📖 详细构建说明请参考 [BUILD.md](BUILD.md) | [BUILD-zh-CN.md](BUILD-zh-CN.md)**
+
+### 使用脚本安装
+
+#### Linux/macOS
 
 ```bash
 git clone https://github.com/aliyun/tea-cpp.git
@@ -19,7 +35,7 @@ cd tea-cpp
 sh scripts/install.sh
 ```
 
-### Windows
+#### Windows
 
 1. 使用 git-bash 执行以下命令，从 Github 克隆源码
 
@@ -61,7 +77,7 @@ sh scripts/install.sh
 
 Copyright (c) 2009-present, Alibaba Cloud All rights reserved.
 
-[open-api]: https://next.api.aliyun.com
+[open-api]: https://api.aliyun.com
 [latest-release]: https://github.com/aliyun/tea-cpp/releases
 [console]: https://home.console.aliyun.com
 [aliyun]: https://www.aliyun.com

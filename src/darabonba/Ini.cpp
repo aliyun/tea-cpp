@@ -1,9 +1,7 @@
-
-
+#include <darabonba/Exception.hpp>
 #include <darabonba/Ini.hpp>
 #include <darabonba/String.hpp>
 #include <darabonba/Type.hpp>
-#include <darabonba/Exception.hpp>
 #include <sstream>
 
 namespace Darabonba {
@@ -17,7 +15,7 @@ Ini::Section::operator std::string() const {
 
 Ini Ini::parse(std::basic_istream<char> &content, CommentType type) {
   Ini obj;
-  Ini::KeyValues *pSec;
+  Ini::KeyValues *pSec = nullptr;
 
   for (std::string line; !content.eof() && !content.bad();) {
     std::getline(content, line, '\n');
@@ -27,7 +25,7 @@ Ini Ini::parse(std::basic_istream<char> &content, CommentType type) {
     } else if (line[0] == '[') {
       // section name
       if (line.back() != ']')
-        throw Exception("There is no ] in section name");
+        throw DaraException(std::string("There is no ] in section name"));
       auto secName = std::string(line.begin() + 1, line.end() - 1);
       // if(obj.has(secName))
       //   throw Darabonba::Exception("Duplicated section name.");
@@ -36,9 +34,9 @@ Ini Ini::parse(std::basic_istream<char> &content, CommentType type) {
     } else {
       auto pos = line.find_first_of('=');
       if (pos == std::string::npos)
-        throw Exception("There is no = in the key-value pair");
+        throw DaraException(std::string("There is no = in the key-value pair"));
       else if (pSec == nullptr)
-        throw Exception("The key-value pair has no section name.");
+        throw DaraException(std::string("The key-value pair has no section name."));
       else {
         auto name = String::trim(line.substr(0, pos)),
              value = String::trim(line.substr(pos + 1));
@@ -161,8 +159,9 @@ bool Ini::has(const std::string &sectionName, const std::string &key) const {
     return (itSec->second).count(key);
 }
 
-const std::string& Ini::get(const std::string &sectionName, const std::string &key,
-                     const std::string &defaultValue) const {
+const std::string &Ini::get(const std::string &sectionName,
+                            const std::string &key,
+                            const std::string &defaultValue) const {
   auto itSec = data_.find(sectionName);
   if (itSec == data_.end())
     return defaultValue;

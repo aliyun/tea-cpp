@@ -16,6 +16,7 @@ class RSASigner;
 namespace Encode {
 class Hash {
   friend class Signature::RSASigner;
+
 public:
   Hash(const EVP_MD *type) : ctx_(EVP_MD_CTX_new()) {
     EVP_DigestInit_ex(ctx_, type, nullptr);
@@ -29,9 +30,9 @@ public:
   Hash &operator=(const Hash &obj) {
     if (this == &obj)
       return *this;
-    
+
     if (ctx_) {
-        EVP_MD_CTX_free(ctx_);
+      EVP_MD_CTX_free(ctx_);
     }
     ctx_ = EVP_MD_CTX_new();
     if (ctx_ && obj.ctx_) {
@@ -42,6 +43,9 @@ public:
   Hash &operator=(Hash &&obj) {
     if (this == &obj)
       return *this;
+    if (ctx_) {
+      EVP_MD_CTX_free(ctx_); // 释放旧资源
+    }
     ctx_ = obj.ctx_;
     obj.ctx_ = nullptr;
     return *this;
