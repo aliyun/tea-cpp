@@ -34,13 +34,15 @@ struct ConnectionPoolConfig {
   long connection_idle_timeout = 300L; // Connection idle timeout (seconds)
   bool pipelining = false;           // Enable HTTP pipelining
   size_t max_host_connections = 2;   // Max connections per host
-  
+  bool keep_alive = true;            // Enable TCP keep-alive
+
   // Compare operator for map keys
   bool operator<(const ConnectionPoolConfig& other) const {
     if (host != other.host) return host < other.host;
     if (max_connections != other.max_connections) return max_connections < other.max_connections;
     if (connection_idle_timeout != other.connection_idle_timeout) return connection_idle_timeout < other.connection_idle_timeout;
     if (pipelining != other.pipelining) return pipelining < other.pipelining;
+    if (keep_alive != other.keep_alive) return keep_alive < other.keep_alive;
     return max_host_connections < other.max_host_connections;
   }
 };

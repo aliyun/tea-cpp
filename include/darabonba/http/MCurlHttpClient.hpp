@@ -1,3 +1,4 @@
+#include <darabonba/Core.hpp>
 #include <atomic>
 #include <condition_variable>
 #include <darabonba/Runtime.hpp>
@@ -46,6 +47,26 @@ public:
    */
   bool stop();
 
+  /**
+   * @brief Set connection pool configuration
+   * @param config The connection pool configuration to apply
+   * @note This will update the curl multi handle settings immediately if the client is running
+   */
+  void setConnectionPoolConfig(const ConnectionPoolConfig &config) {
+    poolConfig_ = config;
+    // Apply settings to curl multi handle if already running
+    if (running_ && mCurl_) {
+      applyConnectionPoolSettings();
+    }
+  }
+
+  /**
+   * @brief Get current connection pool configuration
+   */
+  const ConnectionPoolConfig& getConnectionPoolConfig() const {
+    return poolConfig_;
+  }
+
 protected:
   enum { WAIT_MS = 2000 };
 
@@ -73,6 +94,9 @@ protected:
 
   void clearQueue();
 
+  // Apply connection pool settings to curl multi handle
+  void applyConnectionPoolSettings();
+
   std::thread performThread_;
 
   std::atomic<bool> running_ = {false};
@@ -95,6 +119,9 @@ protected:
   std::mutex stopMutex_;
   std::condition_variable stopCV_;
   std::atomic<bool> stop_ = {false};
+
+  // Connection pool configuration
+  ConnectionPoolConfig poolConfig_;
 };
 
 } // namespace Http

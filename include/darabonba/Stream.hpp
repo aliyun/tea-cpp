@@ -45,9 +45,6 @@ public:
   static std::shared_ptr<OStream> toWritable(const Bytes &raw);
 
   static void reset(std::shared_ptr<Stream> raw);
-
-private:
-  static std::string cleanString(const std::string &str);
 };
 
 class IStream : public Stream {

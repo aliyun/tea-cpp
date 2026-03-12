@@ -62,6 +62,9 @@ void EnsureInitialized() {
 }
 
 // Helper to extract connection pool config from request
+// Note: maxIdleConns and keepAlive are pool-level settings that should only be
+// configured at the Config level, not in RuntimeOptions. The values here come
+// from Client's Config, passed through the runtime JSON by the Client.
 ConnectionPoolConfig getConnectionPoolConfig(Http::Request &request,
                                              const Darabonba::Json &runtime) {
   ConnectionPoolConfig config;
@@ -79,21 +82,14 @@ ConnectionPoolConfig getConnectionPoolConfig(Http::Request &request,
     }
   }
 
-  // Extract connection pool configuration from runtime options if present
+  // Read connection pool settings from runtime (these are Config-level values
+  // passed by Client, not per-request RuntimeOptions)
   if (!runtime.is_null()) {
-    if (runtime.contains("maxConnections")) {
-      config.max_connections = runtime["maxConnections"].get<size_t>();
+    if (runtime.contains("maxIdleConns")) {
+      config.max_connections = static_cast<size_t>(runtime["maxIdleConns"].get<int64_t>());
     }
-    if (runtime.contains("connectionIdleTimeout")) {
-      config.connection_idle_timeout =
-          runtime["connectionIdleTimeout"].get<long>();
-    }
-    if (runtime.contains("pipelining")) {
-      config.pipelining = runtime["pipelining"].get<bool>();
-    }
-    if (runtime.contains("maxHostConnections")) {
-      config.max_host_connections =
-          runtime["maxHostConnections"].get<size_t>();
+    if (runtime.contains("keepAlive")) {
+      config.keep_alive = runtime["keepAlive"].get<bool>();
     }
   }
 
@@ -208,9 +204,14 @@ Core::doAction(Http::Request &request, const Darabonba::Json &runtime) {
     // Create new client for this host
     auto newClient =
         std::unique_ptr<Http::MCurlHttpClient>(new Http::MCurlHttpClient());
-    // TODO: Apply connection pool settings to the client using pool_config
+    // Apply connection pool settings to the client
+    newClient->setConnectionPoolConfig(pool_config);
     newClient->start();
     it = state.http_clients.insert({hostKey, std::move(newClient)}).first;
+  } else {
+    // Update connection pool settings for existing client
+    // This allows config changes to take effect immediately
+    it->second->setConnectionPoolConfig(pool_config);
   }
 
   // Pass request-level configuration to be applied per-request

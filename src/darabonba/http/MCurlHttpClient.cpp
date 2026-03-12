@@ -21,6 +21,19 @@ MCurlHttpClient::makeRequest(const Request &request,
     return promise.get_future();
   }
 
+  // Apply connection pool settings to easy handle
+  curl_easy_setopt(easyHandle, CURLOPT_MAXCONNECTS,
+                   static_cast<long>(poolConfig_.max_connections));
+
+  // Apply keep-alive settings
+  if (poolConfig_.keep_alive) {
+    curl_easy_setopt(easyHandle, CURLOPT_TCP_KEEPALIVE, 1L);
+    curl_easy_setopt(easyHandle, CURLOPT_TCP_KEEPIDLE, 60L);
+    curl_easy_setopt(easyHandle, CURLOPT_TCP_KEEPINTVL, 60L);
+    // Enable HTTP keep-alive
+    curl_easy_setopt(easyHandle, CURLOPT_FORBID_REUSE, 0L);
+  }
+
   if (!options.is_null()) {
     // process the runtime options
     // ssl
@@ -37,7 +50,7 @@ MCurlHttpClient::makeRequest(const Request &request,
     if (connectTimeout > 0) {
       curl_easy_setopt(easyHandle, CURLOPT_CONNECTTIMEOUT_MS, connectTimeout);
     }
-    long readTimeout = options.value("readTimeout", 0L);
+    long readTimeout = options.value("readTimeout", 10000L);
     if (readTimeout > 0) {
       curl_easy_setopt(easyHandle, CURLOPT_TIMEOUT_MS, readTimeout);
     }
@@ -193,9 +206,28 @@ void MCurlHttpClient::perform() {
 bool MCurlHttpClient::start() {
   if (!mCurl_ || running_)
     return false;
+  // Apply connection pool settings before starting
+  applyConnectionPoolSettings();
   running_ = true;
   performThread_ = std::thread(std::bind(&MCurlHttpClient::perform, this));
   return true;
+}
+
+void MCurlHttpClient::applyConnectionPoolSettings() {
+  if (!mCurl_)
+    return;
+
+  // Set maximum total connections in the multi handle
+  curl_multi_setopt(mCurl_, CURLMOPT_MAX_TOTAL_CONNECTIONS,
+                    static_cast<long>(poolConfig_.max_connections));
+
+  // Set maximum connections per host
+  curl_multi_setopt(mCurl_, CURLMOPT_MAX_HOST_CONNECTIONS,
+                    static_cast<long>(poolConfig_.max_host_connections));
+
+  // Enable/disable pipelining
+  curl_multi_setopt(mCurl_, CURLMOPT_PIPELINING,
+                    poolConfig_.pipelining ? 1L : 0L);
 }
 
 bool MCurlHttpClient::stop() {
