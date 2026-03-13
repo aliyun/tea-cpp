@@ -40,7 +40,8 @@ struct SDKState {
   std::atomic<bool> initialized{false};
   std::mutex mutex;
   // One HTTP client per host (scheme + host + port as key)
-  std::map<std::string, std::unique_ptr<Http::MCurlHttpClient>> http_clients;
+  // Using shared_ptr to allow releasing the lock before calling makeRequest
+  std::map<std::string, std::shared_ptr<Http::MCurlHttpClient>> http_clients;
 };
 
 SDKState& GetSDKState() {
@@ -190,31 +191,35 @@ Core::doAction(Http::Request &request, const Darabonba::Json &runtime) {
   }
   std::string hostKey = url.getHost();
 
-  std::lock_guard<std::mutex> lock(state.mutex);
-
-  // Extract connection pool configuration from runtime
-  ConnectionPoolConfig pool_config = getConnectionPoolConfig(request, runtime);
-
-  // Extract request-level configuration from runtime
+  // Extract request-level configuration from runtime (no lock needed)
   RequestConfig request_config = getRequestConfig(runtime);
 
-  // Check if we have a client for this host
-  auto it = state.http_clients.find(hostKey);
-  if (it == state.http_clients.end()) {
-    // Create new client for this host
-    auto newClient =
-        std::unique_ptr<Http::MCurlHttpClient>(new Http::MCurlHttpClient());
-    // Apply connection pool settings to the client
-    newClient->setConnectionPoolConfig(pool_config);
-    newClient->start();
-    it = state.http_clients.insert({hostKey, std::move(newClient)}).first;
-  } else {
-    // Update connection pool settings for existing client
-    // This allows config changes to take effect immediately
-    it->second->setConnectionPoolConfig(pool_config);
-  }
+  // Acquire lock only for client lookup/creation, release before makeRequest
+  std::shared_ptr<Http::MCurlHttpClient> client;
+  {
+    std::lock_guard<std::mutex> lock(state.mutex);
 
-  // Pass request-level configuration to be applied per-request
+    // Extract connection pool configuration from runtime
+    ConnectionPoolConfig pool_config = getConnectionPoolConfig(request, runtime);
+
+    // Check if we have a client for this host
+    auto it = state.http_clients.find(hostKey);
+    if (it == state.http_clients.end()) {
+      // Create new client for this host
+      auto newClient = std::make_shared<Http::MCurlHttpClient>();
+      // Apply connection pool settings to the client
+      newClient->setConnectionPoolConfig(pool_config);
+      newClient->start();
+      state.http_clients[hostKey] = newClient;
+      client = std::move(newClient);
+    } else {
+      // Update connection pool settings for existing client
+      it->second->setConnectionPoolConfig(pool_config);
+      client = it->second;
+    }
+  } // lock released here
+
+  // Build request-level runtime options (outside lock)
   Darabonba::Json request_runtime = Darabonba::Json::object();
   request_runtime["connectTimeout"] = request_config.connect_timeout_ms;
   request_runtime["readTimeout"] = request_config.read_timeout_ms;
@@ -223,7 +228,9 @@ Core::doAction(Http::Request &request, const Darabonba::Json &runtime) {
   request_runtime["httpsProxy"] = request_config.https_proxy;
   request_runtime["noProxy"] = request_config.no_proxy;
 
-  return it->second->makeRequest(request, request_runtime);
+  // makeRequest is now called without holding the global lock,
+  // allowing concurrent requests to different hosts
+  return client->makeRequest(request, request_runtime);
 }
 
 // Function to clear specific client configuration by ConnectionPoolConfig

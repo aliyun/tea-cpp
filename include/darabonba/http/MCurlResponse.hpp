@@ -133,23 +133,16 @@ struct adl_serializer<std::shared_ptr<Darabonba::Http::MCurlResponseBody>> {
   static void
   to_json(json &j,
           const std::shared_ptr<Darabonba::Http::MCurlResponseBody> &body) {
-    if (body) {
-      j = reinterpret_cast<uintptr_t>(body.get());
-    } else {
-      j = nullptr;
-    }
+    // Stream objects cannot be meaningfully serialized.
+    // Serialize as null to prevent unsafe pointer casting.
+    (void)body;
+    j = nullptr;
   }
 
   static std::shared_ptr<Darabonba::Http::MCurlResponseBody>
-  from_json(const json &j) {
-    if (!j.is_null() && j.is_number_unsigned()) {
-      Darabonba::Http::MCurlResponseBody *ptr =
-          reinterpret_cast<Darabonba::Http::MCurlResponseBody *>(
-              j.get<uintptr_t>());
-      return std::shared_ptr<Darabonba::Http::MCurlResponseBody>(
-          ptr, [](Darabonba::Http::MCurlResponseBody *) {
-          }); // 不删除，因为所有权不明确
-    }
+  from_json(const json &) {
+    // Stream objects cannot be deserialized from JSON.
+    // Return nullptr; callers should create new stream objects as needed.
     return nullptr;
   }
 };

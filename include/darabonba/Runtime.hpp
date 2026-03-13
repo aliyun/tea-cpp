@@ -32,7 +32,7 @@ public:
     return obj;
   };
   virtual bool empty() const override {
-    return this->headers_ != nullptr && this->queries_ != nullptr;
+    return this->headers_ == nullptr && this->queries_ == nullptr;
   };
   // headers Field Functions
   bool hasHeaders() const { return this->headers_ != nullptr; };
@@ -130,17 +130,17 @@ public:
     return obj;
   };
   virtual bool empty() const override {
-    return this->autoretry_ != nullptr && this->ignoreSSL_ != nullptr &&
-           this->key_ != nullptr && this->cert_ != nullptr &&
-           this->ca_ != nullptr && this->maxAttempts_ != nullptr &&
-           this->backoffPolicy_ != nullptr && this->backoffPeriod_ != nullptr &&
-           this->readTimeout_ != nullptr && this->connectTimeout_ != nullptr &&
-           this->httpProxy_ != nullptr && this->httpsProxy_ != nullptr &&
-           this->noProxy_ != nullptr && this->maxIdleConns_ != nullptr &&
-           this->localAddr_ != nullptr && this->socks5Proxy_ != nullptr &&
-           this->socks5NetWork_ != nullptr && this->keepAlive_ != nullptr &&
-           this->extendsParameters_ != nullptr &&
-           this->retryOptions_ != nullptr;
+    return this->autoretry_ == nullptr && this->ignoreSSL_ == nullptr &&
+           this->key_ == nullptr && this->cert_ == nullptr &&
+           this->ca_ == nullptr && this->maxAttempts_ == nullptr &&
+           this->backoffPolicy_ == nullptr && this->backoffPeriod_ == nullptr &&
+           this->readTimeout_ == nullptr && this->connectTimeout_ == nullptr &&
+           this->httpProxy_ == nullptr && this->httpsProxy_ == nullptr &&
+           this->noProxy_ == nullptr && this->maxIdleConns_ == nullptr &&
+           this->localAddr_ == nullptr && this->socks5Proxy_ == nullptr &&
+           this->socks5NetWork_ == nullptr && this->keepAlive_ == nullptr &&
+           this->extendsParameters_ == nullptr &&
+           this->retryOptions_ == nullptr;
   };
   // autoretry Field Functions
   bool hasAutoretry() const { return this->autoretry_ != nullptr; };
