@@ -30,6 +30,13 @@ MCurlHttpClient::makeRequest(const Request &request,
   curl_easy_setopt(easyHandle, CURLOPT_MAXCONNECTS,
                    static_cast<long>(config.max_connections));
 
+  // Set maximum connection age (curl 7.65.0+)
+  // This limits how long a connection can be reused
+#if LIBCURL_VERSION_NUM >= 0x074100
+  curl_easy_setopt(easyHandle, CURLOPT_MAXAGE_CONN,
+                   config.connection_idle_timeout);
+#endif
+
   // Apply keep-alive settings
   if (config.keep_alive) {
     curl_easy_setopt(easyHandle, CURLOPT_TCP_KEEPALIVE, 1L);
