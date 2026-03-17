@@ -86,11 +86,14 @@ ConnectionPoolConfig getConnectionPoolConfig(Http::Request &request,
   // Read connection pool settings from runtime (these are Config-level values
   // passed by Client, not per-request RuntimeOptions)
   if (!runtime.is_null()) {
-    if (runtime.contains("maxIdleConns")) {
-      config.max_connections = static_cast<size_t>(runtime["maxIdleConns"].get<int64_t>());
+    if (runtime.contains("maxConnections")) {
+      config.max_connections = static_cast<size_t>(runtime["maxConnections"].get<int64_t>());
     }
     if (runtime.contains("keepAlive")) {
       config.keep_alive = runtime["keepAlive"].get<bool>();
+    }
+    if (runtime.contains("maxHostConnections")) {
+      config.max_host_connections = static_cast<size_t>(runtime["maxHostConnections"].get<int64_t>());
     }
   }
 
@@ -213,7 +216,7 @@ Core::doAction(Http::Request &request, const Darabonba::Json &runtime) {
       state.http_clients[hostKey] = newClient;
       client = std::move(newClient);
     } else {
-      // Update connection pool settings for existing client
+      // Update connection pool settings for existing client (thread-safe)
       it->second->setConnectionPoolConfig(pool_config);
       client = it->second;
     }
@@ -247,9 +250,17 @@ void Core::ClearHttpClient(const ConnectionPoolConfig &config) {
 // Function to clear all clients
 void Core::ClearAllHttpClients() {
   auto &state = GetSDKState();
-  std::lock_guard<std::mutex> lock(state.mutex);
-
-  state.http_clients.clear();
+  
+  // Move clients out of the map while holding the lock
+  // After move, state.http_clients is guaranteed to be empty (C++11 standard)
+  std::map<std::string, std::shared_ptr<Http::MCurlHttpClient>> clients;
+  {
+    std::lock_guard<std::mutex> lock(state.mutex);
+    clients = std::move(state.http_clients);
+  }
+  // Lock released here - clients will be destroyed outside the lock
+  // Each MCurlHttpClient destructor will call stop() and wait for the
+  // perform thread to finish, ensuring safe shutdown
 }
 
 // Function to get client count

@@ -30,10 +30,10 @@ class MCurlHttpClient;
  */
 struct ConnectionPoolConfig {
   std::string host;
-  size_t max_connections = 5;        // Maximum connections in pool
+  size_t max_connections = 128;        // Maximum total connections (CURLMOPT_MAX_TOTAL_CONNECTIONS)
   long connection_idle_timeout = 300L; // Connection idle timeout (seconds)
   bool pipelining = false;           // Enable HTTP pipelining
-  size_t max_host_connections = 2;   // Max connections per host
+  size_t max_host_connections = 128;   // Max connections per host (CURLMOPT_MAX_HOST_CONNECTIONS)
   bool keep_alive = true;            // Enable TCP keep-alive
 
   // Compare operator for map keys

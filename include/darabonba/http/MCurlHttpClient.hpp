@@ -22,7 +22,9 @@ class MCurlHttpClient {
   friend class MCurlResponseBody;
 
 public:
-  MCurlHttpClient() : mCurl_(curl_multi_init()) {}
+  MCurlHttpClient() 
+    : mCurl_(curl_multi_init()),
+      poolConfig_(std::make_shared<ConnectionPoolConfig>()) {}
   ~MCurlHttpClient() {
     stop();
     if (performThread_.joinable()) {
@@ -50,21 +52,23 @@ public:
   /**
    * @brief Set connection pool configuration
    * @param config The connection pool configuration to apply
-   * @note This will update the curl multi handle settings immediately if the client is running
+   * @note Thread-safe: uses atomic store for lock-free concurrent access.
+   *       The actual CURL multi handle update is deferred to the perform thread
+   *       to avoid calling curl_multi_setopt during curl_multi_perform.
    */
   void setConnectionPoolConfig(const ConnectionPoolConfig &config) {
-    poolConfig_ = config;
-    // Apply settings to curl multi handle if already running
-    if (running_ && mCurl_) {
-      applyConnectionPoolSettings();
-    }
+    std::atomic_store(&poolConfig_, std::make_shared<ConnectionPoolConfig>(config));
+    // Signal that config needs to be applied in perform thread
+    configNeedsUpdate_.store(true);
   }
 
   /**
    * @brief Get current connection pool configuration
+   * @note Thread-safe: uses atomic load for lock-free concurrent access
    */
-  const ConnectionPoolConfig& getConnectionPoolConfig() const {
-    return poolConfig_;
+  ConnectionPoolConfig getConnectionPoolConfig() const {
+    auto configPtr = std::atomic_load(&poolConfig_);
+    return configPtr ? *configPtr : ConnectionPoolConfig();
   }
 
 protected:
@@ -120,8 +124,12 @@ protected:
   std::condition_variable stopCV_;
   std::atomic<bool> stop_ = {false};
 
-  // Connection pool configuration
-  ConnectionPoolConfig poolConfig_;
+  // Flag to indicate config needs update in perform thread
+  std::atomic<bool> configNeedsUpdate_{false};
+
+  // Connection pool configuration (atomic for lock-free concurrent access)
+  // Use atomic_load/atomic_store for thread-safe read/write
+  std::shared_ptr<ConnectionPoolConfig> poolConfig_;
 };
 
 } // namespace Http

@@ -21,17 +21,25 @@ MCurlHttpClient::makeRequest(const Request &request,
     return promise.get_future();
   }
 
+  // Atomically load config to avoid race condition with setConnectionPoolConfig
+  // This ensures we use a consistent snapshot of the configuration
+  auto configPtr = std::atomic_load(&poolConfig_);
+  ConnectionPoolConfig config = configPtr ? *configPtr : ConnectionPoolConfig();
+
   // Apply connection pool settings to easy handle
   curl_easy_setopt(easyHandle, CURLOPT_MAXCONNECTS,
-                   static_cast<long>(poolConfig_.max_connections));
+                   static_cast<long>(config.max_connections));
 
   // Apply keep-alive settings
-  if (poolConfig_.keep_alive) {
+  if (config.keep_alive) {
     curl_easy_setopt(easyHandle, CURLOPT_TCP_KEEPALIVE, 1L);
     curl_easy_setopt(easyHandle, CURLOPT_TCP_KEEPIDLE, 60L);
     curl_easy_setopt(easyHandle, CURLOPT_TCP_KEEPINTVL, 60L);
     // Enable HTTP keep-alive
     curl_easy_setopt(easyHandle, CURLOPT_FORBID_REUSE, 0L);
+  } else {
+    // Disable connection reuse when keepAlive is false
+    curl_easy_setopt(easyHandle, CURLOPT_FORBID_REUSE, 1L);
   }
 
   if (!options.is_null()) {
@@ -124,6 +132,12 @@ MCurlHttpClient::makeRequest(const Request &request,
 
 void MCurlHttpClient::perform() {
   while (running_) {
+    // Apply config update if needed (before curl_multi_perform)
+    if (configNeedsUpdate_.load()) {
+      applyConnectionPoolSettings();
+      configNeedsUpdate_.store(false);
+    }
+
     if (reqQueueSize_) {
       decltype(reqQueue_) reqQueue;
       {
@@ -217,17 +231,24 @@ void MCurlHttpClient::applyConnectionPoolSettings() {
   if (!mCurl_)
     return;
 
+  // Atomically load config for thread-safe access
+  auto configPtr = std::atomic_load(&poolConfig_);
+  if (!configPtr)
+    return;
+
+  const ConnectionPoolConfig& config = *configPtr;
+
   // Set maximum total connections in the multi handle
   curl_multi_setopt(mCurl_, CURLMOPT_MAX_TOTAL_CONNECTIONS,
-                    static_cast<long>(poolConfig_.max_connections));
+                    static_cast<long>(config.max_connections));
 
   // Set maximum connections per host
   curl_multi_setopt(mCurl_, CURLMOPT_MAX_HOST_CONNECTIONS,
-                    static_cast<long>(poolConfig_.max_host_connections));
+                    static_cast<long>(config.max_host_connections));
 
   // Enable/disable pipelining
   curl_multi_setopt(mCurl_, CURLMOPT_PIPELINING,
-                    poolConfig_.pipelining ? 1L : 0L);
+                    config.pipelining ? 1L : 0L);
 }
 
 bool MCurlHttpClient::stop() {
