@@ -260,7 +260,7 @@ TEST_F(LoggerTest, ConcurrentSetLevel) {
 TEST_F(LoggerTest, ConcurrentLogging) {
   Logger::setLevel(LogLevel::DEBUG);
   const int numThreads = 10;
-  const int messagesPerThread = 100;
+  int messagesPerThread = 100;
   std::vector<std::thread> threads;
 
   for (int i = 0; i < numThreads; ++i) {
