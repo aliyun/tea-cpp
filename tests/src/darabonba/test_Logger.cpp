@@ -264,7 +264,7 @@ TEST_F(LoggerTest, ConcurrentLogging) {
   std::vector<std::thread> threads;
 
   for (int i = 0; i < numThreads; ++i) {
-    threads.emplace_back([i]() {
+    threads.emplace_back([i, messagesPerThread]() {
       for (int j = 0; j < messagesPerThread; ++j) {
         Logger::debug("Thread " + std::to_string(i) + " message " + std::to_string(j));
         Logger::info("Thread " + std::to_string(i) + " message " + std::to_string(j));
@@ -395,13 +395,13 @@ TEST_F(LoggerTest, SilenceAllLogsScenario) {
 TEST_F(LoggerTest, SuppressedMessagesHaveMinimalOverhead) {
   Logger::setLevel(LogLevel::OFF);
 
-  auto start = std::chrono::high_resolution_clock::now();
+  auto start = std::chrono::steady_clock::now();
 
   for (int i = 0; i < 10000; ++i) {
     Logger::debug("This message is suppressed");
   }
 
-  auto end = std::chrono::high_resolution_clock::now();
+  auto end = std::chrono::steady_clock::now();
   auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
 
   // 10000 suppressed messages should take very little time (< 100ms)
@@ -409,14 +409,14 @@ TEST_F(LoggerTest, SuppressedMessagesHaveMinimalOverhead) {
 }
 
 TEST_F(LoggerTest, LevelCheckIsFast) {
-  auto start = std::chrono::high_resolution_clock::now();
+  auto start = std::chrono::steady_clock::now();
 
   for (int i = 0; i < 100000; ++i) {
     LogLevel level = Logger::getLevel();
     (void)level;
   }
 
-  auto end = std::chrono::high_resolution_clock::now();
+  auto end = std::chrono::steady_clock::now();
   auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
 
   // 100000 level checks should be very fast (< 50ms)
