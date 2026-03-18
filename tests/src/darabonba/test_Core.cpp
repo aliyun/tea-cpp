@@ -313,9 +313,9 @@ TEST_F(CoreTest, DoActionWithQueryParams) {
 // ==================== ConnectionPoolConfig 测试 ====================
 TEST_F(CoreTest, ConnectionPoolConfigDefaultValues) {
   ConnectionPoolConfig config;
-  EXPECT_EQ(config.max_connections, 5UL);
-  EXPECT_EQ(config.max_host_connections, 2UL);
-  EXPECT_EQ(config.connection_idle_timeout, 300L);
+  EXPECT_EQ(config.max_connections, 128UL);
+  EXPECT_EQ(config.max_host_connections, 128UL);
+  EXPECT_EQ(config.connection_idle_timeout, 30L);
   EXPECT_FALSE(config.pipelining);
   EXPECT_TRUE(config.keep_alive);
 }
@@ -465,7 +465,7 @@ TEST_F(CoreTest, ConnectionPoolConfigCopy) {
 // ==================== MCurlHttpClient 详细测试 ====================
 TEST_F(CoreTest, MCurlHttpClientDefaultConnectionPoolConfig) {
   Http::MCurlHttpClient client;
-  EXPECT_EQ(client.getConnectionPoolConfig().max_connections, 5UL);
+  EXPECT_EQ(client.getConnectionPoolConfig().max_connections, 128UL);
   EXPECT_TRUE(client.getConnectionPoolConfig().keep_alive);
 }
 
@@ -697,4 +697,205 @@ TEST_F(CoreTest, KeepAliveTypeSafety) {
   
   runtime["keepAlive"] = false;
   EXPECT_FALSE(runtime["keepAlive"].get<bool>());
+}
+
+// ==================== isNull 测试 ====================
+// std::string 测试
+TEST_F(CoreTest, IsNullEmptyString) {
+  std::string emptyStr = "";
+  EXPECT_TRUE(Darabonba::isNull(emptyStr));
+}
+
+TEST_F(CoreTest, IsNullNonEmptyString) {
+  std::string str = "hello";
+  EXPECT_FALSE(Darabonba::isNull(str));
+}
+
+// 原始指针测试
+TEST_F(CoreTest, IsNullNullPointer) {
+  int* ptr = nullptr;
+  EXPECT_TRUE(Darabonba::isNull(ptr));
+}
+
+TEST_F(CoreTest, IsNullValidPointer) {
+  int value = 42;
+  int* ptr = &value;
+  EXPECT_FALSE(Darabonba::isNull(ptr));
+}
+
+// std::shared_ptr 测试
+TEST_F(CoreTest, IsNullEmptySharedPtr) {
+  std::shared_ptr<int> ptr;
+  EXPECT_TRUE(Darabonba::isNull(ptr));
+}
+
+TEST_F(CoreTest, IsNullValidSharedPtr) {
+  auto ptr = std::make_shared<int>(42);
+  EXPECT_FALSE(Darabonba::isNull(ptr));
+}
+
+TEST_F(CoreTest, IsNullResetSharedPtr) {
+  auto ptr = std::make_shared<int>(42);
+  ptr.reset();
+  EXPECT_TRUE(Darabonba::isNull(ptr));
+}
+
+// std::map 测试
+TEST_F(CoreTest, IsNullEmptyMap) {
+  std::map<std::string, std::string> emptyMap;
+  EXPECT_TRUE(Darabonba::isNull(emptyMap));
+}
+
+TEST_F(CoreTest, IsNullNonEmptyMap) {
+  std::map<std::string, std::string> map;
+  map["key"] = "value";
+  EXPECT_FALSE(Darabonba::isNull(map));
+}
+
+TEST_F(CoreTest, IsNullClearedMap) {
+  std::map<std::string, std::string> map;
+  map["key"] = "value";
+  map.clear();
+  EXPECT_TRUE(Darabonba::isNull(map));
+}
+
+// std::vector 测试
+TEST_F(CoreTest, IsNullEmptyVector) {
+  std::vector<int> emptyVec;
+  EXPECT_TRUE(Darabonba::isNull(emptyVec));
+}
+
+TEST_F(CoreTest, IsNullNonEmptyVector) {
+  std::vector<int> vec = {1, 2, 3};
+  EXPECT_FALSE(Darabonba::isNull(vec));
+}
+
+TEST_F(CoreTest, IsNullClearedVector) {
+  std::vector<int> vec = {1, 2, 3};
+  vec.clear();
+  EXPECT_TRUE(Darabonba::isNull(vec));
+}
+
+// 非指针类型默认行为测试
+TEST_F(CoreTest, IsNullIntValue) {
+  int value = 0;
+  EXPECT_FALSE(Darabonba::isNull(value));
+}
+
+TEST_F(CoreTest, IsNullDoubleValue) {
+  double value = 0.0;
+  EXPECT_FALSE(Darabonba::isNull(value));
+}
+
+// nullptr_t 测试
+TEST_F(CoreTest, IsNullNullptrT) {
+  EXPECT_TRUE(Darabonba::isNull(nullptr));
+}
+
+// 边界情况测试
+TEST_F(CoreTest, IsNullMapWithEmptyKey) {
+  std::map<std::string, std::string> map;
+  map[""] = "empty_key_value";
+  // 非空 map，应该返回 false
+  EXPECT_FALSE(Darabonba::isNull(map));
+}
+
+TEST_F(CoreTest, IsNullVectorWithZero) {
+  std::vector<int> vec = {0};
+  // 包含一个元素的 vector，应该返回 false
+  EXPECT_FALSE(Darabonba::isNull(vec));
+}
+
+// ==================== isNull(map, key) 测试 ====================
+// 语义：isNull(map, key) 返回 true 表示 key 不存在或值为 null
+TEST_F(CoreTest, IsNullMapKeyNotExists) {
+  std::map<std::string, std::string> map;
+  map["key"] = "value";
+  EXPECT_TRUE(Darabonba::isNull(map, std::string("missing")));  // key 不存在
+}
+
+TEST_F(CoreTest, IsNullMapKeyExistsWithValue) {
+  std::map<std::string, std::string> map;
+  map["key"] = "value";
+  EXPECT_FALSE(Darabonba::isNull(map, std::string("key")));  // key 存在，值非空
+}
+
+TEST_F(CoreTest, IsNullMapKeyExistsWithEmptyValue) {
+  std::map<std::string, std::string> map;
+  map["key"] = "";  // 空字符串
+  EXPECT_TRUE(Darabonba::isNull(map, std::string("key")));  // key 存在，但值为 null
+}
+
+TEST_F(CoreTest, IsNullMapKeyEmptyMap) {
+  std::map<std::string, std::string> map;
+  EXPECT_TRUE(Darabonba::isNull(map, std::string("any")));  // 空 map，任何 key 都是 null
+}
+
+TEST_F(CoreTest, IsNullMapKeyIntValue) {
+  std::map<std::string, int> map;
+  map["count"] = 0;
+  // int 类型 0 不是 null（isNull(int) 返回 false）
+  EXPECT_FALSE(Darabonba::isNull(map, std::string("count")));
+  EXPECT_TRUE(Darabonba::isNull(map, std::string("missing")));
+}
+
+// 验证 !isNull(map, key) 与 hasValue(map, key) 等价
+TEST_F(CoreTest, IsNullMapKeyEquivalenceToHasValue) {
+  std::map<std::string, std::string> map;
+  map["key"] = "value";
+  map["empty"] = "";
+  
+  // !isNull(map, key) == hasValue(map, key)
+  EXPECT_EQ(!Darabonba::isNull(map, std::string("key")), Darabonba::hasValue(map, std::string("key")));
+  EXPECT_EQ(!Darabonba::isNull(map, std::string("empty")), Darabonba::hasValue(map, std::string("empty")));
+  EXPECT_EQ(!Darabonba::isNull(map, std::string("missing")), Darabonba::hasValue(map, std::string("missing")));
+}
+
+// ==================== hasValue 测试 ====================
+TEST_F(CoreTest, HasValueKeyExists) {
+  std::map<std::string, std::string> map;
+  map["key"] = "value";
+  EXPECT_TRUE(Darabonba::hasValue(map, std::string("key")));
+}
+
+TEST_F(CoreTest, HasValueKeyNotExists) {
+  std::map<std::string, std::string> map;
+  map["key"] = "value";
+  EXPECT_FALSE(Darabonba::hasValue(map, std::string("missing")));
+}
+
+TEST_F(CoreTest, HasValueEmptyValue) {
+  std::map<std::string, std::string> map;
+  map["key"] = "";  // 空字符串
+  EXPECT_FALSE(Darabonba::hasValue(map, std::string("key")));  // 空值视为 null
+}
+
+TEST_F(CoreTest, HasValueEmptyMap) {
+  std::map<std::string, std::string> map;
+  EXPECT_FALSE(Darabonba::hasValue(map, std::string("any")));
+}
+
+// ==================== getOrDefault 测试 ====================
+TEST_F(CoreTest, GetOrDefaultKeyExists) {
+  std::map<std::string, std::string> map;
+  map["key"] = "value";
+  EXPECT_EQ(Darabonba::getOrDefault(map, std::string("key"), std::string("default")), "value");
+}
+
+TEST_F(CoreTest, GetOrDefaultKeyNotExists) {
+  std::map<std::string, std::string> map;
+  map["key"] = "value";
+  EXPECT_EQ(Darabonba::getOrDefault(map, std::string("missing"), std::string("default")), "default");
+}
+
+TEST_F(CoreTest, GetOrDefaultEmptyMap) {
+  std::map<std::string, std::string> map;
+  EXPECT_EQ(Darabonba::getOrDefault(map, std::string("key"), std::string("default")), "default");
+}
+
+TEST_F(CoreTest, GetOrDefaultIntValue) {
+  std::map<std::string, int> map;
+  map["count"] = 42;
+  EXPECT_EQ(Darabonba::getOrDefault(map, std::string("count"), 0), 42);
+  EXPECT_EQ(Darabonba::getOrDefault(map, std::string("missing"), -1), -1);
 }

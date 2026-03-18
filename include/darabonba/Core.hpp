@@ -117,6 +117,63 @@ template <> inline bool isNull<std::nullptr_t>(const std::nullptr_t &) {
   return true;
 }
 
+// std::string 的特化：空字符串视为 null
+template <> inline bool isNull<std::string>(const std::string &str) {
+  return str.empty();
+}
+
+// std::shared_ptr 的特化：空指针视为 null
+template <typename T> inline bool isNull(const std::shared_ptr<T> &ptr) {
+  return ptr == nullptr;
+}
+
+// 容器类型特化：空容器视为 null
+// std::map
+template <typename K, typename V> inline bool isNull(const std::map<K, V> &m) {
+  return m.empty();
+}
+
+// std::vector
+template <typename T> inline bool isNull(const std::vector<T> &v) {
+  return v.empty();
+}
+
+/**
+ * @brief Safe map access - check if key exists and value is not null
+ * @param m The map to search
+ * @param key The key to look for
+ * @return true if key exists and value is not null (not empty string for string values)
+ */
+template <typename K, typename V> inline bool hasValue(const std::map<K, V> &m, const K &key) {
+  auto it = m.find(key);
+  return it != m.end() && !isNull(it->second);
+}
+
+/**
+ * @brief Check if map key is null (key not exists or value is null)
+ * @param m The map to search
+ * @param key The key to look for
+ * @return true if key not exists OR value is null (consistent with isNull(value) semantics)
+ * 
+ * Usage: isNull(map, key) instead of isNull(map[key]) which fails on const map
+ */
+template <typename K, typename V> inline bool isNull(const std::map<K, V> &m, const K &key) {
+  auto it = m.find(key);
+  return it == m.end() || isNull(it->second);
+}
+
+/**
+ * @brief Safe map get - returns value or default if key not found
+ * @param m The map to search
+ * @param key The key to look for
+ * @param defaultValue The value to return if key not found
+ * @return The value if key exists, otherwise defaultValue
+ */
+template <typename K, typename V> inline V getOrDefault(const std::map<K, V> &m, const K &key, const V &defaultValue) {
+  auto it = m.find(key);
+  return (it != m.end()) ? it->second : defaultValue;
+}
+
 Json defaultVal(const Json &a, const Json &b);
 
 bool allowRetry(const Policy::RetryOptions &options,
