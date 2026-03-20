@@ -54,7 +54,7 @@ struct ConnectionPoolConfig {
  */
 struct RequestConfig {
   int64_t connect_timeout_ms = 5000L;   // Per-request connection timeout
-  int64_t read_timeout_ms = 0L;         // Per-request read timeout
+  int64_t read_timeout_ms = 10000L;         // Per-request read timeout
   bool ignore_ssl = false;           // Per-request SSL verification
   std::string http_proxy;            // Per-request proxy
   std::string https_proxy;           // Per-request HTTPS proxy

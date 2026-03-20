@@ -18,7 +18,7 @@ public:
 
   static int64_t itol(int val) { return val; }
 
-  static int ltoi(int64_t val) { return val; }
+  static int ltoi(int64_t val) { return static_cast<int>(val); }
 };
 } // namespace Darabonba
 

@@ -979,6 +979,6 @@ TEST_F(CoreTest, RequestConfigZeroTimeout) {
 TEST_F(CoreTest, RequestConfigDefaultTimeoutValues) {
   RequestConfig config;
   EXPECT_EQ(config.connect_timeout_ms, 5000LL);
-  EXPECT_EQ(config.read_timeout_ms, 0LL);
+  EXPECT_EQ(config.read_timeout_ms, 10000LL);  // 默认 10 秒
   EXPECT_FALSE(config.ignore_ssl);
 }
