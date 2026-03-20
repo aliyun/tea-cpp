@@ -5,6 +5,19 @@
 #include <string>
 #include <atomic>
 
+// Windows SDK defines ERROR, WARNING, DEBUG, INFO as macros which conflict
+// with our enum values. Temporarily undef them during this header, then restore.
+#ifdef _WIN32
+  #pragma push_macro("ERROR")
+  #pragma push_macro("WARNING")
+  #pragma push_macro("DEBUG")
+  #pragma push_macro("INFO")
+  #undef ERROR
+  #undef WARNING
+  #undef DEBUG
+  #undef INFO
+#endif
+
 namespace Darabonba {
 
 /**
@@ -89,5 +102,13 @@ private:
 // Backward compatibility: allow global access without namespace
 using DarabonbaLogger = Darabonba::Logger;
 using DarabonbaLogLevel = Darabonba::LogLevel;
+
+// Restore Windows macros
+#ifdef _WIN32
+  #pragma pop_macro("INFO")
+  #pragma pop_macro("DEBUG")
+  #pragma pop_macro("WARNING")
+  #pragma pop_macro("ERROR")
+#endif
 
 #endif
