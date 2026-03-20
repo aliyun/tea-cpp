@@ -19,7 +19,6 @@
 namespace Darabonba {
 
 /**
- * File class aligned with tea-python's File class
  * Provides file operations: exists, path, length, createTime, modifyTime, read, write
  */
 class File {

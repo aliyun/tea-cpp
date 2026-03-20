@@ -177,8 +177,8 @@ template <typename K, typename V> inline V getOrDefault(const std::map<K, V> &m,
 
 Json defaultVal(const Json &a, const Json &b);
 
-bool allowRetry(const Policy::RetryOptions &options,
-                const Policy::RetryPolicyContext &ctx);
+bool shouldRetry(const Policy::RetryOptions &options,
+                 const Policy::RetryPolicyContext &ctx);
 int getBackoffTime(const Policy::RetryOptions &options,
                    const Policy::RetryPolicyContext &ctx);
 

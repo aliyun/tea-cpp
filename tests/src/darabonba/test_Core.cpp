@@ -34,8 +34,8 @@ TEST_F(CoreTest, SleepShouldWorkCorrectly) {
   EXPECT_LE(duration, 300);
 }
 
-// ==================== allowRetry 测试 ====================
-TEST_F(CoreTest, AllowRetryWithFirstAttempt) {
+// ==================== shouldRetry 测试 ====================
+TEST_F(CoreTest, ShouldRetryWithFirstAttempt) {
   Policy::RetryOptions options;
   options.setRetryable(true);
 
@@ -48,10 +48,10 @@ TEST_F(CoreTest, AllowRetryWithFirstAttempt) {
   ctx.setRetriesAttempted(0); // 第一次尝试
 
   // 第一次尝试应该允许重试
-  EXPECT_TRUE(Darabonba::allowRetry(options, ctx));
+  EXPECT_TRUE(Darabonba::shouldRetry(options, ctx));
 }
 
-TEST_F(CoreTest, AllowRetryWithMaxAttemptsReached) {
+TEST_F(CoreTest, ShouldRetryWithMaxAttemptsReached) {
   Policy::RetryOptions options;
   options.setRetryable(true);
 
@@ -67,10 +67,10 @@ TEST_F(CoreTest, AllowRetryWithMaxAttemptsReached) {
   ctx.setException(ex);
 
   // 已达到最大重试次数，不应该允许重试
-  EXPECT_FALSE(Darabonba::allowRetry(options, ctx));
+  EXPECT_FALSE(Darabonba::shouldRetry(options, ctx));
 }
 
-TEST_F(CoreTest, AllowRetryWhenNotRetryable) {
+TEST_F(CoreTest, ShouldRetryWhenNotRetryable) {
   Policy::RetryOptions options;
   options.setRetryable(false); // 不可重试
 
@@ -78,10 +78,10 @@ TEST_F(CoreTest, AllowRetryWhenNotRetryable) {
   ctx.setRetriesAttempted(1);
 
   // 不可重试选项应该返回 false
-  EXPECT_FALSE(Darabonba::allowRetry(options, ctx));
+  EXPECT_FALSE(Darabonba::shouldRetry(options, ctx));
 }
 
-TEST_F(CoreTest, AllowRetryWithMatchingException) {
+TEST_F(CoreTest, ShouldRetryWithMatchingException) {
   Policy::RetryOptions options;
   options.setRetryable(true);
 
@@ -97,7 +97,7 @@ TEST_F(CoreTest, AllowRetryWithMatchingException) {
   ctx.setException(ex);
 
   // 匹配的异常类型应该允许重试
-  EXPECT_TRUE(Darabonba::allowRetry(options, ctx));
+  EXPECT_TRUE(Darabonba::shouldRetry(options, ctx));
 }
 
 // ==================== getBackoffTime 测试 ====================

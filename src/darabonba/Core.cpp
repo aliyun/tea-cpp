@@ -271,7 +271,7 @@ size_t Core::GetHttpClientCount() {
   return state.http_clients.size();
 }
 
-bool allowRetry(const RetryOptions &options, const RetryPolicyContext &ctx) {
+bool shouldRetry(const RetryOptions &options, const RetryPolicyContext &ctx) {
   if (ctx.getRetriesAttempted() == 0) {
     return true;
   }
