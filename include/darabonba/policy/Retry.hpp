@@ -354,11 +354,15 @@ protected:
 class RetryOptions {
 public:
   friend void to_json(Darabonba::Json &j, const RetryOptions &obj) {
+    j["retryable"] = obj.retryable_;
     DARABONBA_TO_JSON(retryCondition, retryCondition_);
     DARABONBA_TO_JSON(noRetryCondition, noRetryCondition_);
   }
 
   friend void from_json(const Darabonba::Json &j, RetryOptions &obj) {
+    if (j.contains("retryable") && !j["retryable"].is_null()) {
+      obj.retryable_ = j["retryable"].get<bool>();
+    }
     DARABONBA_FROM_JSON(retryCondition, retryCondition_);
     DARABONBA_FROM_JSON(noRetryCondition, noRetryCondition_);
   }

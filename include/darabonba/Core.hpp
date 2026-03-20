@@ -1,6 +1,7 @@
 #ifndef DARABONBA_CORE_H_
 #define DARABONBA_CORE_H_
 
+#include <cstdint>
 #include <darabonba/Runtime.hpp>
 #include <darabonba/Type.hpp>
 #include <darabonba/http/MCurlResponse.hpp>
@@ -31,7 +32,7 @@ class MCurlHttpClient;
 struct ConnectionPoolConfig {
   std::string host;
   size_t max_connections = 128;        // Maximum total connections (CURLMOPT_MAX_TOTAL_CONNECTIONS)
-  long connection_idle_timeout = 30L;  // Connection idle timeout (seconds), curl default is 118s
+  int64_t connection_idle_timeout = 30L;  // Connection idle timeout (seconds), curl default is 118s
   bool pipelining = false;           // Enable HTTP pipelining
   size_t max_host_connections = 128;   // Max connections per host (CURLMOPT_MAX_HOST_CONNECTIONS)
   bool keep_alive = true;            // Enable TCP keep-alive
@@ -52,8 +53,8 @@ struct ConnectionPoolConfig {
  * Applied per individual request
  */
 struct RequestConfig {
-  long connect_timeout_ms = 5000L;   // Per-request connection timeout
-  long read_timeout_ms = 0L;         // Per-request read timeout
+  int64_t connect_timeout_ms = 5000L;   // Per-request connection timeout
+  int64_t read_timeout_ms = 0L;         // Per-request read timeout
   bool ignore_ssl = false;           // Per-request SSL verification
   std::string http_proxy;            // Per-request proxy
   std::string https_proxy;           // Per-request HTTPS proxy

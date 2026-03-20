@@ -1,3 +1,4 @@
+#include <darabonba/Exception.hpp>
 #include <darabonba/http/Curl.hpp>
 #include <darabonba/http/MCurlHttpClient.hpp>
 #include <darabonba/http/MCurlResponse.hpp>
@@ -188,24 +189,53 @@ void MCurlHttpClient::perform() {
     while ((msg = curl_multi_info_read(mCurl_, &msgs_in_queue)) != nullptr) {
       if (msg->msg == CURLMSG_DONE) {
         auto easyHandle = msg->easy_handle;
-        auto curlStorage = std::move(runningCurl_[easyHandle]);
-        runningCurl_.erase(easyHandle);
 
-        auto body = dynamic_cast<MCurlResponseBody *>(
-            curlStorage->resp->getBody().get());
-        if (body) {
-          if (!body->getReady()) {
-            setResponseReady(curlStorage.get());
+        // Safe lookup - don't use operator[] which creates nullptr entries
+        auto it = runningCurl_.find(easyHandle);
+        if (it == runningCurl_.end()) {
+          // Handle not found - clean up and skip
+          curl_multi_remove_handle(mCurl_, easyHandle);
+          curl_easy_cleanup(easyHandle);
+          continue;
+        }
+        auto curlStorage = std::move(it->second);
+        runningCurl_.erase(it);
+
+        // Null check before accessing curlStorage
+        if (!curlStorage || !curlStorage->promise) {
+          if (nullptr != getenv("DEBUG")) {
+            std::cerr << "[DEBUG perform] Invalid curlStorage or promise for handle" << std::endl;
           }
-          // response body has been fully received
-          body->done_ = true;
-          body->doneCV_.notify_one();
+          curl_multi_remove_handle(mCurl_, easyHandle);
+          curl_easy_cleanup(easyHandle);
+          continue;
+        }
+
+        CURLcode curlResult = msg->data.result;
+        if (curlResult != CURLE_OK) {
+          if (nullptr != getenv("DEBUG")) {
+            std::cerr << "[DEBUG perform] Curl error: " << curl_easy_strerror(curlResult)
+                      << " (code: " << curlResult << ")" << std::endl;
+          }
+          curlStorage->promise->set_exception(
+              std::make_exception_ptr(Darabonba::ResponseException(
+                  "NetworkError",
+                  std::string("Curl error: ") + curl_easy_strerror(curlResult))));
+        } else {
+          auto body = dynamic_cast<MCurlResponseBody *>(
+              curlStorage->resp->getBody().get());
+          if (body) {
+            if (!body->getReady()) {
+              setResponseReady(curlStorage.get());
+            }
+            body->done_ = true;
+            body->doneCV_.notify_one();
+          }
         }
 
         if (curlStorage->reqBody) {
-          curlStorage->reqBody.reset(); // 使用智能指针的 reset 方法释放资源
+          curlStorage->reqBody.reset();
         }
-        // remove the easy hanle
         curl_multi_remove_handle(mCurl_, easyHandle);
         curl_easy_cleanup(easyHandle);
       } else {
@@ -215,7 +245,9 @@ void MCurlHttpClient::perform() {
   }
   // close the existing network connections.
   for (auto &p : runningCurl_) {
-    curl_slist_free_all(p.second->reqHeader);
+    if (p.second) {
+      curl_slist_free_all(p.second->reqHeader);
+    }
     curl_multi_remove_handle(mCurl_, p.first);
     curl_easy_cleanup(p.first);
   }
@@ -279,8 +311,10 @@ void MCurlHttpClient::clearQueue() {
   while (!reqQueue_.empty()) {
     auto storage = std::move(reqQueue_.front());
     reqQueue_.pop_front();
-    curl_slist_free_all(storage->reqHeader);
-    curl_easy_cleanup(storage->easyHandle);
+    if (storage) {
+      curl_slist_free_all(storage->reqHeader);
+      curl_easy_cleanup(storage->easyHandle);
+    }
   }
   reqQueue_.clear();
   continueReadingQueue_.clear();
@@ -299,6 +333,10 @@ bool MCurlHttpClient::addContinueReadingHandle(CURL *easyHandle) {
 }
 
 bool MCurlHttpClient::setResponseReady(CurlStorage *curlStorage) {
+  // Null pointer guard
+  if (!curlStorage) {
+    return false;
+  }
   // clear the request header
   curl_slist_free_all(curlStorage->reqHeader);
   curlStorage->reqHeader = nullptr;
@@ -320,6 +358,10 @@ bool MCurlHttpClient::setResponseReady(CurlStorage *curlStorage) {
 size_t MCurlHttpClient::recvBody(char *buffer, size_t size, size_t nmemb,
                                  void *userdata) {
   auto curlStorage = static_cast<CurlStorage *>(userdata);
+  // Null pointer guard
+  if (!curlStorage || !curlStorage->resp) {
+    return 0;
+  }
   auto body = curlStorage->resp->getBody();
   if (!body)
     return 0;

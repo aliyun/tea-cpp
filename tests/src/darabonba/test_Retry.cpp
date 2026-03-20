@@ -336,6 +336,108 @@ TEST_F(RetryTest, RetryOptionsJsonSerialization) {
   EXPECT_EQ(options2.getRetryCondition().size(), 1u);
 }
 
+// ==================== retryable_ 字段 JSON 序列化测试 ====================
+// 这些测试证明了 retryable_ 字段被正确序列化和反序列化
+// 如果不添加这个字段到 to_json/from_json，retryable_ 值会丢失
+
+// 测试 retryable=true 被正确序列化和反序列化
+TEST_F(RetryTest, RetryOptionsRetryableFieldSerializationTrue) {
+  RetryOptions options;
+  options.setRetryable(true);
+
+  Json j;
+  to_json(j, options);
+
+  // 验证 retryable 字段被正确序列化
+  EXPECT_TRUE(j.contains("retryable"));
+  EXPECT_TRUE(j["retryable"].get<bool>());
+
+  // 验证反序列化
+  RetryOptions options2;
+  from_json(j, options2);
+  EXPECT_TRUE(options2.isRetryable());
+}
+
+// 测试 retryable=false 被正确序列化和反序列化
+TEST_F(RetryTest, RetryOptionsRetryableFieldSerializationFalse) {
+  RetryOptions options;
+  options.setRetryable(false);
+
+  Json j;
+  to_json(j, options);
+
+  // 验证 retryable 字段被正确序列化
+  EXPECT_TRUE(j.contains("retryable"));
+  EXPECT_FALSE(j["retryable"].get<bool>());
+
+  // 验证反序列化
+  RetryOptions options2;
+  from_json(j, options2);
+  EXPECT_FALSE(options2.isRetryable());
+}
+
+// 测试从 JSON 加载 retryable 字段
+TEST_F(RetryTest, RetryOptionsRetryableFieldFromJson) {
+  // 创建包含 retryable 字段的 JSON
+  Json j;
+  j["retryable"] = true;
+  j["retryCondition"] = Json::array();
+  j["noRetryCondition"] = Json::array();
+
+  RetryOptions options;
+  from_json(j, options);
+
+  EXPECT_TRUE(options.isRetryable());
+
+  // 测试 false 值
+  j["retryable"] = false;
+  RetryOptions options2;
+  from_json(j, options2);
+  EXPECT_FALSE(options2.isRetryable());
+}
+
+// 测试 JSON 中没有 retryable 字段时的默认行为
+TEST_F(RetryTest, RetryOptionsRetryableFieldDefaultWhenMissing) {
+  // 创建不包含 retryable 字段的 JSON
+  Json j;
+  j["retryCondition"] = Json::array();
+  j["noRetryCondition"] = Json::array();
+  // 注意：不设置 retryable 字段
+
+  RetryOptions options;
+  from_json(j, options);
+
+  // 默认值应该是 false
+  EXPECT_FALSE(options.isRetryable());
+}
+
+// 测试完整的 RetryOptions 往返序列化
+TEST_F(RetryTest, RetryOptionsRoundTripSerialization) {
+  RetryOptions original;
+  original.setRetryable(true);
+
+  RetryCondition condition;
+  condition.setMaxAttempts(5);
+  condition.setException({"ResponseException", "ServerException"});
+  original.setRetryCondition({condition});
+
+  // 序列化
+  Json j;
+  to_json(j, original);
+
+  // 反序列化
+  RetryOptions restored;
+  from_json(j, restored);
+
+  // 验证所有字段都被正确恢复
+  EXPECT_EQ(restored.isRetryable(), original.isRetryable());
+  EXPECT_EQ(restored.getRetryCondition().size(), original.getRetryCondition().size());
+  if (!restored.getRetryCondition().empty()) {
+    EXPECT_EQ(restored.getRetryCondition()[0].getMaxAttempts(),
+              original.getRetryCondition()[0].getMaxAttempts());
+  }
+}
+
 // Test RetryPolicyContext JSON serialization
 TEST_F(RetryTest, RetryPolicyContextJsonSerialization) {
   RetryPolicyContext ctx;

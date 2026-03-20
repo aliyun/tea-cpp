@@ -899,3 +899,86 @@ TEST_F(CoreTest, GetOrDefaultIntValue) {
   EXPECT_EQ(Darabonba::getOrDefault(map, std::string("count"), 0), 42);
   EXPECT_EQ(Darabonba::getOrDefault(map, std::string("missing"), -1), -1);
 }
+
+// ==================== int64_t 超时值测试 ====================
+// 这些测试证明了使用 int64_t 而非 long 的必要性
+// 在 Windows 平台上，long 是 32 位的，无法正确处理大于 INT32_MAX 的超时值
+
+// 测试 ConnectionPoolConfig 的 connection_idle_timeout 支持 int64_t
+TEST_F(CoreTest, ConnectionPoolConfigLargeIdleTimeout) {
+  ConnectionPoolConfig config;
+  // 设置一个大于 INT32_MAX 的值（秒）
+  // INT32_MAX = 2147483647，我们用一个更大的值
+  config.connection_idle_timeout = 3000000000LL;  // 大于 INT32_MAX
+  EXPECT_EQ(config.connection_idle_timeout, 3000000000LL);
+  // 验证这个值远超 INT32_MAX，在 32-bit long 系统上会溢出
+  EXPECT_GT(config.connection_idle_timeout, 2147483647LL);
+}
+
+// 测试 RequestConfig 的 connect_timeout_ms 支持 int64_t
+TEST_F(CoreTest, RequestConfigLargeConnectTimeout) {
+  RequestConfig config;
+  // 设置一个大超时值（毫秒）
+  config.connect_timeout_ms = 2147483648LL;  // INT32_MAX + 1
+  EXPECT_EQ(config.connect_timeout_ms, 2147483648LL);
+  // 验证这个值在 Windows long (32-bit) 上会溢出
+  EXPECT_GT(config.connect_timeout_ms, static_cast<long>(2147483647L));
+}
+
+// 测试 RequestConfig 的 read_timeout_ms 支持 int64_t
+TEST_F(CoreTest, RequestConfigLargeReadTimeout) {
+  RequestConfig config;
+  // 设置一个大超时值（毫秒）- 必须大于 INT32_MAX
+  config.read_timeout_ms = 3000000000LL;  // 大于 INT32_MAX
+  EXPECT_EQ(config.read_timeout_ms, 3000000000LL);
+  // 验证这个值在 Windows long (32-bit) 上会溢出
+  EXPECT_GT(config.read_timeout_ms, 2147483647LL);
+}
+
+// 测试 RequestConfig 所有字段都能正确存储 int64_t 值
+TEST_F(CoreTest, RequestConfigAllTimeoutFields) {
+  RequestConfig config;
+  config.connect_timeout_ms = 300000LL;   // 5 分钟
+  config.read_timeout_ms = 3600000LL;     // 1 小时
+
+  EXPECT_EQ(config.connect_timeout_ms, 300000LL);
+  EXPECT_EQ(config.read_timeout_ms, 3600000LL);
+}
+
+// 测试超时值类型正确性 - 验证是 int64_t
+TEST_F(CoreTest, TimeoutTypeIsInt64) {
+  // 编译时验证类型
+  static_assert(std::is_same<decltype(ConnectionPoolConfig::connection_idle_timeout), int64_t>::value,
+                "connection_idle_timeout should be int64_t");
+  static_assert(std::is_same<decltype(RequestConfig::connect_timeout_ms), int64_t>::value,
+                "connect_timeout_ms should be int64_t");
+  static_assert(std::is_same<decltype(RequestConfig::read_timeout_ms), int64_t>::value,
+                "read_timeout_ms should be int64_t");
+}
+
+// 测试负值超时（边界情况）
+TEST_F(CoreTest, RequestConfigNegativeTimeout) {
+  RequestConfig config;
+  // 虽然 API 不应该接受负值，但类型应该能存储
+  config.connect_timeout_ms = -1;
+  config.read_timeout_ms = -1;
+  EXPECT_EQ(config.connect_timeout_ms, -1LL);
+  EXPECT_EQ(config.read_timeout_ms, -1LL);
+}
+
+// 测试零超时值
+TEST_F(CoreTest, RequestConfigZeroTimeout) {
+  RequestConfig config;
+  config.connect_timeout_ms = 0;
+  config.read_timeout_ms = 0;
+  EXPECT_EQ(config.connect_timeout_ms, 0LL);
+  EXPECT_EQ(config.read_timeout_ms, 0LL);
+}
+
+// 测试默认超时值
+TEST_F(CoreTest, RequestConfigDefaultTimeoutValues) {
+  RequestConfig config;
+  EXPECT_EQ(config.connect_timeout_ms, 5000LL);
+  EXPECT_EQ(config.read_timeout_ms, 0LL);
+  EXPECT_FALSE(config.ignore_ssl);
+}

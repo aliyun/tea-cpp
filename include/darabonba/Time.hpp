@@ -2,6 +2,7 @@
 #define DARABONBA_TIME_H_
 
 #include <chrono>
+#include <cstdint>
 #include <ctime>
 #include <darabonba/String.hpp>
 #include <string>
@@ -27,7 +28,7 @@ public:
     return buf;
   }
 
-  static void sleep(long milliseconds) {
+  static void sleep(int64_t milliseconds) {
     std::this_thread::sleep_for(std::chrono::microseconds(milliseconds));
   }
 
