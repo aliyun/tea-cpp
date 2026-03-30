@@ -69,7 +69,7 @@ public:
   bool fetch();
 
 protected:
-  enum { MAX_SIZE = 6000 };
+  enum { MAX_SIZE = 10 * 1024 * 1024 };  // 10MB, 支持大响应体
 
   /**
    * @brief The maximum size of data stored in the body

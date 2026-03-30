@@ -58,6 +58,7 @@ void setCurlRequestBody(CURL *easyHandle,
     }
 
     if (file != nullptr && !file->empty()) {
+      fileform->setFileField(file);
       part = curl_mime_addpart(mime);
       curl_mime_name(part, fileKey.c_str());
       curl_mime_filename(part, file->getFilename().c_str());
