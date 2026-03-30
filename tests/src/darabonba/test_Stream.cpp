@@ -165,10 +165,8 @@ TEST_F(StreamTest, ToWritableFromString) {
 
 // ==================== readFromFilePath 测试 ====================
 TEST_F(StreamTest, ReadFromFilePathWithNonExistentFile) {
-  auto stream = Stream::readFromFilePath("/non/existent/path/file.txt");
-
-  // 文件不存在，但流对象应该被创建
-  EXPECT_NE(stream, nullptr);
+  // 文件不存在时应抛出异常
+  EXPECT_THROW(Stream::readFromFilePath("/non/existent/path/file.txt"), Darabonba::DaraException);
 }
 
 // ==================== readFromBytes 测试 ====================
