@@ -982,3 +982,315 @@ TEST_F(CoreTest, RequestConfigDefaultTimeoutValues) {
   EXPECT_EQ(config.read_timeout_ms, 10000LL);  // 默认 10 秒
   EXPECT_FALSE(config.ignore_ssl);
 }
+
+// ==================== fromMap 模板函数测试 ====================
+
+// 测试用的 Model 类
+class FromMapTestModel : public Darabonba::Model {
+public:
+  std::shared_ptr<std::string> name_;
+  std::shared_ptr<int32_t> count_;
+  std::shared_ptr<bool> enabled_;
+
+  friend void from_json(const Darabonba::Json& j, FromMapTestModel& obj) {
+    DARABONBA_PTR_FROM_JSON(name, name_);
+    DARABONBA_PTR_FROM_JSON(count, count_);
+    DARABONBA_PTR_FROM_JSON(enabled, enabled_);
+  }
+
+  friend void to_json(Darabonba::Json& j, const FromMapTestModel& obj) {
+    DARABONBA_PTR_TO_JSON(name, name_);
+    DARABONBA_PTR_TO_JSON(count, count_);
+    DARABONBA_PTR_TO_JSON(enabled, enabled_);
+  }
+
+  Json toMap() const override {
+    Json j;
+    to_json(j, *this);
+    return j;
+  }
+
+  void fromMap(const Json& j) override {
+    from_json(j, *this);
+  }
+
+  void validate() const override {}
+  bool empty() const override { return !name_ && !count_ && !enabled_; }
+};
+
+TEST_F(CoreTest, FromMapBasicUsage) {
+  Json j;
+  j["name"] = "test";
+  j["count"] = 42;
+  j["enabled"] = true;
+
+  FromMapTestModel model = Darabonba::fromMap<FromMapTestModel>(j);
+
+  EXPECT_TRUE(model.name_ != nullptr);
+  EXPECT_EQ(*model.name_, "test");
+  EXPECT_TRUE(model.count_ != nullptr);
+  EXPECT_EQ(*model.count_, 42);
+  EXPECT_TRUE(model.enabled_ != nullptr);
+  EXPECT_TRUE(*model.enabled_);
+}
+
+TEST_F(CoreTest, FromMapWithNullValues) {
+  Json j;
+  j["name"] = nullptr;
+  j["count"] = nullptr;
+
+  FromMapTestModel model = Darabonba::fromMap<FromMapTestModel>(j);
+
+  EXPECT_TRUE(model.name_ == nullptr);
+  EXPECT_TRUE(model.count_ == nullptr);
+}
+
+TEST_F(CoreTest, FromMapWithMissingKeys) {
+  Json j;  // 空 JSON
+
+  FromMapTestModel model = Darabonba::fromMap<FromMapTestModel>(j);
+
+  EXPECT_TRUE(model.empty());
+}
+
+TEST_F(CoreTest, FromMapTypeConversionStringToInt) {
+  Json j;
+  j["name"] = "convert_test";
+  j["count"] = "100";  // 字符串形式的数字
+
+  FromMapTestModel model = Darabonba::fromMap<FromMapTestModel>(j);
+
+  EXPECT_TRUE(model.count_ != nullptr);
+  EXPECT_EQ(*model.count_, 100);
+}
+
+TEST_F(CoreTest, FromMapTypeConversionBoolToInt) {
+  Json j;
+  j["count"] = true;  // bool -> int
+
+  FromMapTestModel model = Darabonba::fromMap<FromMapTestModel>(j);
+
+  EXPECT_TRUE(model.count_ != nullptr);
+  EXPECT_EQ(*model.count_, 1);
+}
+
+TEST_F(CoreTest, FromMapTypeConversionIntToString) {
+  Json j;
+  j["name"] = 12345;  // int -> string
+
+  FromMapTestModel model = Darabonba::fromMap<FromMapTestModel>(j);
+
+  EXPECT_TRUE(model.name_ != nullptr);
+  EXPECT_EQ(*model.name_, "12345");
+}
+
+TEST_F(CoreTest, FromMapTypeConversionBoolToString) {
+  Json j;
+  j["name"] = true;  // bool -> string
+
+  FromMapTestModel model = Darabonba::fromMap<FromMapTestModel>(j);
+
+  EXPECT_TRUE(model.name_ != nullptr);
+  EXPECT_EQ(*model.name_, "true");
+}
+
+TEST_F(CoreTest, FromMapTypeConversionStringToBool) {
+  Json j;
+  j["enabled"] = "true";  // string -> bool
+
+  FromMapTestModel model = Darabonba::fromMap<FromMapTestModel>(j);
+
+  EXPECT_TRUE(model.enabled_ != nullptr);
+  EXPECT_TRUE(*model.enabled_);
+
+  j["enabled"] = "FALSE";
+  model = Darabonba::fromMap<FromMapTestModel>(j);
+  EXPECT_FALSE(*model.enabled_);
+
+  j["enabled"] = "1";
+  model = Darabonba::fromMap<FromMapTestModel>(j);
+  EXPECT_TRUE(*model.enabled_);
+}
+
+TEST_F(CoreTest, FromMapNullToInt) {
+  Json j;
+  j["count"] = nullptr;
+
+  FromMapTestModel model = Darabonba::fromMap<FromMapTestModel>(j);
+
+  EXPECT_TRUE(model.count_ == nullptr);
+}
+
+TEST_F(CoreTest, FromMapNullToBool) {
+  Json j;
+  j["enabled"] = nullptr;
+
+  FromMapTestModel model = Darabonba::fromMap<FromMapTestModel>(j);
+
+  EXPECT_TRUE(model.enabled_ == nullptr);
+}
+
+TEST_F(CoreTest, FromMapNullToString) {
+  Json j;
+  j["name"] = nullptr;
+
+  FromMapTestModel model = Darabonba::fromMap<FromMapTestModel>(j);
+
+  EXPECT_TRUE(model.name_ == nullptr);
+}
+
+TEST_F(CoreTest, FromMapFloatToString) {
+  Json j;
+  j["name"] = 3.14;  // float -> string
+
+  FromMapTestModel model = Darabonba::fromMap<FromMapTestModel>(j);
+
+  EXPECT_TRUE(model.name_ != nullptr);
+  // 浮点数转字符串
+  EXPECT_FALSE(model.name_->empty());
+}
+
+TEST_F(CoreTest, FromMapIntToBool) {
+  Json j;
+  j["enabled"] = 1;  // int -> bool
+
+  FromMapTestModel model = Darabonba::fromMap<FromMapTestModel>(j);
+  EXPECT_TRUE(*model.enabled_);
+
+  j["enabled"] = 0;
+  model = Darabonba::fromMap<FromMapTestModel>(j);
+  EXPECT_FALSE(*model.enabled_);
+}
+
+// ==================== safe_convert 详细测试 ====================
+
+TEST_F(CoreTest, SafeConvertStringToString) {
+  Json j = "hello";
+  std::string result = Darabonba::detail::safe_convert<std::string>(j);
+  EXPECT_EQ(result, "hello");
+}
+
+TEST_F(CoreTest, SafeConvertIntToString) {
+  Json j = 42;
+  std::string result = Darabonba::detail::safe_convert<std::string>(j);
+  EXPECT_EQ(result, "42");
+}
+
+TEST_F(CoreTest, SafeConvertBoolToString) {
+  Json j = true;
+  std::string result = Darabonba::detail::safe_convert<std::string>(j);
+  EXPECT_EQ(result, "true");
+
+  j = false;
+  result = Darabonba::detail::safe_convert<std::string>(j);
+  EXPECT_EQ(result, "false");
+}
+
+TEST_F(CoreTest, SafeConvertNullToString) {
+  Json j = nullptr;
+  std::string result = Darabonba::detail::safe_convert<std::string>(j);
+  EXPECT_EQ(result, "");
+}
+
+TEST_F(CoreTest, SafeConvertStringToInt32) {
+  Json j = "123";
+  int32_t result = Darabonba::detail::safe_convert<int32_t>(j);
+  EXPECT_EQ(result, 123);
+}
+
+TEST_F(CoreTest, SafeConvertBoolToInt32) {
+  Json j = true;
+  int32_t result = Darabonba::detail::safe_convert<int32_t>(j);
+  EXPECT_EQ(result, 1);
+
+  j = false;
+  result = Darabonba::detail::safe_convert<int32_t>(j);
+  EXPECT_EQ(result, 0);
+}
+
+TEST_F(CoreTest, SafeConvertNullToInt32) {
+  Json j = nullptr;
+  int32_t result = Darabonba::detail::safe_convert<int32_t>(j);
+  EXPECT_EQ(result, 0);
+}
+
+TEST_F(CoreTest, SafeConvertStringToInt64) {
+  Json j = "9223372036854775807";  // INT64_MAX
+  int64_t result = Darabonba::detail::safe_convert<int64_t>(j);
+  EXPECT_EQ(result, INT64_MAX);
+}
+
+TEST_F(CoreTest, SafeConvertBoolToInt64) {
+  Json j = true;
+  int64_t result = Darabonba::detail::safe_convert<int64_t>(j);
+  EXPECT_EQ(result, 1);
+}
+
+TEST_F(CoreTest, SafeConvertNullToInt64) {
+  Json j = nullptr;
+  int64_t result = Darabonba::detail::safe_convert<int64_t>(j);
+  EXPECT_EQ(result, 0);
+}
+
+TEST_F(CoreTest, SafeConvertStringToBool) {
+  Json j = "true";
+  bool result = Darabonba::detail::safe_convert<bool>(j);
+  EXPECT_TRUE(result);
+
+  j = "TRUE";
+  result = Darabonba::detail::safe_convert<bool>(j);
+  EXPECT_TRUE(result);
+
+  j = "1";
+  result = Darabonba::detail::safe_convert<bool>(j);
+  EXPECT_TRUE(result);
+
+  j = "false";
+  result = Darabonba::detail::safe_convert<bool>(j);
+  EXPECT_FALSE(result);
+
+  j = "0";
+  result = Darabonba::detail::safe_convert<bool>(j);
+  EXPECT_FALSE(result);
+
+  j = "anything";
+  result = Darabonba::detail::safe_convert<bool>(j);
+  EXPECT_FALSE(result);
+}
+
+TEST_F(CoreTest, SafeConvertIntToBool) {
+  Json j = 1;
+  bool result = Darabonba::detail::safe_convert<bool>(j);
+  EXPECT_TRUE(result);
+
+  j = 0;
+  result = Darabonba::detail::safe_convert<bool>(j);
+  EXPECT_FALSE(result);
+
+  j = -1;
+  result = Darabonba::detail::safe_convert<bool>(j);
+  EXPECT_TRUE(result);  // 非0即为true
+}
+
+TEST_F(CoreTest, SafeConvertNullToBool) {
+  Json j = nullptr;
+  bool result = Darabonba::detail::safe_convert<bool>(j);
+  EXPECT_FALSE(result);
+}
+
+TEST_F(CoreTest, SafeConvertInvalidStringToInt32Throws) {
+  Json j = "not_a_number";
+  EXPECT_THROW(Darabonba::detail::safe_convert<int32_t>(j), std::runtime_error);
+}
+
+TEST_F(CoreTest, SafeConvertInvalidStringToInt64Throws) {
+  Json j = "not_a_number";
+  EXPECT_THROW(Darabonba::detail::safe_convert<int64_t>(j), std::runtime_error);
+}
+
+TEST_F(CoreTest, SafeConvertObjectToString) {
+  Json j = {{"key", "value"}};
+  std::string result = Darabonba::detail::safe_convert<std::string>(j);
+  // 对象转字符串应该返回 JSON dump
+  EXPECT_FALSE(result.empty());
+}

@@ -360,6 +360,14 @@ public:
   inline RuntimeOptions &setRetryOptions(RetryOptions &&retryOptions) {
     DARABONBA_PTR_SET_RVALUE(retryOptions_, retryOptions)
   };
+  
+  inline RuntimeOptions &setMaxIdleConns(string maxIdleConns) {
+    this->maxIdleConns_ = maxIdleConns;
+    return *this;
+  };
+  inline string getMaxIdleConns() const {
+    return this->maxIdleConns_;
+  };
 
 protected:
   // whether to try again
@@ -404,6 +412,8 @@ protected:
   std::shared_ptr<ExtendsParameters> extendsParameters_ = nullptr;
   // Extends Parameters
   std::shared_ptr<RetryOptions> retryOptions_ = nullptr;
+  // Declare MaxIdleConns
+  std::string maxIdleConns_;
 };
 
 } // namespace Darabonba

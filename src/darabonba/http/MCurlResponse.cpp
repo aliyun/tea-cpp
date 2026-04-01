@@ -22,7 +22,7 @@ void MCurlResponseBody::waitForDone() {
   easyHandle_ = nullptr;
 }
 
-size_t MCurlResponseBody::read(char *buffer, size_t expectSize) {
+  size_t MCurlResponseBody::read(char *buffer, size_t expectSize) {
   if (done_ && readableSize_ == 0)
     return 0;
   size_t realSize = 0;
@@ -42,7 +42,7 @@ size_t MCurlResponseBody::read(char *buffer, size_t expectSize) {
       easyHandle_ = nullptr;
       return 0;
     }
-    // blocking wait
+    
     fetch();
     std::unique_lock<std::mutex> lock(streamMutex_);
     streamCV_.wait(
@@ -51,7 +51,7 @@ size_t MCurlResponseBody::read(char *buffer, size_t expectSize) {
 
   return realSize;
 }
-
+  
 bool MCurlResponseBody::fetch() {
   if (!easyHandle_ || !client_)
     return false;
@@ -60,11 +60,10 @@ bool MCurlResponseBody::fetch() {
 }
 
 size_t MCurlResponseBody::write(char *buffer, size_t expectSize) {
-  {
-    std::lock_guard<Lock::SpinLock> lock(bufferlock_);
-    buffer_.write(buffer, expectSize);
-  }
+  std::lock_guard<Lock::SpinLock> lock(bufferlock_);
+  buffer_.write(buffer, expectSize);
   readableSize_ += expectSize;
+  streamCV_.notify_one();  // 通知等待的消费者线程
   return expectSize;
 }
 

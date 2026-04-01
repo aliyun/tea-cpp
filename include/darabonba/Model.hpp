@@ -4,6 +4,150 @@
 #include <darabonba/Type.hpp>
 #include <regex>
 #include <type_traits>
+#include <sstream>
+#include <limits>
+#include <cstdint>
+
+namespace Darabonba {
+namespace detail {
+
+// ========== 通用模板（适用于所有复杂类型）==========
+template <typename T>
+inline T safe_convert(const Json& j) {
+  // 对于复杂类型，直接使用 get<T>()
+  // 如果类型不匹配，让 nlohmann::json 抛出异常
+  return j.template get<T>();
+}
+
+// ========== std::string 特化版本 ==========
+template <>
+inline std::string safe_convert<std::string>(const Json& j) {
+  // Fast path: 类型匹配时直接返回
+  try {
+    return j.get<std::string>();
+  } catch (...) {
+    // 继续尝试类型转换
+  }
+  
+  // Null 处理
+  if (j.is_null()) {
+    return "";
+  }
+  
+  // int -> string
+  if (j.is_number_integer()) {
+    return std::to_string(j.get<long long>());
+  }
+  
+  // float -> string
+  if (j.is_number_float()) {
+    double val = j.get<double>();
+    if (val == static_cast<long long>(val)) {
+      return std::to_string(static_cast<long long>(val));
+    } else {
+      return std::to_string(val);
+    }
+  }
+  
+  // bool -> string
+  if (j.is_boolean()) {
+    return j.get<bool>() ? "true" : "false";
+  }
+  
+  // 其他类型 -> string
+  return j.dump();
+}
+
+// ========== int32_t 特化版本 ==========
+template <>
+inline int32_t safe_convert<int32_t>(const Json& j) {
+  // Fast path
+  try {
+    return j.get<int32_t>();
+  } catch (...) {
+    // 继续尝试类型转换
+  }
+  
+  // Null 处理
+  if (j.is_null()) {
+    return 0;
+  }
+  
+  // string -> int32
+  if (j.is_string()) {
+    try {
+      std::string str = j.get<std::string>();
+      long long val = std::stoll(str);
+      if (val < INT32_MIN || val > INT32_MAX) {
+        throw std::out_of_range("Value out of int32 range");
+      }
+      return static_cast<int32_t>(val);
+    } catch (...) {
+      throw std::runtime_error("Cannot convert string to int32");
+    }
+  }
+  
+  // bool -> int32
+  if (j.is_boolean()) {
+    return j.get<bool>() ? 1 : 0;
+  }
+  
+  throw std::runtime_error("Cannot convert JSON value to int32");
+}
+
+// ========== int64_t 特化版本 ==========
+template <>
+inline int64_t safe_convert<int64_t>(const Json& j) {
+  try {
+    return j.get<int64_t>();
+  } catch (...) {}
+  
+  if (j.is_null()) {
+    return 0;
+  }
+  
+  if (j.is_string()) {
+    try {
+      return std::stoll(j.get<std::string>());
+    } catch (...) {
+      throw std::runtime_error("Cannot convert string to int64");
+    }
+  }
+  
+  if (j.is_boolean()) {
+    return j.get<bool>() ? 1 : 0;
+  }
+  
+  throw std::runtime_error("Cannot convert JSON value to int64");
+}
+
+// ========== bool 特化版本 ==========
+template <>
+inline bool safe_convert<bool>(const Json& j) {
+  try {
+    return j.get<bool>();
+  } catch (...) {}
+  
+  if (j.is_null()) {
+    return false;
+  }
+  
+  // string -> bool
+  if (j.is_string()) {
+    std::string str = j.get<std::string>();
+    return (str == "true" || str == "TRUE" || str == "1");
+  }
+  
+  // int -> bool
+  if (j.is_number()) {
+    return j.get<long long>() != 0;
+  }
+  
+  throw std::runtime_error("Cannot convert JSON value to bool");
+}
+
+} // namespace detail
+} // namespace Darabonba
 
 #define DARABONBA_PTR_TO_JSON(key, attr)                                       \
   if (obj.attr) {                                                              \
@@ -23,7 +167,8 @@
       obj.attr = nullptr;                                                      \
     } else {                                                                   \
       using Type = std::remove_reference<decltype(*obj.attr)>::type;           \
-      obj.attr = std::make_shared<Type>(j[#key].template get<Type>());         \
+      obj.attr = std::make_shared<Type>(                                       \
+          Darabonba::detail::safe_convert<Type>(j[#key]));                     \
     }                                                                          \
   }
 
@@ -37,8 +182,8 @@
     if (j[#key].is_null()) {                                                   \
       obj.attr = decltype(obj.attr)();                                         \
     } else {                                                                   \
-      obj.attr =                                                               \
-          j[#key].get<std::remove_reference<decltype(obj.attr)>::type>();      \
+      using Type = std::remove_reference<decltype(obj.attr)>::type;            \
+      obj.attr = Darabonba::detail::safe_convert<Type>(j[#key]);               \
     }                                                                          \
   }
 

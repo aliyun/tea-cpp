@@ -177,6 +177,30 @@ template <typename K, typename V> inline V getOrDefault(const std::map<K, V> &m,
 
 Json defaultVal(const Json &a, const Json &b);
 
+/**
+ * @brief Deserialize a JSON object to a Model-derived type
+ * 
+ * This is a convenience function that wraps the common pattern of
+ * converting a Json object to a strongly-typed Response/Model object.
+ * 
+ * Usage example:
+ * @code{.cpp}
+ *   // Instead of:
+ *   return Json(callApi(params, req, runtime)).get<CreateInstanceResponse>();
+ *   
+ *   // You can write:
+ *   return Darabonba::fromMap<CreateInstanceResponse>(callApi(params, req, runtime));
+ * @endcode
+ * 
+ * @tparam T The target type (must have from_json friend function defined)
+ * @param j The JSON object to deserialize
+ * @return Deserialized object of type T
+ */
+template <typename T>
+inline T fromMap(const Json &j) {
+  return j.template get<T>();
+}
+
 bool shouldRetry(const Policy::RetryOptions &options,
                  const Policy::RetryPolicyContext &ctx);
 int getBackoffTime(const Policy::RetryOptions &options,

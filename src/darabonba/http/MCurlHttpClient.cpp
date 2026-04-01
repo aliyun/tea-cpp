@@ -201,11 +201,8 @@ void MCurlHttpClient::perform() {
         auto curlStorage = std::move(it->second);
         runningCurl_.erase(it);
 
-        // Null check before accessing curlStorage
-        if (!curlStorage || !curlStorage->promise) {
-          if (nullptr != getenv("DEBUG")) {
-            std::cerr << "[DEBUG perform] Invalid curlStorage or promise for handle" << std::endl;
-          }
+        // Null check - but we still need to set done_ and notify even if promise is null
+        if (!curlStorage) {
           curl_multi_remove_handle(mCurl_, easyHandle);
           curl_easy_cleanup(easyHandle);
           continue;
@@ -213,14 +210,12 @@ void MCurlHttpClient::perform() {
 
         CURLcode curlResult = msg->data.result;
         if (curlResult != CURLE_OK) {
-          if (nullptr != getenv("DEBUG")) {
-            std::cerr << "[DEBUG perform] Curl error: " << curl_easy_strerror(curlResult)
-                      << " (code: " << curlResult << ")" << std::endl;
+          if (curlStorage->promise) {
+            curlStorage->promise->set_exception(
+                std::make_exception_ptr(Darabonba::ResponseException(
+                    "NetworkError",
+                    std::string("Curl error: ") + curl_easy_strerror(curlResult))));
           }
-          curlStorage->promise->set_exception(
-              std::make_exception_ptr(Darabonba::ResponseException(
-                  "NetworkError",
-                  std::string("Curl error: ") + curl_easy_strerror(curlResult))));
         } else {
           auto body = dynamic_cast<MCurlResponseBody *>(
               curlStorage->resp->getBody().get());
@@ -229,7 +224,13 @@ void MCurlHttpClient::perform() {
               setResponseReady(curlStorage.get());
             }
             body->done_ = true;
+            body->streamCV_.notify_one();
             body->doneCV_.notify_one();
+          } else {
+            // This should never happen - log as error if DEBUG is enabled
+            if (nullptr != getenv("DEBUG")) {
+              std::cerr << "[ERROR perform] Response body is null!" << std::endl;
+            }
           }
         }
 
@@ -370,9 +371,6 @@ size_t MCurlHttpClient::recvBody(char *buffer, size_t size, size_t nmemb,
   }
   auto expectSize = size * nmemb;
   auto realSize = body->write(buffer, expectSize);
-  body->readableSize_ += realSize;
-  body->streamCV_.notify_one();
-
   if (!body->getReady()) {
     setResponseReady(curlStorage);
   }
