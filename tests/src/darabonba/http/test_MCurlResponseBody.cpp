@@ -151,8 +151,8 @@ TEST_F(MCurlResponseBodyTest, ConcurrentWriteAndRead) {
 // 测试多次 write 正确更新 readableSize
 TEST_F(MCurlResponseBodyTest, ConcurrentMultipleWrites) {
   TestableMCurlResponseBody body;
-  const int numWriters = 3;
-  const int writesPerThread = 10;
+  static constexpr int numWriters = 3;
+  static constexpr int writesPerThread = 10;
   std::vector<std::thread> writers;
   std::atomic<int> totalWritten{0};
 
@@ -279,7 +279,7 @@ TEST_F(MCurlResponseBodyTest, StressTestReadWrite) {
       char data[10];
       snprintf(data, sizeof(data), "msg%03d", i);
       body.write(data, strlen(data));
-      totalWritten += strlen(data);
+      totalWritten += static_cast<int>(strlen(data));
     }
     doneWriting = true;
     body.done_ = true;
@@ -294,7 +294,7 @@ TEST_F(MCurlResponseBodyTest, StressTestReadWrite) {
       if (bytesRead == 0 && body.getDone()) {
         break;
       }
-      totalRead += bytesRead;
+      totalRead += static_cast<int>(bytesRead);
     }
   });
 

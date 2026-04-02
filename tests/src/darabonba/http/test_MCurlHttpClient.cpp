@@ -224,7 +224,7 @@ TEST_F(MCurlHttpClientTest, MakeRequestWithInvalidUrl) {
       auto response = future.get();
     }, std::exception);
 
-  } catch (const std::exception& e) {
+  } catch (const std::exception&) {
     // 预期会抛出异常
   }
 
@@ -356,7 +356,7 @@ TEST_F(MCurlHttpClientTest, EmptyRequestHandling) {
       }, std::exception);
     }
 
-  } catch (const std::exception& e) {
+  } catch (const std::exception&) {
     // 预期会抛出异常
   }
 
