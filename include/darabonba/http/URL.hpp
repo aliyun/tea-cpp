@@ -11,9 +11,6 @@
 namespace Darabonba {
 namespace Http {
 
-/**
- * URL class with encoding utilities aligned with tea-python's Url class
- */
 class URL {
 public:
   explicit URL(const std::string &);
@@ -21,7 +18,6 @@ public:
   URL() = default;
 
   /**
-   * Parse a URL string and create a URL object (aligned with tea-python)
    * @param urlStr The URL string to parse
    * @return URL object
    */
@@ -29,12 +25,6 @@ public:
     return URL(urlStr);
   }
 
-  /**
-   * URL encode a string (aligned with tea-python's url_encode)
-   * Encodes each path segment separately, preserving '/' characters
-   * @param urlStr The string to encode
-   * @return URL encoded string
-   */
   static std::string urlEncode(const std::string &urlStr) {
     if (urlStr.empty()) {
       return "";
@@ -59,11 +49,6 @@ public:
     return result;
   }
 
-  /**
-   * Percent encode a URI string (aligned with tea-python's percent_encode)
-   * @param uri The URI string to encode
-   * @return Percent encoded string
-   */
   static std::string percentEncode(const std::string &uri) {
     if (uri.empty()) {
       return "";
@@ -83,7 +68,6 @@ public:
     }
 
     std::string result = encoded.str();
-    // Apply tea-python specific replacements
     // Replace %2B with %20 (space), keep %2A as is, replace %7E with ~
     size_t pos = 0;
     while ((pos = result.find("%7E", pos)) != std::string::npos) {
@@ -93,12 +77,6 @@ public:
     return result;
   }
 
-  /**
-   * Path encode a path string (aligned with tea-python's path_encode)
-   * Similar to urlEncode but specifically for paths
-   * @param path The path string to encode
-   * @return Path encoded string
-   */
   static std::string pathEncode(const std::string &path) {
     if (path.empty() || path == "/") {
       return path;

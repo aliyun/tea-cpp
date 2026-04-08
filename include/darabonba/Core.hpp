@@ -1,6 +1,7 @@
 #ifndef DARABONBA_CORE_H_
 #define DARABONBA_CORE_H_
 
+#include <cstdint>
 #include <darabonba/Runtime.hpp>
 #include <darabonba/Type.hpp>
 #include <darabonba/http/MCurlResponse.hpp>
@@ -30,17 +31,19 @@ class MCurlHttpClient;
  */
 struct ConnectionPoolConfig {
   std::string host;
-  size_t max_connections = 5;        // Maximum connections in pool
-  long connection_idle_timeout = 300L; // Connection idle timeout (seconds)
+  size_t max_connections = 128;        // Maximum total connections (CURLMOPT_MAX_TOTAL_CONNECTIONS)
+  int64_t connection_idle_timeout = 30L;  // Connection idle timeout (seconds), curl default is 118s
   bool pipelining = false;           // Enable HTTP pipelining
-  size_t max_host_connections = 2;   // Max connections per host
-  
+  size_t max_host_connections = 128;   // Max connections per host (CURLMOPT_MAX_HOST_CONNECTIONS)
+  bool keep_alive = true;            // Enable TCP keep-alive
+
   // Compare operator for map keys
   bool operator<(const ConnectionPoolConfig& other) const {
     if (host != other.host) return host < other.host;
     if (max_connections != other.max_connections) return max_connections < other.max_connections;
     if (connection_idle_timeout != other.connection_idle_timeout) return connection_idle_timeout < other.connection_idle_timeout;
     if (pipelining != other.pipelining) return pipelining < other.pipelining;
+    if (keep_alive != other.keep_alive) return keep_alive < other.keep_alive;
     return max_host_connections < other.max_host_connections;
   }
 };
@@ -50,8 +53,8 @@ struct ConnectionPoolConfig {
  * Applied per individual request
  */
 struct RequestConfig {
-  long connect_timeout_ms = 5000L;   // Per-request connection timeout
-  long read_timeout_ms = 0L;         // Per-request read timeout
+  int64_t connect_timeout_ms = 5000L;   // Per-request connection timeout
+  int64_t read_timeout_ms = 10000L;         // Per-request read timeout
   bool ignore_ssl = false;           // Per-request SSL verification
   std::string http_proxy;            // Per-request proxy
   std::string https_proxy;           // Per-request HTTPS proxy
@@ -115,10 +118,91 @@ template <> inline bool isNull<std::nullptr_t>(const std::nullptr_t &) {
   return true;
 }
 
+// std::string 的特化：空字符串视为 null
+template <> inline bool isNull<std::string>(const std::string &str) {
+  return str.empty();
+}
+
+// std::shared_ptr 的特化：空指针视为 null
+template <typename T> inline bool isNull(const std::shared_ptr<T> &ptr) {
+  return ptr == nullptr;
+}
+
+// 容器类型特化：空容器视为 null
+// std::map
+template <typename K, typename V> inline bool isNull(const std::map<K, V> &m) {
+  return m.empty();
+}
+
+// std::vector
+template <typename T> inline bool isNull(const std::vector<T> &v) {
+  return v.empty();
+}
+
+/**
+ * @brief Safe map access - check if key exists and value is not null
+ * @param m The map to search
+ * @param key The key to look for
+ * @return true if key exists and value is not null (not empty string for string values)
+ */
+template <typename K, typename V> inline bool hasValue(const std::map<K, V> &m, const K &key) {
+  auto it = m.find(key);
+  return it != m.end() && !isNull(it->second);
+}
+
+/**
+ * @brief Check if map key is null (key not exists or value is null)
+ * @param m The map to search
+ * @param key The key to look for
+ * @return true if key not exists OR value is null (consistent with isNull(value) semantics)
+ * 
+ * Usage: isNull(map, key) instead of isNull(map[key]) which fails on const map
+ */
+template <typename K, typename V> inline bool isNull(const std::map<K, V> &m, const K &key) {
+  auto it = m.find(key);
+  return it == m.end() || isNull(it->second);
+}
+
+/**
+ * @brief Safe map get - returns value or default if key not found
+ * @param m The map to search
+ * @param key The key to look for
+ * @param defaultValue The value to return if key not found
+ * @return The value if key exists, otherwise defaultValue
+ */
+template <typename K, typename V> inline V getOrDefault(const std::map<K, V> &m, const K &key, const V &defaultValue) {
+  auto it = m.find(key);
+  return (it != m.end()) ? it->second : defaultValue;
+}
+
 Json defaultVal(const Json &a, const Json &b);
 
-bool allowRetry(const Policy::RetryOptions &options,
-                const Policy::RetryPolicyContext &ctx);
+/**
+ * @brief Deserialize a JSON object to a Model-derived type
+ * 
+ * This is a convenience function that wraps the common pattern of
+ * converting a Json object to a strongly-typed Response/Model object.
+ * 
+ * Usage example:
+ * @code{.cpp}
+ *   // Instead of:
+ *   return Json(callApi(params, req, runtime)).get<CreateInstanceResponse>();
+ *   
+ *   // You can write:
+ *   return Darabonba::fromMap<CreateInstanceResponse>(callApi(params, req, runtime));
+ * @endcode
+ * 
+ * @tparam T The target type (must have from_json friend function defined)
+ * @param j The JSON object to deserialize
+ * @return Deserialized object of type T
+ */
+template <typename T>
+inline T fromMap(const Json &j) {
+  return j.template get<T>();
+}
+
+bool shouldRetry(const Policy::RetryOptions &options,
+                 const Policy::RetryPolicyContext &ctx);
 int getBackoffTime(const Policy::RetryOptions &options,
                    const Policy::RetryPolicyContext &ctx);
 

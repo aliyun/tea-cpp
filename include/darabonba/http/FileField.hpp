@@ -102,6 +102,13 @@ public:
 
   virtual ~FileFormStream() { curl_mime_free(mime_); }
 
+  // Store FileField to keep it alive during curl request
+  void setFileField(std::shared_ptr<FileField> fileField) {
+    fileField_ = std::move(fileField);
+  }
+
+  std::shared_ptr<FileField> getFileField() const { return fileField_; }
+
   /**
    * @note This is a specail IStream class whose read method is implemented by
    * libcurl
@@ -191,6 +198,7 @@ protected:
   size_t index_ = 0;
   bool streaming_ = false;
   std::shared_ptr<IStream> streamingStream_ = nullptr;
+  std::shared_ptr<FileField> fileField_ = nullptr;
 };
 
 } // namespace Http

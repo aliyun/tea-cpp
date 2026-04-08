@@ -40,7 +40,8 @@ struct SDKState {
   std::atomic<bool> initialized{false};
   std::mutex mutex;
   // One HTTP client per host (scheme + host + port as key)
-  std::map<std::string, std::unique_ptr<Http::MCurlHttpClient>> http_clients;
+  // Using shared_ptr to allow releasing the lock before calling makeRequest
+  std::map<std::string, std::shared_ptr<Http::MCurlHttpClient>> http_clients;
 };
 
 SDKState& GetSDKState() {
@@ -62,6 +63,9 @@ void EnsureInitialized() {
 }
 
 // Helper to extract connection pool config from request
+// Note: maxIdleConns and keepAlive are pool-level settings that should only be
+// configured at the Config level, not in RuntimeOptions. The values here come
+// from Client's Config, passed through the runtime JSON by the Client.
 ConnectionPoolConfig getConnectionPoolConfig(Http::Request &request,
                                              const Darabonba::Json &runtime) {
   ConnectionPoolConfig config;
@@ -79,21 +83,17 @@ ConnectionPoolConfig getConnectionPoolConfig(Http::Request &request,
     }
   }
 
-  // Extract connection pool configuration from runtime options if present
+  // Read connection pool settings from runtime (these are Config-level values
+  // passed by Client, not per-request RuntimeOptions)
   if (!runtime.is_null()) {
     if (runtime.contains("maxConnections")) {
-      config.max_connections = runtime["maxConnections"].get<size_t>();
+      config.max_connections = static_cast<size_t>(runtime["maxConnections"].get<int64_t>());
     }
-    if (runtime.contains("connectionIdleTimeout")) {
-      config.connection_idle_timeout =
-          runtime["connectionIdleTimeout"].get<long>();
-    }
-    if (runtime.contains("pipelining")) {
-      config.pipelining = runtime["pipelining"].get<bool>();
+    if (runtime.contains("keepAlive")) {
+      config.keep_alive = runtime["keepAlive"].get<bool>();
     }
     if (runtime.contains("maxHostConnections")) {
-      config.max_host_connections =
-          runtime["maxHostConnections"].get<size_t>();
+      config.max_host_connections = static_cast<size_t>(runtime["maxHostConnections"].get<int64_t>());
     }
   }
 
@@ -194,26 +194,35 @@ Core::doAction(Http::Request &request, const Darabonba::Json &runtime) {
   }
   std::string hostKey = url.getHost();
 
-  std::lock_guard<std::mutex> lock(state.mutex);
-
-  // Extract connection pool configuration from runtime
-  ConnectionPoolConfig pool_config = getConnectionPoolConfig(request, runtime);
-
-  // Extract request-level configuration from runtime
+  // Extract request-level configuration from runtime (no lock needed)
   RequestConfig request_config = getRequestConfig(runtime);
 
-  // Check if we have a client for this host
-  auto it = state.http_clients.find(hostKey);
-  if (it == state.http_clients.end()) {
-    // Create new client for this host
-    auto newClient =
-        std::unique_ptr<Http::MCurlHttpClient>(new Http::MCurlHttpClient());
-    // TODO: Apply connection pool settings to the client using pool_config
-    newClient->start();
-    it = state.http_clients.insert({hostKey, std::move(newClient)}).first;
-  }
+  // Acquire lock only for client lookup/creation, release before makeRequest
+  std::shared_ptr<Http::MCurlHttpClient> client;
+  {
+    std::lock_guard<std::mutex> lock(state.mutex);
 
-  // Pass request-level configuration to be applied per-request
+    // Extract connection pool configuration from runtime
+    ConnectionPoolConfig pool_config = getConnectionPoolConfig(request, runtime);
+
+    // Check if we have a client for this host
+    auto it = state.http_clients.find(hostKey);
+    if (it == state.http_clients.end()) {
+      // Create new client for this host
+      auto newClient = std::make_shared<Http::MCurlHttpClient>();
+      // Apply connection pool settings to the client
+      newClient->setConnectionPoolConfig(pool_config);
+      newClient->start();
+      state.http_clients[hostKey] = newClient;
+      client = std::move(newClient);
+    } else {
+      // Update connection pool settings for existing client (thread-safe)
+      it->second->setConnectionPoolConfig(pool_config);
+      client = it->second;
+    }
+  } // lock released here
+
+  // Build request-level runtime options (outside lock)
   Darabonba::Json request_runtime = Darabonba::Json::object();
   request_runtime["connectTimeout"] = request_config.connect_timeout_ms;
   request_runtime["readTimeout"] = request_config.read_timeout_ms;
@@ -222,7 +231,9 @@ Core::doAction(Http::Request &request, const Darabonba::Json &runtime) {
   request_runtime["httpsProxy"] = request_config.https_proxy;
   request_runtime["noProxy"] = request_config.no_proxy;
 
-  return it->second->makeRequest(request, request_runtime);
+  // makeRequest is now called without holding the global lock,
+  // allowing concurrent requests to different hosts
+  return client->makeRequest(request, request_runtime);
 }
 
 // Function to clear specific client configuration by ConnectionPoolConfig
@@ -239,9 +250,17 @@ void Core::ClearHttpClient(const ConnectionPoolConfig &config) {
 // Function to clear all clients
 void Core::ClearAllHttpClients() {
   auto &state = GetSDKState();
-  std::lock_guard<std::mutex> lock(state.mutex);
-
-  state.http_clients.clear();
+  
+  // Move clients out of the map while holding the lock
+  // After move, state.http_clients is guaranteed to be empty (C++11 standard)
+  std::map<std::string, std::shared_ptr<Http::MCurlHttpClient>> clients;
+  {
+    std::lock_guard<std::mutex> lock(state.mutex);
+    clients = std::move(state.http_clients);
+  }
+  // Lock released here - clients will be destroyed outside the lock
+  // Each MCurlHttpClient destructor will call stop() and wait for the
+  // perform thread to finish, ensuring safe shutdown
 }
 
 // Function to get client count
@@ -252,7 +271,7 @@ size_t Core::GetHttpClientCount() {
   return state.http_clients.size();
 }
 
-bool allowRetry(const RetryOptions &options, const RetryPolicyContext &ctx) {
+bool shouldRetry(const RetryOptions &options, const RetryPolicyContext &ctx) {
   if (ctx.getRetriesAttempted() == 0) {
     return true;
   }

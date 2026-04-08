@@ -1,5 +1,6 @@
 #include <darabonba/Time.hpp>
 #include <chrono>
+#include <cstdint>
 #include <gtest/gtest.h>
 #include <regex>
 
@@ -10,7 +11,7 @@ TEST(Darabonba_Time, unixReturnsTimestamp) {
   std::string ts = Time::unix();
   EXPECT_FALSE(ts.empty());
   // 应该是一个正整数
-  long val = std::stol(ts);
+  int64_t val = std::stoll(ts);
   EXPECT_GT(val, 1000000000L); // 大于 2001-09-09
 }
 
@@ -19,7 +20,7 @@ TEST(Darabonba_Time, unixIsReasonable) {
   auto epoch = std::chrono::duration_cast<std::chrono::seconds>(
                    now.time_since_epoch())
                    .count();
-  long ts = std::stol(Time::unix());
+  int64_t ts = std::stoll(Time::unix());
   // 应该跟当前时间相差不超过 2 秒
   EXPECT_LE(std::abs(ts - epoch), 2);
 }

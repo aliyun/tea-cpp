@@ -15,7 +15,6 @@ namespace Policy {
 class RetryPolicyContext;
 }
 
-// DaraException Class - Base exception class aligned with tea-python
 class DaraException : public std::exception {
 public:
   DaraException() = default;
@@ -27,7 +26,6 @@ public:
 
   DaraException(std::string &&msg) : message_(std::move(msg)) {}
 
-  // Dictionary-style initialization (aligned with tea-python)
   explicit DaraException(const Darabonba::Json &dic) {
     name_ = "DaraException";
     if (dic.contains("code") && !dic["code"].is_null()) {
@@ -99,7 +97,6 @@ public:
 
   virtual const char *what() const noexcept override { return message_.c_str(); }
 
-  // Getters for each field (aligned with tea-python)
   const std::string &getMessage() const { return message_; }
   const std::string &getName() const { return name_; }
   const std::string &getCode() const { return code_; }
@@ -118,7 +115,6 @@ public:
   void setStatusCode(int64_t statusCode) { statusCode_ = statusCode; }
   void setRetryAfter(int32_t retryAfter) { retryAfter_ = retryAfter; }
 
-  // String representation (aligned with tea-python)
   virtual std::string toString() const {
     return "Error: " + code_ + " " + message_ + " Response: " + data_.dump();
   }
@@ -153,14 +149,12 @@ public:
   ValidateException &operator=(ValidateException &&) = default;
 };
 
-// ResponseException Class (aligned with tea-python)
 class ResponseException : public DaraException {
 public:
   ResponseException();
   ResponseException(const ResponseException &) = default;
   ResponseException(ResponseException &&) = default;
   
-  // Constructor with individual parameters (aligned with tea-python)
   ResponseException(
       const std::string &code,
       const std::string &message,
@@ -185,7 +179,6 @@ public:
     stack_ = stack;
   }
 
-  // Dictionary-style initialization (aligned with tea-python)
   ResponseException(const Darabonba::Json &obj) : DaraException(obj) {
     name_ = "ResponseException";
     if (obj.contains("statusCode") && !obj["statusCode"].is_null()) {
@@ -219,7 +212,6 @@ public:
   void setStack(const std::string &stack) { stack_ = stack; }
   void setStatusMessage(const std::string &statusMessage) { statusMessage_ = statusMessage; }
 
-  // String representation (aligned with tea-python)
   std::string toString() const override {
     return "Error: " + code_ + " " + message_ + " Response: " + data_.dump();
   }
@@ -257,7 +249,6 @@ private:
   mutable std::string msg_;  // Cached message for what()
 };
 
-// RequiredArgumentException Class (aligned with tea-python)
 class RequiredArgumentException : public DaraException {
 public:
   explicit RequiredArgumentException(const std::string &arg);
@@ -274,7 +265,6 @@ private:
   std::string arg_;
 };
 
-// RetryError Class (aligned with tea-python)
 class RetryError : public std::exception {
 public:
   explicit RetryError(const std::string &message);
@@ -287,7 +277,6 @@ public:
 
   const char *what() const noexcept override;
 
-  // Getters (aligned with tea-python)
   const std::string &getMessage() const { return message_; }
   const std::string &getName() const { return name_; }
   const Darabonba::Json &getData() const { return data_; }
@@ -301,7 +290,6 @@ private:
   Darabonba::Json data_;
 };
 
-// UnretryableException Class (aligned with tea-python)
 class UnretryableException : public DaraException {
 public:
   // Constructor that takes RetryPolicyContext

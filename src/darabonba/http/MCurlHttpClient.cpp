@@ -1,3 +1,4 @@
+#include <darabonba/Exception.hpp>
 #include <darabonba/http/Curl.hpp>
 #include <darabonba/http/MCurlHttpClient.hpp>
 #include <darabonba/http/MCurlResponse.hpp>
@@ -21,6 +22,34 @@ MCurlHttpClient::makeRequest(const Request &request,
     return promise.get_future();
   }
 
+  // Atomically load config to avoid race condition with setConnectionPoolConfig
+  // This ensures we use a consistent snapshot of the configuration
+  auto configPtr = std::atomic_load(&poolConfig_);
+  ConnectionPoolConfig config = configPtr ? *configPtr : ConnectionPoolConfig();
+
+  // Apply connection pool settings to easy handle
+  curl_easy_setopt(easyHandle, CURLOPT_MAXCONNECTS,
+                   static_cast<long>(config.max_connections));
+
+  // Set maximum connection age (curl 7.65.0+)
+  // This limits how long a connection can be reused
+#if LIBCURL_VERSION_NUM >= 0x074100
+  curl_easy_setopt(easyHandle, CURLOPT_MAXAGE_CONN,
+                   config.connection_idle_timeout);
+#endif
+
+  // Apply keep-alive settings
+  if (config.keep_alive) {
+    curl_easy_setopt(easyHandle, CURLOPT_TCP_KEEPALIVE, 1L);
+    curl_easy_setopt(easyHandle, CURLOPT_TCP_KEEPIDLE, 60L);
+    curl_easy_setopt(easyHandle, CURLOPT_TCP_KEEPINTVL, 60L);
+    // Enable HTTP keep-alive
+    curl_easy_setopt(easyHandle, CURLOPT_FORBID_REUSE, 0L);
+  } else {
+    // Disable connection reuse when keepAlive is false
+    curl_easy_setopt(easyHandle, CURLOPT_FORBID_REUSE, 1L);
+  }
+
   if (!options.is_null()) {
     // process the runtime options
     // ssl
@@ -37,7 +66,7 @@ MCurlHttpClient::makeRequest(const Request &request,
     if (connectTimeout > 0) {
       curl_easy_setopt(easyHandle, CURLOPT_CONNECTTIMEOUT_MS, connectTimeout);
     }
-    long readTimeout = options.value("readTimeout", 0L);
+    long readTimeout = options.value("readTimeout", 10000L);
     if (readTimeout > 0) {
       curl_easy_setopt(easyHandle, CURLOPT_TIMEOUT_MS, readTimeout);
     }
@@ -111,6 +140,12 @@ MCurlHttpClient::makeRequest(const Request &request,
 
 void MCurlHttpClient::perform() {
   while (running_) {
+    // Apply config update if needed (before curl_multi_perform)
+    if (configNeedsUpdate_.load()) {
+      applyConnectionPoolSettings();
+      configNeedsUpdate_.store(false);
+    }
+
     if (reqQueueSize_) {
       decltype(reqQueue_) reqQueue;
       {
@@ -154,24 +189,54 @@ void MCurlHttpClient::perform() {
     while ((msg = curl_multi_info_read(mCurl_, &msgs_in_queue)) != nullptr) {
       if (msg->msg == CURLMSG_DONE) {
         auto easyHandle = msg->easy_handle;
-        auto curlStorage = std::move(runningCurl_[easyHandle]);
-        runningCurl_.erase(easyHandle);
 
-        auto body = dynamic_cast<MCurlResponseBody *>(
-            curlStorage->resp->getBody().get());
-        if (body) {
-          if (!body->getReady()) {
-            setResponseReady(curlStorage.get());
+        // Safe lookup - don't use operator[] which creates nullptr entries
+        auto it = runningCurl_.find(easyHandle);
+        if (it == runningCurl_.end()) {
+          // Handle not found - clean up and skip
+          curl_multi_remove_handle(mCurl_, easyHandle);
+          curl_easy_cleanup(easyHandle);
+          continue;
+        }
+        auto curlStorage = std::move(it->second);
+        runningCurl_.erase(it);
+
+        // Null check - but we still need to set done_ and notify even if promise is null
+        if (!curlStorage) {
+          curl_multi_remove_handle(mCurl_, easyHandle);
+          curl_easy_cleanup(easyHandle);
+          continue;
+        }
+
+        CURLcode curlResult = msg->data.result;
+        if (curlResult != CURLE_OK) {
+          if (curlStorage->promise) {
+            curlStorage->promise->set_exception(
+                std::make_exception_ptr(Darabonba::ResponseException(
+                    "NetworkError",
+                    std::string("Curl error: ") + curl_easy_strerror(curlResult))));
           }
-          // response body has been fully received
-          body->done_ = true;
-          body->doneCV_.notify_one();
+        } else {
+          auto body = dynamic_cast<MCurlResponseBody *>(
+              curlStorage->resp->getBody().get());
+          if (body) {
+            if (!body->getReady()) {
+              setResponseReady(curlStorage.get());
+            }
+            body->done_ = true;
+            body->streamCV_.notify_one();
+            body->doneCV_.notify_one();
+          } else {
+            // This should never happen - log as error if DEBUG is enabled
+            if (nullptr != getenv("DEBUG")) {
+              std::cerr << "[ERROR perform] Response body is null!" << std::endl;
+            }
+          }
         }
 
         if (curlStorage->reqBody) {
-          curlStorage->reqBody.reset(); // 使用智能指针的 reset 方法释放资源
+          curlStorage->reqBody.reset();
         }
-        // remove the easy hanle
         curl_multi_remove_handle(mCurl_, easyHandle);
         curl_easy_cleanup(easyHandle);
       } else {
@@ -181,7 +246,9 @@ void MCurlHttpClient::perform() {
   }
   // close the existing network connections.
   for (auto &p : runningCurl_) {
-    curl_slist_free_all(p.second->reqHeader);
+    if (p.second) {
+      curl_slist_free_all(p.second->reqHeader);
+    }
     curl_multi_remove_handle(mCurl_, p.first);
     curl_easy_cleanup(p.first);
   }
@@ -193,9 +260,35 @@ void MCurlHttpClient::perform() {
 bool MCurlHttpClient::start() {
   if (!mCurl_ || running_)
     return false;
+  // Apply connection pool settings before starting
+  applyConnectionPoolSettings();
   running_ = true;
   performThread_ = std::thread(std::bind(&MCurlHttpClient::perform, this));
   return true;
+}
+
+void MCurlHttpClient::applyConnectionPoolSettings() {
+  if (!mCurl_)
+    return;
+
+  // Atomically load config for thread-safe access
+  auto configPtr = std::atomic_load(&poolConfig_);
+  if (!configPtr)
+    return;
+
+  const ConnectionPoolConfig& config = *configPtr;
+
+  // Set maximum total connections in the multi handle
+  curl_multi_setopt(mCurl_, CURLMOPT_MAX_TOTAL_CONNECTIONS,
+                    static_cast<long>(config.max_connections));
+
+  // Set maximum connections per host
+  curl_multi_setopt(mCurl_, CURLMOPT_MAX_HOST_CONNECTIONS,
+                    static_cast<long>(config.max_host_connections));
+
+  // Enable/disable pipelining
+  curl_multi_setopt(mCurl_, CURLMOPT_PIPELINING,
+                    config.pipelining ? 1L : 0L);
 }
 
 bool MCurlHttpClient::stop() {
@@ -219,8 +312,10 @@ void MCurlHttpClient::clearQueue() {
   while (!reqQueue_.empty()) {
     auto storage = std::move(reqQueue_.front());
     reqQueue_.pop_front();
-    curl_slist_free_all(storage->reqHeader);
-    curl_easy_cleanup(storage->easyHandle);
+    if (storage) {
+      curl_slist_free_all(storage->reqHeader);
+      curl_easy_cleanup(storage->easyHandle);
+    }
   }
   reqQueue_.clear();
   continueReadingQueue_.clear();
@@ -239,6 +334,10 @@ bool MCurlHttpClient::addContinueReadingHandle(CURL *easyHandle) {
 }
 
 bool MCurlHttpClient::setResponseReady(CurlStorage *curlStorage) {
+  // Null pointer guard
+  if (!curlStorage) {
+    return false;
+  }
   // clear the request header
   curl_slist_free_all(curlStorage->reqHeader);
   curlStorage->reqHeader = nullptr;
@@ -260,6 +359,10 @@ bool MCurlHttpClient::setResponseReady(CurlStorage *curlStorage) {
 size_t MCurlHttpClient::recvBody(char *buffer, size_t size, size_t nmemb,
                                  void *userdata) {
   auto curlStorage = static_cast<CurlStorage *>(userdata);
+  // Null pointer guard
+  if (!curlStorage || !curlStorage->resp) {
+    return 0;
+  }
   auto body = curlStorage->resp->getBody();
   if (!body)
     return 0;
@@ -268,9 +371,6 @@ size_t MCurlHttpClient::recvBody(char *buffer, size_t size, size_t nmemb,
   }
   auto expectSize = size * nmemb;
   auto realSize = body->write(buffer, expectSize);
-  body->readableSize_ += realSize;
-  body->streamCV_.notify_one();
-
   if (!body->getReady()) {
     setResponseReady(curlStorage);
   }

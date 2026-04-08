@@ -40,14 +40,13 @@ public:
 
   static std::shared_ptr<IStream> toReadable(const Bytes &raw);
 
+  static std::shared_ptr<IStream> toReadable(const Json &raw);
+
   static std::shared_ptr<OStream> toWritable(const std::string &raw);
 
   static std::shared_ptr<OStream> toWritable(const Bytes &raw);
 
   static void reset(std::shared_ptr<Stream> raw);
-
-private:
-  static std::string cleanString(const std::string &str);
 };
 
 class IStream : public Stream {
@@ -135,7 +134,6 @@ public:
            std::ios_base::openmode mode = std::ios_base::in)
       : std::ifstream(filepath, mode), m_filepath(filepath), m_openmode(mode) {}
 
-  // 深拷贝构造函数
   IFStream(const IFStream &other)
       : std::basic_ios<char>(nullptr), std::ifstream(),
         m_filepath(other.m_filepath), m_openmode(other.m_openmode) {
@@ -144,13 +142,7 @@ public:
       this->open(m_filepath, m_openmode);
 
       if (this->is_open() && other.is_open()) {
-        // 使用 const_cast 来调用 tellg()
-        auto pos = const_cast<IFStream &>(other).tellg();
-        if (pos != std::streampos(-1)) {
-          this->seekg(pos);
-        }
-        // 获取状态也需要 const_cast
-        this->clear(const_cast<IFStream &>(other).rdstate());
+        this->clear(other.rdstate());
       }
     }
   }
@@ -159,7 +151,6 @@ public:
       : std::ifstream(std::move(other)),
         m_filepath(std::move(other.m_filepath)), m_openmode(other.m_openmode) {}
 
-  // 深拷贝赋值操作符
   IFStream &operator=(const IFStream &other) {
     if (this == &other) {
       return *this;
@@ -176,11 +167,7 @@ public:
       this->open(m_filepath, m_openmode);
 
       if (this->is_open() && other.is_open()) {
-        auto pos = const_cast<IFStream &>(other).tellg();
-        if (pos != std::streampos(-1)) {
-          this->seekg(pos);
-        }
-        this->clear(const_cast<IFStream &>(other).rdstate());
+        this->clear(other.rdstate());
       }
     }
 
@@ -205,6 +192,9 @@ public:
   virtual size_t read(char *buffer, size_t expectSize) override;
 
   virtual bool isFinished() const override { return eof(); }
+
+  // Public wrapper for protected is_open()
+  bool isOpen() const { return std::ifstream::is_open(); }
 
 private:
   std::string m_filepath;

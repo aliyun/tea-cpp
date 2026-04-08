@@ -21,18 +21,16 @@ const int MinDelayTime = 100;
 namespace Darabonba {
 namespace Policy {
 
-class RetryPolicyContext; // 前向声明
+class RetryPolicyContext;
 
-// BackoffPolicy 基类
+
 class BackoffPolicy {
 public:
-  // 友元函数实现 JSON 序列化
+
   friend void to_json(Darabonba::Json &j, const BackoffPolicy &obj) {
-    // 此宏需要支持序列化 std::string，增加处理逻辑在使用时
     DARABONBA_TO_JSON(policy, policy_);
   }
 
-  // 友元函数实现 JSON 反序列化
   friend void from_json(const Darabonba::Json &j, BackoffPolicy &obj) {
     DARABONBA_FROM_JSON(policy, policy_);
   }
@@ -354,11 +352,13 @@ protected:
 class RetryOptions {
 public:
   friend void to_json(Darabonba::Json &j, const RetryOptions &obj) {
+    DARABONBA_TO_JSON(retryable, retryable_);
     DARABONBA_TO_JSON(retryCondition, retryCondition_);
     DARABONBA_TO_JSON(noRetryCondition, noRetryCondition_);
   }
 
   friend void from_json(const Darabonba::Json &j, RetryOptions &obj) {
+    DARABONBA_FROM_JSON(retryable, retryable_);
     DARABONBA_FROM_JSON(retryCondition, retryCondition_);
     DARABONBA_FROM_JSON(noRetryCondition, noRetryCondition_);
   }

@@ -17,15 +17,6 @@ Bytes Stream::readAsBytes(std::shared_ptr<IStream> raw) {
   return result;
 }
 
-std::string Stream::cleanString(const std::string &str) {
-  std::string cleaned = str;
-  cleaned.erase(
-      std::remove_if(cleaned.begin(), cleaned.end(),
-                     [](unsigned char c) { return !std::isprint(c); }),
-      cleaned.end());
-  return cleaned;
-}
-
 std::string Stream::readAsString(std::shared_ptr<IStream> raw) {
   if (!raw)
     return "";
@@ -36,7 +27,7 @@ std::string Stream::readAsString(std::shared_ptr<IStream> raw) {
   while ((bytesRead = raw->read(buffer, sizeof(buffer))) > 0) {
     oss.write(buffer, bytesRead);
   }
-  return Stream::cleanString(oss.str());
+  return oss.str();
 }
 
 Json Stream::readAsJSON(std::shared_ptr<IStream> raw) {
@@ -59,6 +50,10 @@ std::shared_ptr<IStream> Stream::toReadable(const Bytes &raw) {
   return std::make_shared<ISStream>(raw);
 }
 
+std::shared_ptr<IStream> Stream::toReadable(const Json &raw) {                                                                                                            
+  return std::make_shared<ISStream>(raw);                                                                                                                                 
+}
+
 std::shared_ptr<OStream> Stream::toWritable(const std::string &raw) {
   return std::make_shared<OSStream>(std::ostringstream(raw));
 }
@@ -68,7 +63,12 @@ std::shared_ptr<OStream> Stream::toWritable(const Bytes &raw) {
 }
 
 std::shared_ptr<IStream> Stream::readFromFilePath(const std::string &path) {
-  return std::shared_ptr<IStream>(new IFStream(path, std::ios::binary));
+  auto* stream = new IFStream(path, std::ios::binary);
+  if (!stream->isOpen()) {
+    delete stream;
+    throw Darabonba::DaraException("File not found or cannot be opened: " + path);
+  }
+  return std::shared_ptr<IStream>(stream);
 }
 
 std::shared_ptr<IStream> Stream::readFromBytes(Bytes &raw) {
@@ -99,7 +99,7 @@ size_t ISStream::read(char *buffer, size_t expectSize) {
 }
 
 size_t IFStream::read(char *buffer, size_t expectSize) {
-  if (std::ifstream::eof() || std::ifstream::bad())
+  if (std::ifstream::eof() || std::ifstream::bad() || std::ifstream::fail())
     return 0;
   auto realSize = std::ifstream::readsome(buffer, expectSize);
   if (realSize < 0)

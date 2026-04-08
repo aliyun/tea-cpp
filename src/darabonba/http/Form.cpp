@@ -19,7 +19,7 @@ std::string Form::toFormString(const Json &val) {
   }
   std::stringstream tmp;
   for (const auto &el : val.items()) {
-    tmp << Http::Query::encode(el.key()) << " = "
+    tmp << Http::Query::encode(el.key()) << "="
         << Http::Query::encode(el.value().is_string()
                                    ? el.value().get<std::string>()
                                    : el.value().dump())

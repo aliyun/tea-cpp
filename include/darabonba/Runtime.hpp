@@ -32,7 +32,7 @@ public:
     return obj;
   };
   virtual bool empty() const override {
-    return this->headers_ != nullptr && this->queries_ != nullptr;
+    return this->headers_ == nullptr && this->queries_ == nullptr;
   };
   // headers Field Functions
   bool hasHeaders() const { return this->headers_ != nullptr; };
@@ -87,11 +87,12 @@ public:
     DARABONBA_PTR_TO_JSON(httpProxy, httpProxy_);
     DARABONBA_PTR_TO_JSON(httpsProxy, httpsProxy_);
     DARABONBA_PTR_TO_JSON(noProxy, noProxy_);
-    DARABONBA_PTR_TO_JSON(maxIdleConns, maxIdleConns_);
+    DARABONBA_PTR_TO_JSON(maxConnections, maxConnections_);
     DARABONBA_PTR_TO_JSON(localAddr, localAddr_);
     DARABONBA_PTR_TO_JSON(socks5Proxy, socks5Proxy_);
     DARABONBA_PTR_TO_JSON(socks5NetWork, socks5NetWork_);
     DARABONBA_PTR_TO_JSON(keepAlive, keepAlive_);
+    DARABONBA_PTR_TO_JSON(maxHostConnections, maxHostConnections_);
     DARABONBA_PTR_TO_JSON(extendsParameters, extendsParameters_);
     DARABONBA_PTR_TO_JSON(retryOptions, retryOptions_);
   };
@@ -109,11 +110,12 @@ public:
     DARABONBA_PTR_FROM_JSON(httpProxy, httpProxy_);
     DARABONBA_PTR_FROM_JSON(httpsProxy, httpsProxy_);
     DARABONBA_PTR_FROM_JSON(noProxy, noProxy_);
-    DARABONBA_PTR_FROM_JSON(maxIdleConns, maxIdleConns_);
+    DARABONBA_PTR_FROM_JSON(maxConnections, maxConnections_);
     DARABONBA_PTR_FROM_JSON(localAddr, localAddr_);
     DARABONBA_PTR_FROM_JSON(socks5Proxy, socks5Proxy_);
     DARABONBA_PTR_FROM_JSON(socks5NetWork, socks5NetWork_);
     DARABONBA_PTR_FROM_JSON(keepAlive, keepAlive_);
+    DARABONBA_PTR_FROM_JSON(maxHostConnections, maxHostConnections_);
     DARABONBA_PTR_FROM_JSON(extendsParameters, extendsParameters_);
     DARABONBA_PTR_FROM_JSON(retryOptions, retryOptions_);
   };
@@ -130,17 +132,18 @@ public:
     return obj;
   };
   virtual bool empty() const override {
-    return this->autoretry_ != nullptr && this->ignoreSSL_ != nullptr &&
-           this->key_ != nullptr && this->cert_ != nullptr &&
-           this->ca_ != nullptr && this->maxAttempts_ != nullptr &&
-           this->backoffPolicy_ != nullptr && this->backoffPeriod_ != nullptr &&
-           this->readTimeout_ != nullptr && this->connectTimeout_ != nullptr &&
-           this->httpProxy_ != nullptr && this->httpsProxy_ != nullptr &&
-           this->noProxy_ != nullptr && this->maxIdleConns_ != nullptr &&
-           this->localAddr_ != nullptr && this->socks5Proxy_ != nullptr &&
-           this->socks5NetWork_ != nullptr && this->keepAlive_ != nullptr &&
-           this->extendsParameters_ != nullptr &&
-           this->retryOptions_ != nullptr;
+    return this->autoretry_ == nullptr && this->ignoreSSL_ == nullptr &&
+           this->key_ == nullptr && this->cert_ == nullptr &&
+           this->ca_ == nullptr && this->maxAttempts_ == nullptr &&
+           this->backoffPolicy_ == nullptr && this->backoffPeriod_ == nullptr &&
+           this->readTimeout_ == nullptr && this->connectTimeout_ == nullptr &&
+           this->httpProxy_ == nullptr && this->httpsProxy_ == nullptr &&
+           this->noProxy_ == nullptr && this->maxConnections_ == nullptr &&
+           this->localAddr_ == nullptr && this->socks5Proxy_ == nullptr &&
+           this->socks5NetWork_ == nullptr && this->keepAlive_ == nullptr &&
+           this->maxHostConnections_ == nullptr &&
+           this->extendsParameters_ == nullptr &&
+           this->retryOptions_ == nullptr;
   };
   // autoretry Field Functions
   bool hasAutoretry() const { return this->autoretry_ != nullptr; };
@@ -262,14 +265,24 @@ public:
     DARABONBA_PTR_SET_VALUE(noProxy_, noProxy)
   };
 
-  // maxIdleConns Field Functions
-  bool hasMaxIdleConns() const { return this->maxIdleConns_ != nullptr; };
-  void deleteMaxIdleConns() { this->maxIdleConns_ = nullptr; };
-  inline int64_t getMaxIdleConns() const {
-    DARABONBA_PTR_GET_DEFAULT(maxIdleConns_, 0)
+  // maxConnections Field Functions
+  bool hasMaxConnections() const { return this->maxConnections_ != nullptr; };
+  void deleteMaxConnections() { this->maxConnections_ = nullptr; };
+  inline int64_t getMaxConnections() const {
+    DARABONBA_PTR_GET_DEFAULT(maxConnections_, 0)
   };
-  inline RuntimeOptions &setMaxIdleConns(int64_t maxIdleConns) {
-    DARABONBA_PTR_SET_VALUE(maxIdleConns_, maxIdleConns)
+  inline RuntimeOptions &setMaxConnections(int64_t maxConnections) {
+    DARABONBA_PTR_SET_VALUE(maxConnections_, maxConnections)
+  };
+
+  // maxHostConnections Field Functions
+  bool hasMaxHostConnections() const { return this->maxHostConnections_ != nullptr; };
+  void deleteMaxHostConnections() { this->maxHostConnections_ = nullptr; };
+  inline int64_t getMaxHostConnections() const {
+    DARABONBA_PTR_GET_DEFAULT(maxHostConnections_, 0)
+  };
+  inline RuntimeOptions &setMaxHostConnections(int64_t maxHostConnections) {
+    DARABONBA_PTR_SET_VALUE(maxHostConnections_, maxHostConnections)
   };
 
   // localAddr Field Functions
@@ -347,6 +360,14 @@ public:
   inline RuntimeOptions &setRetryOptions(RetryOptions &&retryOptions) {
     DARABONBA_PTR_SET_RVALUE(retryOptions_, retryOptions)
   };
+  
+  inline RuntimeOptions &setMaxIdleConns(string maxIdleConns) {
+    this->maxIdleConns_ = maxIdleConns;
+    return *this;
+  };
+  inline string getMaxIdleConns() const {
+    return this->maxIdleConns_;
+  };
 
 protected:
   // whether to try again
@@ -375,8 +396,8 @@ protected:
   std::shared_ptr<string> httpsProxy_ = nullptr;
   // agent blacklist
   std::shared_ptr<string> noProxy_ = nullptr;
-  // maximum number of connections
-  std::shared_ptr<int64_t> maxIdleConns_ = nullptr;
+  // maximum total connections (CURLMOPT_MAX_TOTAL_CONNECTIONS)
+  std::shared_ptr<int64_t> maxConnections_ = nullptr;
   // local addr
   std::shared_ptr<string> localAddr_ = nullptr;
   // SOCKS5 proxy
@@ -385,10 +406,14 @@ protected:
   std::shared_ptr<string> socks5NetWork_ = nullptr;
   // whether to enable keep-alive
   std::shared_ptr<bool> keepAlive_ = nullptr;
+  // maximum connections per host
+  std::shared_ptr<int64_t> maxHostConnections_ = nullptr;
   // Extends Parameters
   std::shared_ptr<ExtendsParameters> extendsParameters_ = nullptr;
   // Extends Parameters
   std::shared_ptr<RetryOptions> retryOptions_ = nullptr;
+  // Declare MaxIdleConns
+  std::string maxIdleConns_;
 };
 
 } // namespace Darabonba

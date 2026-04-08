@@ -34,8 +34,8 @@ TEST_F(CoreTest, SleepShouldWorkCorrectly) {
   EXPECT_LE(duration, 300);
 }
 
-// ==================== allowRetry 测试 ====================
-TEST_F(CoreTest, AllowRetryWithFirstAttempt) {
+// ==================== shouldRetry 测试 ====================
+TEST_F(CoreTest, ShouldRetryWithFirstAttempt) {
   Policy::RetryOptions options;
   options.setRetryable(true);
 
@@ -48,10 +48,10 @@ TEST_F(CoreTest, AllowRetryWithFirstAttempt) {
   ctx.setRetriesAttempted(0); // 第一次尝试
 
   // 第一次尝试应该允许重试
-  EXPECT_TRUE(Darabonba::allowRetry(options, ctx));
+  EXPECT_TRUE(Darabonba::shouldRetry(options, ctx));
 }
 
-TEST_F(CoreTest, AllowRetryWithMaxAttemptsReached) {
+TEST_F(CoreTest, ShouldRetryWithMaxAttemptsReached) {
   Policy::RetryOptions options;
   options.setRetryable(true);
 
@@ -67,10 +67,10 @@ TEST_F(CoreTest, AllowRetryWithMaxAttemptsReached) {
   ctx.setException(ex);
 
   // 已达到最大重试次数，不应该允许重试
-  EXPECT_FALSE(Darabonba::allowRetry(options, ctx));
+  EXPECT_FALSE(Darabonba::shouldRetry(options, ctx));
 }
 
-TEST_F(CoreTest, AllowRetryWhenNotRetryable) {
+TEST_F(CoreTest, ShouldRetryWhenNotRetryable) {
   Policy::RetryOptions options;
   options.setRetryable(false); // 不可重试
 
@@ -78,10 +78,10 @@ TEST_F(CoreTest, AllowRetryWhenNotRetryable) {
   ctx.setRetriesAttempted(1);
 
   // 不可重试选项应该返回 false
-  EXPECT_FALSE(Darabonba::allowRetry(options, ctx));
+  EXPECT_FALSE(Darabonba::shouldRetry(options, ctx));
 }
 
-TEST_F(CoreTest, AllowRetryWithMatchingException) {
+TEST_F(CoreTest, ShouldRetryWithMatchingException) {
   Policy::RetryOptions options;
   options.setRetryable(true);
 
@@ -97,7 +97,7 @@ TEST_F(CoreTest, AllowRetryWithMatchingException) {
   ctx.setException(ex);
 
   // 匹配的异常类型应该允许重试
-  EXPECT_TRUE(Darabonba::allowRetry(options, ctx));
+  EXPECT_TRUE(Darabonba::shouldRetry(options, ctx));
 }
 
 // ==================== getBackoffTime 测试 ====================
@@ -308,4 +308,989 @@ TEST_F(CoreTest, DoActionWithQueryParams) {
     // 网络请求可能失败,跳过测试
     std::cerr << "Network test skipped: " << e.what() << std::endl;
   }
+}
+
+// ==================== ConnectionPoolConfig 测试 ====================
+TEST_F(CoreTest, ConnectionPoolConfigDefaultValues) {
+  ConnectionPoolConfig config;
+  EXPECT_EQ(config.max_connections, 128UL);
+  EXPECT_EQ(config.max_host_connections, 128UL);
+  EXPECT_EQ(config.connection_idle_timeout, 30L);
+  EXPECT_FALSE(config.pipelining);
+  EXPECT_TRUE(config.keep_alive);
+}
+
+TEST_F(CoreTest, ConnectionPoolConfigWithKeepAlive) {
+  ConnectionPoolConfig config;
+  config.max_connections = 20;
+  config.keep_alive = false;
+  
+  EXPECT_EQ(config.max_connections, 20UL);
+  EXPECT_FALSE(config.keep_alive);
+}
+
+// ==================== MCurlHttpClient 连接池配置测试 ====================
+TEST_F(CoreTest, MCurlHttpClientSetConnectionPoolConfig) {
+  Http::MCurlHttpClient client;
+  
+  ConnectionPoolConfig config;
+  config.max_connections = 15;
+  config.keep_alive = false;
+  client.setConnectionPoolConfig(config);
+  
+  EXPECT_EQ(client.getConnectionPoolConfig().max_connections, 15UL);
+  EXPECT_FALSE(client.getConnectionPoolConfig().keep_alive);
+}
+
+TEST_F(CoreTest, MCurlHttpClientConfigAfterStart) {
+  Http::MCurlHttpClient client;
+  
+  ConnectionPoolConfig config;
+  config.max_connections = 25;
+  client.setConnectionPoolConfig(config);
+  
+  EXPECT_EQ(client.getConnectionPoolConfig().max_connections, 25UL);
+}
+
+// ==================== 配置传递测试 ====================
+TEST_F(CoreTest, MaxIdleConnsPropagationFromConfig) {
+  Core::ClearAllHttpClients();
+
+  try {
+    // Simulate what Client does: pass maxIdleConns from Config through runtime
+    Json runtime;
+    runtime["maxIdleConns"] = 20;
+    runtime["keepAlive"] = true;
+    runtime["timeout"] = 5000;
+
+    Http::Request request(std::string("https://config-test.aliyun.com"));
+    auto future = core.doAction(request, runtime);
+    future.wait_for(std::chrono::seconds(10));
+
+    EXPECT_EQ(Core::GetHttpClientCount(), 1UL);
+    Core::ClearAllHttpClients();
+
+  } catch (const std::exception &e) {
+    std::cerr << "Network test skipped: " << e.what() << std::endl;
+  }
+}
+
+TEST_F(CoreTest, ConfigUpdateOnExistingClient) {
+  Core::ClearAllHttpClients();
+
+  try {
+    Http::Request request(std::string("https://update-test.aliyun.com"));
+
+    {
+      Json runtime;
+      runtime["maxIdleConns"] = 10;
+      auto future = core.doAction(request, runtime);
+      future.wait_for(std::chrono::seconds(10));
+    }
+
+    {
+      Json runtime;
+      runtime["maxIdleConns"] = 30;
+      auto future = core.doAction(request, runtime);
+      future.wait_for(std::chrono::seconds(10));
+    }
+
+    EXPECT_EQ(Core::GetHttpClientCount(), 1UL);
+    Core::ClearAllHttpClients();
+
+  } catch (const std::exception &e) {
+    std::cerr << "Network test skipped: " << e.what() << std::endl;
+  }
+}
+
+// ==================== ConnectionPoolConfig 边界测试 ====================
+TEST_F(CoreTest, ConnectionPoolConfigZeroConnections) {
+  ConnectionPoolConfig config;
+  config.max_connections = 0;
+  EXPECT_EQ(config.max_connections, 0UL);
+}
+
+TEST_F(CoreTest, ConnectionPoolConfigLargeConnections) {
+  ConnectionPoolConfig config;
+  config.max_connections = 10000;
+  EXPECT_EQ(config.max_connections, 10000UL);
+}
+
+TEST_F(CoreTest, ConnectionPoolConfigCompareOperator) {
+  ConnectionPoolConfig config1;
+  config1.host = "api.test.com";
+  config1.max_connections = 10;
+  
+  ConnectionPoolConfig config2;
+  config2.host = "api.test.com";
+  config2.max_connections = 20;
+  
+  EXPECT_TRUE(config1 < config2);
+  EXPECT_FALSE(config2 < config1);
+}
+
+TEST_F(CoreTest, ConnectionPoolConfigAllFields) {
+  ConnectionPoolConfig config;
+  config.host = "api.example.com";
+  config.max_connections = 100;
+  config.max_host_connections = 10;
+  config.connection_idle_timeout = 600L;
+  config.pipelining = true;
+  config.keep_alive = false;
+  
+  EXPECT_EQ(config.host, "api.example.com");
+  EXPECT_EQ(config.max_connections, 100UL);
+  EXPECT_EQ(config.max_host_connections, 10UL);
+  EXPECT_EQ(config.connection_idle_timeout, 600L);
+  EXPECT_TRUE(config.pipelining);
+  EXPECT_FALSE(config.keep_alive);
+}
+
+TEST_F(CoreTest, ConnectionPoolConfigCopy) {
+  ConnectionPoolConfig config1;
+  config1.host = "original.com";
+  config1.max_connections = 30;
+  config1.keep_alive = false;
+  
+  ConnectionPoolConfig config2 = config1;
+  
+  EXPECT_EQ(config2.host, "original.com");
+  EXPECT_EQ(config2.max_connections, 30UL);
+  EXPECT_FALSE(config2.keep_alive);
+  
+  config1.host = "modified.com";
+  EXPECT_EQ(config2.host, "original.com");
+}
+
+// ==================== MCurlHttpClient 详细测试 ====================
+TEST_F(CoreTest, MCurlHttpClientDefaultConnectionPoolConfig) {
+  Http::MCurlHttpClient client;
+  EXPECT_EQ(client.getConnectionPoolConfig().max_connections, 128UL);
+  EXPECT_TRUE(client.getConnectionPoolConfig().keep_alive);
+}
+
+TEST_F(CoreTest, MCurlHttpClientConfigOverride) {
+  Http::MCurlHttpClient client;
+  
+  ConnectionPoolConfig config1;
+  config1.max_connections = 10;
+  config1.keep_alive = true;
+  client.setConnectionPoolConfig(config1);
+  EXPECT_EQ(client.getConnectionPoolConfig().max_connections, 10UL);
+  EXPECT_TRUE(client.getConnectionPoolConfig().keep_alive);
+  
+  ConnectionPoolConfig config2;
+  config2.max_connections = 20;
+  config2.keep_alive = false;
+  client.setConnectionPoolConfig(config2);
+  EXPECT_EQ(client.getConnectionPoolConfig().max_connections, 20UL);
+  EXPECT_FALSE(client.getConnectionPoolConfig().keep_alive);
+}
+
+TEST_F(CoreTest, MCurlHttpClientStartStop) {
+  Http::MCurlHttpClient client;
+  
+  ConnectionPoolConfig config;
+  config.max_connections = 15;
+  client.setConnectionPoolConfig(config);
+  
+  EXPECT_TRUE(client.start());
+  EXPECT_FALSE(client.start());  // Already running
+  EXPECT_TRUE(client.stop());
+  EXPECT_FALSE(client.stop());   // Already stopped
+}
+
+// ==================== Keep-Alive 配置测试 ====================
+TEST_F(CoreTest, KeepAliveDefaultTrue) {
+  ConnectionPoolConfig config;
+  EXPECT_TRUE(config.keep_alive);
+}
+
+TEST_F(CoreTest, KeepAliveSetFalse) {
+  ConnectionPoolConfig config;
+  config.keep_alive = false;
+  EXPECT_FALSE(config.keep_alive);
+}
+
+TEST_F(CoreTest, KeepAliveDisabledConfig) {
+  ConnectionPoolConfig config;
+  config.keep_alive = false;
+  
+  Http::MCurlHttpClient client;
+  client.setConnectionPoolConfig(config);
+  
+  EXPECT_FALSE(client.getConnectionPoolConfig().keep_alive);
+}
+
+TEST_F(CoreTest, KeepAliveEnabledConfig) {
+  ConnectionPoolConfig config;
+  config.keep_alive = true;
+  
+  Http::MCurlHttpClient client;
+  client.setConnectionPoolConfig(config);
+  
+  EXPECT_TRUE(client.getConnectionPoolConfig().keep_alive);
+}
+
+// ==================== 默认超时测试 ====================
+TEST_F(CoreTest, DefaultReadTimeout) {
+  Json runtime;
+  // 不设置 readTimeout，应该使用默认值
+  
+  Http::Request request(std::string("https://timeout-test.aliyun.com"));
+  // 验证 runtime 可以正确处理
+  EXPECT_NO_THROW({
+    auto future = core.doAction(request, runtime);
+    future.wait_for(std::chrono::seconds(10));
+  });
+  
+  Core::ClearAllHttpClients();
+}
+
+TEST_F(CoreTest, CustomReadTimeout) {
+  Json runtime;
+  runtime["readTimeout"] = 5000;
+  
+  Http::Request request(std::string("https://custom-timeout.aliyun.com"));
+  EXPECT_NO_THROW({
+    auto future = core.doAction(request, runtime);
+    future.wait_for(std::chrono::seconds(10));
+  });
+  
+  Core::ClearAllHttpClients();
+}
+
+// ==================== 多 Host 客户端管理测试 ====================
+TEST_F(CoreTest, MultipleHostsMultipleClients) {
+  Core::ClearAllHttpClients();
+  
+  try {
+    Json runtime;
+    runtime["maxIdleConns"] = 10;
+    
+    Http::Request request1(std::string("https://host1.aliyun.com"));
+    auto f1 = core.doAction(request1, runtime);
+    f1.wait_for(std::chrono::seconds(10));
+    
+    Http::Request request2(std::string("https://host2.aliyun.com"));
+    auto f2 = core.doAction(request2, runtime);
+    f2.wait_for(std::chrono::seconds(10));
+    
+    EXPECT_EQ(Core::GetHttpClientCount(), 2UL);
+    
+    Core::ClearAllHttpClients();
+    
+  } catch (const std::exception &e) {
+    std::cerr << "Network test skipped: " << e.what() << std::endl;
+  }
+}
+
+TEST_F(CoreTest, SameHostReusesClient) {
+  Core::ClearAllHttpClients();
+  
+  try {
+    Json runtime;
+    runtime["maxIdleConns"] = 10;
+    
+    for (int i = 0; i < 3; i++) {
+      Http::Request request(std::string("https://same-host.aliyun.com"));
+      auto future = core.doAction(request, runtime);
+      future.wait_for(std::chrono::seconds(10));
+    }
+    
+    EXPECT_EQ(Core::GetHttpClientCount(), 1UL);
+    
+    Core::ClearAllHttpClients();
+    
+  } catch (const std::exception &e) {
+    std::cerr << "Network test skipped: " << e.what() << std::endl;
+  }
+}
+
+// ==================== ClearHttpClient 测试 ====================
+TEST_F(CoreTest, ClearSpecificHttpClient) {
+  Core::ClearAllHttpClients();
+  
+  try {
+    Json runtime;
+    
+    Http::Request request1(std::string("https://clear-test1.aliyun.com"));
+    auto f1 = core.doAction(request1, runtime);
+    f1.wait_for(std::chrono::seconds(10));
+    
+    Http::Request request2(std::string("https://clear-test2.aliyun.com"));
+    auto f2 = core.doAction(request2, runtime);
+    f2.wait_for(std::chrono::seconds(10));
+    
+    EXPECT_EQ(Core::GetHttpClientCount(), 2UL);
+    
+    ConnectionPoolConfig config;
+    config.host = "clear-test1.aliyun.com";
+    Core::ClearHttpClient(config);
+    
+    EXPECT_EQ(Core::GetHttpClientCount(), 1UL);
+    
+    Core::ClearAllHttpClients();
+    
+  } catch (const std::exception &e) {
+    std::cerr << "Network test skipped: " << e.what() << std::endl;
+  }
+}
+
+// ==================== 内存管理测试 ====================
+TEST_F(CoreTest, ClientCleanupOnDestruction) {
+  {
+    Http::MCurlHttpClient* client = new Http::MCurlHttpClient();
+    client->start();
+    
+    ConnectionPoolConfig config;
+    config.max_connections = 10;
+    client->setConnectionPoolConfig(config);
+    
+    delete client;
+  }
+  
+  EXPECT_TRUE(true);
+}
+
+TEST_F(CoreTest, MultipleClearAllHttpClients) {
+  Core::ClearAllHttpClients();
+  Core::ClearAllHttpClients();
+  Core::ClearAllHttpClients();
+  
+  EXPECT_EQ(Core::GetHttpClientCount(), 0UL);
+}
+
+// ==================== 空配置测试 ====================
+TEST_F(CoreTest, EmptyRuntimeOptions) {
+  Core::ClearAllHttpClients();
+  
+  try {
+    Http::Request request(std::string("https://empty-runtime.aliyun.com"));
+    Json runtime;
+    
+    auto future = core.doAction(request, runtime);
+    future.wait_for(std::chrono::seconds(10));
+    
+    EXPECT_EQ(Core::GetHttpClientCount(), 1UL);
+    
+    Core::ClearAllHttpClients();
+    
+  } catch (const std::exception &e) {
+    std::cerr << "Network test skipped: " << e.what() << std::endl;
+  }
+}
+
+// ==================== 配置类型安全测试 ====================
+TEST_F(CoreTest, MaxIdleConnsTypeSafety) {
+  Json runtime;
+  runtime["maxIdleConns"] = 50;
+  
+  EXPECT_EQ(runtime["maxIdleConns"].get<int64_t>(), 50);
+}
+
+TEST_F(CoreTest, KeepAliveTypeSafety) {
+  Json runtime;
+  runtime["keepAlive"] = true;
+  
+  EXPECT_TRUE(runtime["keepAlive"].get<bool>());
+  
+  runtime["keepAlive"] = false;
+  EXPECT_FALSE(runtime["keepAlive"].get<bool>());
+}
+
+// ==================== isNull 测试 ====================
+// std::string 测试
+TEST_F(CoreTest, IsNullEmptyString) {
+  std::string emptyStr = "";
+  EXPECT_TRUE(Darabonba::isNull(emptyStr));
+}
+
+TEST_F(CoreTest, IsNullNonEmptyString) {
+  std::string str = "hello";
+  EXPECT_FALSE(Darabonba::isNull(str));
+}
+
+// 原始指针测试
+TEST_F(CoreTest, IsNullNullPointer) {
+  int* ptr = nullptr;
+  EXPECT_TRUE(Darabonba::isNull(ptr));
+}
+
+TEST_F(CoreTest, IsNullValidPointer) {
+  int value = 42;
+  int* ptr = &value;
+  EXPECT_FALSE(Darabonba::isNull(ptr));
+}
+
+// std::shared_ptr 测试
+TEST_F(CoreTest, IsNullEmptySharedPtr) {
+  std::shared_ptr<int> ptr;
+  EXPECT_TRUE(Darabonba::isNull(ptr));
+}
+
+TEST_F(CoreTest, IsNullValidSharedPtr) {
+  auto ptr = std::make_shared<int>(42);
+  EXPECT_FALSE(Darabonba::isNull(ptr));
+}
+
+TEST_F(CoreTest, IsNullResetSharedPtr) {
+  auto ptr = std::make_shared<int>(42);
+  ptr.reset();
+  EXPECT_TRUE(Darabonba::isNull(ptr));
+}
+
+// std::map 测试
+TEST_F(CoreTest, IsNullEmptyMap) {
+  std::map<std::string, std::string> emptyMap;
+  EXPECT_TRUE(Darabonba::isNull(emptyMap));
+}
+
+TEST_F(CoreTest, IsNullNonEmptyMap) {
+  std::map<std::string, std::string> map;
+  map["key"] = "value";
+  EXPECT_FALSE(Darabonba::isNull(map));
+}
+
+TEST_F(CoreTest, IsNullClearedMap) {
+  std::map<std::string, std::string> map;
+  map["key"] = "value";
+  map.clear();
+  EXPECT_TRUE(Darabonba::isNull(map));
+}
+
+// std::vector 测试
+TEST_F(CoreTest, IsNullEmptyVector) {
+  std::vector<int> emptyVec;
+  EXPECT_TRUE(Darabonba::isNull(emptyVec));
+}
+
+TEST_F(CoreTest, IsNullNonEmptyVector) {
+  std::vector<int> vec = {1, 2, 3};
+  EXPECT_FALSE(Darabonba::isNull(vec));
+}
+
+TEST_F(CoreTest, IsNullClearedVector) {
+  std::vector<int> vec = {1, 2, 3};
+  vec.clear();
+  EXPECT_TRUE(Darabonba::isNull(vec));
+}
+
+// 非指针类型默认行为测试
+TEST_F(CoreTest, IsNullIntValue) {
+  int value = 0;
+  EXPECT_FALSE(Darabonba::isNull(value));
+}
+
+TEST_F(CoreTest, IsNullDoubleValue) {
+  double value = 0.0;
+  EXPECT_FALSE(Darabonba::isNull(value));
+}
+
+// nullptr_t 测试
+TEST_F(CoreTest, IsNullNullptrT) {
+  EXPECT_TRUE(Darabonba::isNull(nullptr));
+}
+
+// 边界情况测试
+TEST_F(CoreTest, IsNullMapWithEmptyKey) {
+  std::map<std::string, std::string> map;
+  map[""] = "empty_key_value";
+  // 非空 map，应该返回 false
+  EXPECT_FALSE(Darabonba::isNull(map));
+}
+
+TEST_F(CoreTest, IsNullVectorWithZero) {
+  std::vector<int> vec = {0};
+  // 包含一个元素的 vector，应该返回 false
+  EXPECT_FALSE(Darabonba::isNull(vec));
+}
+
+// ==================== isNull(map, key) 测试 ====================
+// 语义：isNull(map, key) 返回 true 表示 key 不存在或值为 null
+TEST_F(CoreTest, IsNullMapKeyNotExists) {
+  std::map<std::string, std::string> map;
+  map["key"] = "value";
+  EXPECT_TRUE(Darabonba::isNull(map, std::string("missing")));  // key 不存在
+}
+
+TEST_F(CoreTest, IsNullMapKeyExistsWithValue) {
+  std::map<std::string, std::string> map;
+  map["key"] = "value";
+  EXPECT_FALSE(Darabonba::isNull(map, std::string("key")));  // key 存在，值非空
+}
+
+TEST_F(CoreTest, IsNullMapKeyExistsWithEmptyValue) {
+  std::map<std::string, std::string> map;
+  map["key"] = "";  // 空字符串
+  EXPECT_TRUE(Darabonba::isNull(map, std::string("key")));  // key 存在，但值为 null
+}
+
+TEST_F(CoreTest, IsNullMapKeyEmptyMap) {
+  std::map<std::string, std::string> map;
+  EXPECT_TRUE(Darabonba::isNull(map, std::string("any")));  // 空 map，任何 key 都是 null
+}
+
+TEST_F(CoreTest, IsNullMapKeyIntValue) {
+  std::map<std::string, int> map;
+  map["count"] = 0;
+  // int 类型 0 不是 null（isNull(int) 返回 false）
+  EXPECT_FALSE(Darabonba::isNull(map, std::string("count")));
+  EXPECT_TRUE(Darabonba::isNull(map, std::string("missing")));
+}
+
+// 验证 !isNull(map, key) 与 hasValue(map, key) 等价
+TEST_F(CoreTest, IsNullMapKeyEquivalenceToHasValue) {
+  std::map<std::string, std::string> map;
+  map["key"] = "value";
+  map["empty"] = "";
+  
+  // !isNull(map, key) == hasValue(map, key)
+  EXPECT_EQ(!Darabonba::isNull(map, std::string("key")), Darabonba::hasValue(map, std::string("key")));
+  EXPECT_EQ(!Darabonba::isNull(map, std::string("empty")), Darabonba::hasValue(map, std::string("empty")));
+  EXPECT_EQ(!Darabonba::isNull(map, std::string("missing")), Darabonba::hasValue(map, std::string("missing")));
+}
+
+// ==================== hasValue 测试 ====================
+TEST_F(CoreTest, HasValueKeyExists) {
+  std::map<std::string, std::string> map;
+  map["key"] = "value";
+  EXPECT_TRUE(Darabonba::hasValue(map, std::string("key")));
+}
+
+TEST_F(CoreTest, HasValueKeyNotExists) {
+  std::map<std::string, std::string> map;
+  map["key"] = "value";
+  EXPECT_FALSE(Darabonba::hasValue(map, std::string("missing")));
+}
+
+TEST_F(CoreTest, HasValueEmptyValue) {
+  std::map<std::string, std::string> map;
+  map["key"] = "";  // 空字符串
+  EXPECT_FALSE(Darabonba::hasValue(map, std::string("key")));  // 空值视为 null
+}
+
+TEST_F(CoreTest, HasValueEmptyMap) {
+  std::map<std::string, std::string> map;
+  EXPECT_FALSE(Darabonba::hasValue(map, std::string("any")));
+}
+
+// ==================== getOrDefault 测试 ====================
+TEST_F(CoreTest, GetOrDefaultKeyExists) {
+  std::map<std::string, std::string> map;
+  map["key"] = "value";
+  EXPECT_EQ(Darabonba::getOrDefault(map, std::string("key"), std::string("default")), "value");
+}
+
+TEST_F(CoreTest, GetOrDefaultKeyNotExists) {
+  std::map<std::string, std::string> map;
+  map["key"] = "value";
+  EXPECT_EQ(Darabonba::getOrDefault(map, std::string("missing"), std::string("default")), "default");
+}
+
+TEST_F(CoreTest, GetOrDefaultEmptyMap) {
+  std::map<std::string, std::string> map;
+  EXPECT_EQ(Darabonba::getOrDefault(map, std::string("key"), std::string("default")), "default");
+}
+
+TEST_F(CoreTest, GetOrDefaultIntValue) {
+  std::map<std::string, int> map;
+  map["count"] = 42;
+  EXPECT_EQ(Darabonba::getOrDefault(map, std::string("count"), 0), 42);
+  EXPECT_EQ(Darabonba::getOrDefault(map, std::string("missing"), -1), -1);
+}
+
+// ==================== int64_t 超时值测试 ====================
+// 这些测试证明了使用 int64_t 而非 long 的必要性
+// 在 Windows 平台上，long 是 32 位的，无法正确处理大于 INT32_MAX 的超时值
+
+// 测试 ConnectionPoolConfig 的 connection_idle_timeout 支持 int64_t
+TEST_F(CoreTest, ConnectionPoolConfigLargeIdleTimeout) {
+  ConnectionPoolConfig config;
+  // 设置一个大于 INT32_MAX 的值（秒）
+  // INT32_MAX = 2147483647，我们用一个更大的值
+  config.connection_idle_timeout = 3000000000LL;  // 大于 INT32_MAX
+  EXPECT_EQ(config.connection_idle_timeout, 3000000000LL);
+  // 验证这个值远超 INT32_MAX，在 32-bit long 系统上会溢出
+  EXPECT_GT(config.connection_idle_timeout, 2147483647LL);
+}
+
+// 测试 RequestConfig 的 connect_timeout_ms 支持 int64_t
+TEST_F(CoreTest, RequestConfigLargeConnectTimeout) {
+  RequestConfig config;
+  // 设置一个大超时值（毫秒）
+  config.connect_timeout_ms = 2147483648LL;  // INT32_MAX + 1
+  EXPECT_EQ(config.connect_timeout_ms, 2147483648LL);
+  // 验证这个值在 Windows long (32-bit) 上会溢出
+  EXPECT_GT(config.connect_timeout_ms, static_cast<long>(2147483647L));
+}
+
+// 测试 RequestConfig 的 read_timeout_ms 支持 int64_t
+TEST_F(CoreTest, RequestConfigLargeReadTimeout) {
+  RequestConfig config;
+  // 设置一个大超时值（毫秒）- 必须大于 INT32_MAX
+  config.read_timeout_ms = 3000000000LL;  // 大于 INT32_MAX
+  EXPECT_EQ(config.read_timeout_ms, 3000000000LL);
+  // 验证这个值在 Windows long (32-bit) 上会溢出
+  EXPECT_GT(config.read_timeout_ms, 2147483647LL);
+}
+
+// 测试 RequestConfig 所有字段都能正确存储 int64_t 值
+TEST_F(CoreTest, RequestConfigAllTimeoutFields) {
+  RequestConfig config;
+  config.connect_timeout_ms = 300000LL;   // 5 分钟
+  config.read_timeout_ms = 3600000LL;     // 1 小时
+
+  EXPECT_EQ(config.connect_timeout_ms, 300000LL);
+  EXPECT_EQ(config.read_timeout_ms, 3600000LL);
+}
+
+// 测试超时值类型正确性 - 验证是 int64_t
+TEST_F(CoreTest, TimeoutTypeIsInt64) {
+  // 编译时验证类型
+  static_assert(std::is_same<decltype(ConnectionPoolConfig::connection_idle_timeout), int64_t>::value,
+                "connection_idle_timeout should be int64_t");
+  static_assert(std::is_same<decltype(RequestConfig::connect_timeout_ms), int64_t>::value,
+                "connect_timeout_ms should be int64_t");
+  static_assert(std::is_same<decltype(RequestConfig::read_timeout_ms), int64_t>::value,
+                "read_timeout_ms should be int64_t");
+}
+
+// 测试负值超时（边界情况）
+TEST_F(CoreTest, RequestConfigNegativeTimeout) {
+  RequestConfig config;
+  // 虽然 API 不应该接受负值，但类型应该能存储
+  config.connect_timeout_ms = -1;
+  config.read_timeout_ms = -1;
+  EXPECT_EQ(config.connect_timeout_ms, -1LL);
+  EXPECT_EQ(config.read_timeout_ms, -1LL);
+}
+
+// 测试零超时值
+TEST_F(CoreTest, RequestConfigZeroTimeout) {
+  RequestConfig config;
+  config.connect_timeout_ms = 0;
+  config.read_timeout_ms = 0;
+  EXPECT_EQ(config.connect_timeout_ms, 0LL);
+  EXPECT_EQ(config.read_timeout_ms, 0LL);
+}
+
+// 测试默认超时值
+TEST_F(CoreTest, RequestConfigDefaultTimeoutValues) {
+  RequestConfig config;
+  EXPECT_EQ(config.connect_timeout_ms, 5000LL);
+  EXPECT_EQ(config.read_timeout_ms, 10000LL);  // 默认 10 秒
+  EXPECT_FALSE(config.ignore_ssl);
+}
+
+// ==================== fromMap 模板函数测试 ====================
+
+// 测试用的 Model 类
+class FromMapTestModel : public Darabonba::Model {
+public:
+  std::shared_ptr<std::string> name_;
+  std::shared_ptr<int32_t> count_;
+  std::shared_ptr<bool> enabled_;
+
+  friend void from_json(const Darabonba::Json& j, FromMapTestModel& obj) {
+    DARABONBA_PTR_FROM_JSON(name, name_);
+    DARABONBA_PTR_FROM_JSON(count, count_);
+    DARABONBA_PTR_FROM_JSON(enabled, enabled_);
+  }
+
+  friend void to_json(Darabonba::Json& j, const FromMapTestModel& obj) {
+    DARABONBA_PTR_TO_JSON(name, name_);
+    DARABONBA_PTR_TO_JSON(count, count_);
+    DARABONBA_PTR_TO_JSON(enabled, enabled_);
+  }
+
+  Json toMap() const override {
+    Json j;
+    to_json(j, *this);
+    return j;
+  }
+
+  void fromMap(const Json& j) override {
+    from_json(j, *this);
+  }
+
+  void validate() const override {}
+  bool empty() const override { return !name_ && !count_ && !enabled_; }
+};
+
+TEST_F(CoreTest, FromMapBasicUsage) {
+  Json j;
+  j["name"] = "test";
+  j["count"] = 42;
+  j["enabled"] = true;
+
+  FromMapTestModel model = Darabonba::fromMap<FromMapTestModel>(j);
+
+  EXPECT_TRUE(model.name_ != nullptr);
+  EXPECT_EQ(*model.name_, "test");
+  EXPECT_TRUE(model.count_ != nullptr);
+  EXPECT_EQ(*model.count_, 42);
+  EXPECT_TRUE(model.enabled_ != nullptr);
+  EXPECT_TRUE(*model.enabled_);
+}
+
+TEST_F(CoreTest, FromMapWithNullValues) {
+  Json j;
+  j["name"] = nullptr;
+  j["count"] = nullptr;
+
+  FromMapTestModel model = Darabonba::fromMap<FromMapTestModel>(j);
+
+  EXPECT_TRUE(model.name_ == nullptr);
+  EXPECT_TRUE(model.count_ == nullptr);
+}
+
+TEST_F(CoreTest, FromMapWithMissingKeys) {
+  Json j;  // 空 JSON
+
+  FromMapTestModel model = Darabonba::fromMap<FromMapTestModel>(j);
+
+  EXPECT_TRUE(model.empty());
+}
+
+TEST_F(CoreTest, FromMapTypeConversionStringToInt) {
+  Json j;
+  j["name"] = "convert_test";
+  j["count"] = "100";  // 字符串形式的数字
+
+  FromMapTestModel model = Darabonba::fromMap<FromMapTestModel>(j);
+
+  EXPECT_TRUE(model.count_ != nullptr);
+  EXPECT_EQ(*model.count_, 100);
+}
+
+TEST_F(CoreTest, FromMapTypeConversionBoolToInt) {
+  Json j;
+  j["count"] = true;  // bool -> int
+
+  FromMapTestModel model = Darabonba::fromMap<FromMapTestModel>(j);
+
+  EXPECT_TRUE(model.count_ != nullptr);
+  EXPECT_EQ(*model.count_, 1);
+}
+
+TEST_F(CoreTest, FromMapTypeConversionIntToString) {
+  Json j;
+  j["name"] = 12345;  // int -> string
+
+  FromMapTestModel model = Darabonba::fromMap<FromMapTestModel>(j);
+
+  EXPECT_TRUE(model.name_ != nullptr);
+  EXPECT_EQ(*model.name_, "12345");
+}
+
+TEST_F(CoreTest, FromMapTypeConversionBoolToString) {
+  Json j;
+  j["name"] = true;  // bool -> string
+
+  FromMapTestModel model = Darabonba::fromMap<FromMapTestModel>(j);
+
+  EXPECT_TRUE(model.name_ != nullptr);
+  EXPECT_EQ(*model.name_, "true");
+}
+
+TEST_F(CoreTest, FromMapTypeConversionStringToBool) {
+  Json j;
+  j["enabled"] = "true";  // string -> bool
+
+  FromMapTestModel model = Darabonba::fromMap<FromMapTestModel>(j);
+
+  EXPECT_TRUE(model.enabled_ != nullptr);
+  EXPECT_TRUE(*model.enabled_);
+
+  j["enabled"] = "FALSE";
+  model = Darabonba::fromMap<FromMapTestModel>(j);
+  EXPECT_FALSE(*model.enabled_);
+
+  j["enabled"] = "1";
+  model = Darabonba::fromMap<FromMapTestModel>(j);
+  EXPECT_TRUE(*model.enabled_);
+}
+
+TEST_F(CoreTest, FromMapNullToInt) {
+  Json j;
+  j["count"] = nullptr;
+
+  FromMapTestModel model = Darabonba::fromMap<FromMapTestModel>(j);
+
+  EXPECT_TRUE(model.count_ == nullptr);
+}
+
+TEST_F(CoreTest, FromMapNullToBool) {
+  Json j;
+  j["enabled"] = nullptr;
+
+  FromMapTestModel model = Darabonba::fromMap<FromMapTestModel>(j);
+
+  EXPECT_TRUE(model.enabled_ == nullptr);
+}
+
+TEST_F(CoreTest, FromMapNullToString) {
+  Json j;
+  j["name"] = nullptr;
+
+  FromMapTestModel model = Darabonba::fromMap<FromMapTestModel>(j);
+
+  EXPECT_TRUE(model.name_ == nullptr);
+}
+
+TEST_F(CoreTest, FromMapFloatToString) {
+  Json j;
+  j["name"] = 3.14;  // float -> string
+
+  FromMapTestModel model = Darabonba::fromMap<FromMapTestModel>(j);
+
+  EXPECT_TRUE(model.name_ != nullptr);
+  // 浮点数转字符串
+  EXPECT_FALSE(model.name_->empty());
+}
+
+TEST_F(CoreTest, FromMapIntToBool) {
+  Json j;
+  j["enabled"] = 1;  // int -> bool
+
+  FromMapTestModel model = Darabonba::fromMap<FromMapTestModel>(j);
+  EXPECT_TRUE(*model.enabled_);
+
+  j["enabled"] = 0;
+  model = Darabonba::fromMap<FromMapTestModel>(j);
+  EXPECT_FALSE(*model.enabled_);
+}
+
+// ==================== safe_convert 详细测试 ====================
+
+TEST_F(CoreTest, SafeConvertStringToString) {
+  Json j = "hello";
+  std::string result = Darabonba::detail::safe_convert<std::string>(j);
+  EXPECT_EQ(result, "hello");
+}
+
+TEST_F(CoreTest, SafeConvertIntToString) {
+  Json j = 42;
+  std::string result = Darabonba::detail::safe_convert<std::string>(j);
+  EXPECT_EQ(result, "42");
+}
+
+TEST_F(CoreTest, SafeConvertBoolToString) {
+  Json j = true;
+  std::string result = Darabonba::detail::safe_convert<std::string>(j);
+  EXPECT_EQ(result, "true");
+
+  j = false;
+  result = Darabonba::detail::safe_convert<std::string>(j);
+  EXPECT_EQ(result, "false");
+}
+
+TEST_F(CoreTest, SafeConvertNullToString) {
+  Json j = nullptr;
+  std::string result = Darabonba::detail::safe_convert<std::string>(j);
+  EXPECT_EQ(result, "");
+}
+
+TEST_F(CoreTest, SafeConvertStringToInt32) {
+  Json j = "123";
+  int32_t result = Darabonba::detail::safe_convert<int32_t>(j);
+  EXPECT_EQ(result, 123);
+}
+
+TEST_F(CoreTest, SafeConvertBoolToInt32) {
+  Json j = true;
+  int32_t result = Darabonba::detail::safe_convert<int32_t>(j);
+  EXPECT_EQ(result, 1);
+
+  j = false;
+  result = Darabonba::detail::safe_convert<int32_t>(j);
+  EXPECT_EQ(result, 0);
+}
+
+TEST_F(CoreTest, SafeConvertNullToInt32) {
+  Json j = nullptr;
+  int32_t result = Darabonba::detail::safe_convert<int32_t>(j);
+  EXPECT_EQ(result, 0);
+}
+
+TEST_F(CoreTest, SafeConvertStringToInt64) {
+  Json j = "9223372036854775807";  // INT64_MAX
+  int64_t result = Darabonba::detail::safe_convert<int64_t>(j);
+  EXPECT_EQ(result, INT64_MAX);
+}
+
+TEST_F(CoreTest, SafeConvertBoolToInt64) {
+  Json j = true;
+  int64_t result = Darabonba::detail::safe_convert<int64_t>(j);
+  EXPECT_EQ(result, 1);
+}
+
+TEST_F(CoreTest, SafeConvertNullToInt64) {
+  Json j = nullptr;
+  int64_t result = Darabonba::detail::safe_convert<int64_t>(j);
+  EXPECT_EQ(result, 0);
+}
+
+TEST_F(CoreTest, SafeConvertStringToBool) {
+  Json j = "true";
+  bool result = Darabonba::detail::safe_convert<bool>(j);
+  EXPECT_TRUE(result);
+
+  j = "TRUE";
+  result = Darabonba::detail::safe_convert<bool>(j);
+  EXPECT_TRUE(result);
+
+  j = "1";
+  result = Darabonba::detail::safe_convert<bool>(j);
+  EXPECT_TRUE(result);
+
+  j = "false";
+  result = Darabonba::detail::safe_convert<bool>(j);
+  EXPECT_FALSE(result);
+
+  j = "0";
+  result = Darabonba::detail::safe_convert<bool>(j);
+  EXPECT_FALSE(result);
+
+  j = "anything";
+  result = Darabonba::detail::safe_convert<bool>(j);
+  EXPECT_FALSE(result);
+}
+
+TEST_F(CoreTest, SafeConvertIntToBool) {
+  Json j = 1;
+  bool result = Darabonba::detail::safe_convert<bool>(j);
+  EXPECT_TRUE(result);
+
+  j = 0;
+  result = Darabonba::detail::safe_convert<bool>(j);
+  EXPECT_FALSE(result);
+
+  j = -1;
+  result = Darabonba::detail::safe_convert<bool>(j);
+  EXPECT_TRUE(result);  // 非0即为true
+}
+
+TEST_F(CoreTest, SafeConvertNullToBool) {
+  Json j = nullptr;
+  bool result = Darabonba::detail::safe_convert<bool>(j);
+  EXPECT_FALSE(result);
+}
+
+TEST_F(CoreTest, SafeConvertInvalidStringToInt32Throws) {
+  Json j = "not_a_number";
+  EXPECT_THROW(Darabonba::detail::safe_convert<int32_t>(j), std::runtime_error);
+}
+
+TEST_F(CoreTest, SafeConvertInvalidStringToInt64Throws) {
+  Json j = "not_a_number";
+  EXPECT_THROW(Darabonba::detail::safe_convert<int64_t>(j), std::runtime_error);
+}
+
+TEST_F(CoreTest, SafeConvertObjectToString) {
+  Json j = {{"key", "value"}};
+  std::string result = Darabonba::detail::safe_convert<std::string>(j);
+  // 对象转字符串应该返回 JSON dump
+  EXPECT_FALSE(result.empty());
 }
