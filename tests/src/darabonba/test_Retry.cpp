@@ -64,15 +64,35 @@ TEST_F(RetryTest, ExponentialBackoffPolicyReturnsExponentialDelay) {
   ctx.setRetriesAttempted(1);
 
   int delay = policy.getDelayTime(ctx);
-  EXPECT_EQ(delay, 2); // 2^(1*1) = 2
+  EXPECT_EQ(delay, 2); // period * 2^1 = 2
 
   ctx.setRetriesAttempted(2);
   delay = policy.getDelayTime(ctx);
-  EXPECT_EQ(delay, 4); // 2^(2*1) = 4
+  EXPECT_EQ(delay, 4); // period * 2^2 = 4
 
   ctx.setRetriesAttempted(3);
   delay = policy.getDelayTime(ctx);
-  EXPECT_EQ(delay, 8); // 2^(3*1) = 8
+  EXPECT_EQ(delay, 8); // period * 2^3 = 8
+}
+
+// Regression: millisecond period must scale linearly, not enter the exponent
+TEST_F(RetryTest, ExponentialBackoffPolicyWithMillisecondPeriod) {
+  std::map<std::string, std::string> option;
+  option["policy"] = "Exponential";
+  option["period"] = "1000";
+  option["cap"] = "100000";
+
+  ExponentialBackoffPolicy policy(option);
+
+  RetryPolicyContext ctx;
+  ctx.setRetriesAttempted(1);
+  EXPECT_EQ(policy.getDelayTime(ctx), 2000); // 1000 * 2^1
+
+  ctx.setRetriesAttempted(2);
+  EXPECT_EQ(policy.getDelayTime(ctx), 4000); // 1000 * 2^2
+
+  ctx.setRetriesAttempted(3);
+  EXPECT_EQ(policy.getDelayTime(ctx), 8000); // 1000 * 2^3
 }
 
 // Test EqualJitterBackoffPolicy
@@ -88,7 +108,7 @@ TEST_F(RetryTest, EqualJitterBackoffPolicyReturnsJitteredDelay) {
   ctx.setRetriesAttempted(3);
 
   int delay = policy.getDelayTime(ctx);
-  // ceil = min(10000, 2^3) = 8
+  // ceil = min(10000, 1 * 2^3) = 8
   // delay should be between ceil/2 and ceil = [4, 8]
   EXPECT_GE(delay, 4);
   EXPECT_LE(delay, 8);
@@ -107,7 +127,7 @@ TEST_F(RetryTest, FullJitterBackoffPolicyReturnsFullJitteredDelay) {
   ctx.setRetriesAttempted(3);
 
   int delay = policy.getDelayTime(ctx);
-  // ceil = min(10000, 2^3) = 8
+  // ceil = min(10000, 1 * 2^3) = 8
   // delay should be between 0 and ceil = [0, 8]
   EXPECT_GE(delay, 0);
   EXPECT_LE(delay, 8);
@@ -256,6 +276,38 @@ TEST_F(RetryTest, GetBackoffDelayWithBackoffPolicy) {
 
   int delay = getBackoffDelay(options, ctx);
   EXPECT_EQ(delay, 2000);
+}
+
+// Test getBackoffDelay - Exponential policy is applied (not stuck at MinDelayTime)
+TEST_F(RetryTest, GetBackoffDelayWithExponentialPolicy) {
+  RetryOptions options;
+  options.setRetryable(true);
+
+  RetryCondition condition;
+  condition.setMaxAttempts(5);
+  condition.setException({"ResponseException"});
+  condition.setMaxDelay(60000);
+
+  std::map<std::string, std::string> policyOption;
+  policyOption["policy"] = "Exponential";
+  policyOption["period"] = "1000";
+  policyOption["cap"] = "100000";
+
+  auto backoffPolicy =
+      std::make_shared<ExponentialBackoffPolicy>(policyOption);
+  condition.setBackoff(backoffPolicy);
+
+  options.setRetryCondition({condition});
+
+  auto ex = std::make_shared<ResponseException>();
+
+  RetryPolicyContext ctx;
+  ctx.setRetriesAttempted(2);
+  ctx.setException(ex);
+
+  int delay = getBackoffDelay(options, ctx);
+  EXPECT_EQ(delay, 4000); // 1000 * 2^2
+  EXPECT_NE(delay, MinDelayTime);
 }
 
 // Test getBackoffDelay - with retryAfter

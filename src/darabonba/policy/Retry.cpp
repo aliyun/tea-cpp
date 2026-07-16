@@ -54,26 +54,32 @@ std::unique_ptr<BackoffPolicy> BackoffPolicy::createBackoffPolicy(
 }
 
 // ExponentialBackoffPolicy implementation
+// Standard exponential backoff: period * 2^retries (aligned with C# / tea peers)
 int ExponentialBackoffPolicy::getDelayTime(
     const RetryPolicyContext &ctx) const {
-  int randomTime =
-      static_cast<int>(std::pow(2, ctx.getRetriesAttempted() * period_));
-  return std::min(randomTime, cap_);
+  double potentialTime =
+      static_cast<double>(period_) *
+      std::pow(2.0, static_cast<double>(ctx.getRetriesAttempted()));
+  return static_cast<int>(std::min(static_cast<double>(cap_), potentialTime));
 }
 
 // EqualJitterBackoffPolicy implementation
 int EqualJitterBackoffPolicy::getDelayTime(
     const RetryPolicyContext &ctx) const {
-  int ceil = std::min(
-      cap_, static_cast<int>(std::pow(2, ctx.getRetriesAttempted() * period_)));
+  int ceil = static_cast<int>(std::min(
+      static_cast<double>(cap_),
+      static_cast<double>(period_) *
+          std::pow(2.0, static_cast<double>(ctx.getRetriesAttempted()))));
   int jitter = getRandomInt(0, ceil / 2);
   return ceil / 2 + jitter;
 }
 
 // FullJitterBackoffPolicy implementation
 int FullJitterBackoffPolicy::getDelayTime(const RetryPolicyContext &ctx) const {
-  int ceil = std::min(
-      cap_, static_cast<int>(std::pow(2, ctx.getRetriesAttempted() * period_)));
+  int ceil = static_cast<int>(std::min(
+      static_cast<double>(cap_),
+      static_cast<double>(period_) *
+          std::pow(2.0, static_cast<double>(ctx.getRetriesAttempted()))));
   return getRandomInt(0, ceil);
 }
 
