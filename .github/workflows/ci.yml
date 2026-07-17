@@ -135,7 +135,8 @@ jobs:
           echo "Running test..."
           ./tests/Release/darabonba_coreTest.exe
         else
-          ctest --output-on-failure -C Release
+          # Per-test timeout: avoid job-level hang when a network case blocks
+          ctest --output-on-failure -C Release --timeout 120
         fi
 
     - name: Install Shared Library
@@ -207,7 +208,7 @@ jobs:
           ls -la tests/Release/ || echo "Directory not found"
           ./tests/Release/darabonba_coreTest.exe
         else
-          ctest --output-on-failure -C Release
+          ctest --output-on-failure -C Release --timeout 120
         fi
 
     - name: Install Static Library

@@ -192,7 +192,7 @@ TEST_F(MCurlHttpClientTest, MakeRequestWithPostMethod) {
     if (status == std::future_status::ready) {
       auto response = future.get();
       if (response) {
-        int code = response->getStatusCode();
+        int64_t code = response->getStatusCode();
         // httpbin.org is an external dependency; 429/5xx mean the service is
         // unavailable — treat as skip (same posture as MakeRequestToValidUrl).
         if (code == 429 || code >= 500) {

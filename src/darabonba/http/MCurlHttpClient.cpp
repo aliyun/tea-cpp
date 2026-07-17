@@ -2,6 +2,7 @@
 #include <darabonba/http/Curl.hpp>
 #include <darabonba/http/MCurlHttpClient.hpp>
 #include <darabonba/http/MCurlResponse.hpp>
+#include <chrono>
 #include <mutex>
 
 namespace Darabonba {
@@ -297,12 +298,10 @@ bool MCurlHttpClient::stop() {
   running_ = false;
   curl_multi_wakeup(mCurl_);
   std::unique_lock<std::mutex> lock(stopMutex_);
-#ifdef _WIN32
-  // Windows: Use timeout to prevent deadlock during DLL unload
-  stopCV_.wait_for(lock, std::chrono::seconds(5), [this]() { return stop_.load(); });
-#else
-  stopCV_.wait(lock, [this]() { return stop_.load(); });
-#endif
+  // Bound wait: worker may be stuck in curl_multi_poll / in-flight I/O;
+  // unbounded wait hangs CI (esp. macOS) when external network is slow.
+  stopCV_.wait_for(lock, std::chrono::seconds(5),
+                   [this]() { return stop_.load(); });
   return true;
 }
 
