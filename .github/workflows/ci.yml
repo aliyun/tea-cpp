@@ -124,7 +124,8 @@ jobs:
 
     - name: Test Shared Library
       shell: bash
-      timeout-minutes: 5
+      # Full suite includes external network cases; Windows static/shared often >5m
+      timeout-minutes: 15
       run: |
         cd build-shared
         if [ "${{ runner.os }}" = "Windows" ]; then
@@ -198,7 +199,7 @@ jobs:
 
     - name: Test Static Library
       shell: bash
-      timeout-minutes: 5
+      timeout-minutes: 15
       run: |
         cd build-static
         if [ "${{ runner.os }}" = "Windows" ]; then
