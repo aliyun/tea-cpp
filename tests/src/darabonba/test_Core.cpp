@@ -168,7 +168,7 @@ TEST_F(CoreTest, GetBackoffTimeWithExponentialPolicy) {
   ctx.setException(ex);
 
   int delay = Darabonba::getBackoffTime(options, ctx);
-  // 2^3 = 8
+  // period * 2^retries = 1 * 2^3 = 8
   EXPECT_EQ(delay, 8);
 }
 

@@ -28,7 +28,15 @@ public:
   ~MCurlHttpClient() {
     stop();
     if (performThread_.joinable()) {
-      performThread_.join();
+      if (stop_.load()) {
+        performThread_.join();
+      } else {
+        // stop() timed out while the worker is still in curl I/O; detach so
+        // destructors never block CI / process teardown indefinitely.
+        performThread_.detach();
+        mCurl_ = nullptr;
+        return;
+      }
     }
     clearQueue();
     curl_multi_cleanup(mCurl_);

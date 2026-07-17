@@ -124,7 +124,8 @@ jobs:
 
     - name: Test Shared Library
       shell: bash
-      timeout-minutes: 5
+      # Full suite includes external network cases; Windows static/shared often >5m
+      timeout-minutes: 15
       run: |
         cd build-shared
         if [ "${{ runner.os }}" = "Windows" ]; then
@@ -134,7 +135,8 @@ jobs:
           echo "Running test..."
           ./tests/Release/darabonba_coreTest.exe
         else
-          ctest --output-on-failure -C Release
+          # Per-test timeout: avoid job-level hang when a network case blocks
+          ctest --output-on-failure -C Release --timeout 120
         fi
 
     - name: Install Shared Library
@@ -198,7 +200,7 @@ jobs:
 
     - name: Test Static Library
       shell: bash
-      timeout-minutes: 5
+      timeout-minutes: 15
       run: |
         cd build-static
         if [ "${{ runner.os }}" = "Windows" ]; then
@@ -206,7 +208,7 @@ jobs:
           ls -la tests/Release/ || echo "Directory not found"
           ./tests/Release/darabonba_coreTest.exe
         else
-          ctest --output-on-failure -C Release
+          ctest --output-on-failure -C Release --timeout 120
         fi
 
     - name: Install Static Library
