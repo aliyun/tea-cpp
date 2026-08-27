@@ -59,6 +59,8 @@ struct RequestConfig {
   std::string http_proxy;            // Per-request proxy
   std::string https_proxy;           // Per-request HTTPS proxy
   std::string no_proxy;              // Per-request no-proxy list
+  std::string socks5_proxy;          // Per-request SOCKS5 proxy
+  std::string socks5_network;        // Per-request SOCKS5 network (tcp/udp)
   std::string credential;            // Per-request credentials
 };
 

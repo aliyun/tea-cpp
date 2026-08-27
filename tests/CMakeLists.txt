@@ -9,6 +9,20 @@ target_include_directories(${PROJECT_NAME}Test
 # googletest - gtest_main already includes gtest transitively
 target_link_libraries(${PROJECT_NAME}Test ${PROJECT_NAME} gtest_main gmock)
 
+# Prefer bundled GoogleTest headers over system installs (e.g. Homebrew).
+if(TARGET gtest)
+  get_target_property(_gtest_include_dirs gtest INTERFACE_INCLUDE_DIRECTORIES)
+  if(_gtest_include_dirs)
+    target_include_directories(${PROJECT_NAME}Test BEFORE PRIVATE ${_gtest_include_dirs})
+  endif()
+endif()
+if(TARGET gmock)
+  get_target_property(_gmock_include_dirs gmock INTERFACE_INCLUDE_DIRECTORIES)
+  if(_gmock_include_dirs)
+    target_include_directories(${PROJECT_NAME}Test BEFORE PRIVATE ${_gmock_include_dirs})
+  endif()
+endif()
+
 # On Windows with shared libs, copy the DLL to the test executable directory
 if(WIN32 AND BUILD_SHARED_LIBS)
   add_custom_command(TARGET ${PROJECT_NAME}Test POST_BUILD

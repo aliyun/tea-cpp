@@ -1,8 +1,11 @@
 #include <darabonba/Stream.hpp>
+#include <darabonba/Exception.hpp>
 #include <darabonba/http/Curl.hpp>
 #include <darabonba/http/Form.hpp>
 #include <darabonba/http/URL.hpp>
 #include <memory>
+#include <algorithm>
+#include <cctype>
 
 namespace Darabonba {
 namespace Http {
@@ -96,12 +99,142 @@ size_t readIStream(char *buffer, size_t size, size_t nitems, void *userdata) {
   return f->read(buffer, size * nitems);
 }
 
+namespace {
+
+std::string normalizeNetworkToken(const std::string &network) {
+  std::string value = network;
+  std::transform(value.begin(), value.end(), value.begin(),
+                 [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+  return value;
+}
+
+std::string stripSocksScheme(std::string proxy) {
+  static const char *prefixes[] = {"socks5h://", "socks5://", "socks4a://",
+                                   "socks4://"};
+  for (const auto *prefix : prefixes) {
+    const std::string scheme(prefix);
+    if (proxy.size() >= scheme.size() &&
+        std::equal(scheme.begin(), scheme.end(), proxy.begin(),
+                   [](char a, char b) {
+                     return std::tolower(static_cast<unsigned char>(a)) ==
+                            std::tolower(static_cast<unsigned char>(b));
+                   })) {
+      return proxy.substr(scheme.size());
+    }
+  }
+  return proxy;
+}
+
+URL parseProxyEndpoint(const std::string &proxy) {
+  std::string endpoint = stripSocksScheme(proxy);
+  if (endpoint.find("://") == std::string::npos) {
+    endpoint = "http://" + endpoint;
+  }
+  return URL(endpoint);
+}
+
+bool usesRemoteDnsResolution(const std::string &proxy) {
+  std::string lower = proxy;
+  std::transform(lower.begin(), lower.end(), lower.begin(),
+                 [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+  return lower.rfind("socks5h://", 0) == 0;
+}
+
+} // namespace
+
 void setCurlProxy(CURL *curl, const std::string &proxy) {
-  URL url(proxy);
-  std::string out = url.getHost() + ":" + std::to_string(url.getPort());
+  URL url(parseProxyEndpoint(proxy));
+  if (url.getHost().empty()) {
+    throw ValidateException("InvalidConfiguration",
+                            "Invalid proxy URL: " + proxy);
+  }
+  uint16_t port = url.getPort();
+  if (port == 0) {
+    port = 1080;
+  }
+  std::string out = url.getHost() + ":" + std::to_string(port);
   curl_easy_setopt(curl, CURLOPT_PROXY, out.c_str());
   if (!url.getUserInfo().empty()) {
     curl_easy_setopt(curl, CURLOPT_PROXYUSERPWD, url.getUserInfo().c_str());
+  }
+}
+
+void validateProxyOptions(const std::string &httpProxy,
+                          const std::string &httpsProxy,
+                          const std::string &socks5Proxy,
+                          const std::string &socks5Network) {
+  if (!socks5Network.empty() && socks5Proxy.empty()) {
+    throw ValidateException("InvalidConfiguration",
+                          "socks5NetWork requires socks5Proxy to be configured");
+  }
+
+  if (!socks5Network.empty()) {
+    const std::string network = normalizeNetworkToken(socks5Network);
+    if (network != "tcp" && network != "udp") {
+      throw ValidateException("InvalidConfiguration",
+                              "Invalid socks5NetWork: " + socks5Network +
+                                  ", expected tcp or udp");
+    }
+    if (network == "udp") {
+      throw ValidateException(
+          "InvalidConfiguration",
+          "SOCKS5 UDP network is not supported for HTTP requests");
+    }
+  }
+
+  if (!socks5Proxy.empty()) {
+    URL url(parseProxyEndpoint(socks5Proxy));
+    if (url.getHost().empty()) {
+      throw ValidateException("InvalidConfiguration",
+                              "Invalid socks5Proxy: " + socks5Proxy);
+    }
+  }
+
+  if (!httpProxy.empty()) {
+    URL url(parseProxyEndpoint(httpProxy));
+    if (url.getHost().empty()) {
+      throw ValidateException("InvalidConfiguration",
+                              "Invalid httpProxy: " + httpProxy);
+    }
+  }
+
+  if (!httpsProxy.empty()) {
+    URL url(parseProxyEndpoint(httpsProxy));
+    if (url.getHost().empty()) {
+      throw ValidateException("InvalidConfiguration",
+                              "Invalid httpsProxy: " + httpsProxy);
+    }
+  }
+}
+
+void setCurlSocks5Proxy(CURL *curl, const std::string &proxy,
+                        const std::string &network) {
+  (void)network;
+  const bool remoteDns = usesRemoteDnsResolution(proxy);
+  curl_easy_setopt(curl, CURLOPT_PROXYTYPE,
+                   remoteDns ? CURLPROXY_SOCKS5_HOSTNAME : CURLPROXY_SOCKS5);
+  setCurlProxy(curl, proxy);
+}
+
+void applyCurlProxyOptions(CURL *curl, const std::string &httpProxy,
+                           const std::string &httpsProxy,
+                           const std::string &socks5Proxy,
+                           const std::string &socks5Network,
+                           const std::string &noProxy) {
+  validateProxyOptions(httpProxy, httpsProxy, socks5Proxy, socks5Network);
+
+  if (!noProxy.empty()) {
+    curl_easy_setopt(curl, CURLOPT_NOPROXY, noProxy.c_str());
+  }
+
+  if (!httpProxy.empty()) {
+    curl_easy_setopt(curl, CURLOPT_PROXYTYPE, CURLPROXY_HTTP);
+    setCurlProxy(curl, httpProxy);
+  } else if (!httpsProxy.empty()) {
+    curl_easy_setopt(curl, CURLOPT_PROXYTYPE, CURLPROXY_HTTPS);
+    setCurlProxy(curl, httpsProxy);
+  } else if (!socks5Proxy.empty()) {
+    setCurlSocks5Proxy(curl, socks5Proxy, socks5Network);
   }
 }
 

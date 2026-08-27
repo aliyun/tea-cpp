@@ -123,6 +123,12 @@ RequestConfig getRequestConfig(const Darabonba::Json &runtime) {
     if (runtime.contains("noProxy")) {
       config.no_proxy = runtime["noProxy"].get<std::string>();
     }
+    if (runtime.contains("socks5Proxy")) {
+      config.socks5_proxy = runtime["socks5Proxy"].get<std::string>();
+    }
+    if (runtime.contains("socks5NetWork")) {
+      config.socks5_network = runtime["socks5NetWork"].get<std::string>();
+    }
     if (runtime.contains("credential")) {
       config.credential = runtime["credential"].get<std::string>();
     }
@@ -230,6 +236,8 @@ Core::doAction(Http::Request &request, const Darabonba::Json &runtime) {
   request_runtime["httpProxy"] = request_config.http_proxy;
   request_runtime["httpsProxy"] = request_config.https_proxy;
   request_runtime["noProxy"] = request_config.no_proxy;
+  request_runtime["socks5Proxy"] = request_config.socks5_proxy;
+  request_runtime["socks5NetWork"] = request_config.socks5_network;
 
   // makeRequest is now called without holding the global lock,
   // allowing concurrent requests to different hosts

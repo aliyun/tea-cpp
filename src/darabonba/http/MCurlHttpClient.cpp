@@ -72,21 +72,13 @@ MCurlHttpClient::makeRequest(const Request &request,
       curl_easy_setopt(easyHandle, CURLOPT_TIMEOUT_MS, readTimeout);
     }
     // set proxy
-    // TODO: sock5
     std::string httpProxy = options.value("httpProxy", "");
-    if (!httpProxy.empty()) {
-      curl_easy_setopt(easyHandle, CURLOPT_PROXYTYPE, CURLPROXY_HTTP);
-      Curl::setCurlProxy(easyHandle, httpProxy);
-    }
     std::string httpsProxy = options.value("httpsProxy", "");
-    if (!httpsProxy.empty()) {
-      curl_easy_setopt(easyHandle, CURLOPT_PROXYTYPE, CURLPROXY_HTTPS);
-      Curl::setCurlProxy(easyHandle, httpsProxy);
-    }
+    std::string socks5Proxy = options.value("socks5Proxy", "");
+    std::string socks5NetWork = options.value("socks5NetWork", "");
     std::string noProxy = options.value("noProxy", "");
-    if (!noProxy.empty()) {
-      curl_easy_setopt(easyHandle, CURLOPT_NOPROXY, noProxy.c_str());
-    }
+    Curl::applyCurlProxyOptions(easyHandle, httpProxy, httpsProxy, socks5Proxy,
+                                socks5NetWork, noProxy);
   }
 
   if (nullptr != getenv("DEBUG")) {
