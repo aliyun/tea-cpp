@@ -681,6 +681,39 @@ TEST_F(CoreTest, EmptyRuntimeOptions) {
   }
 }
 
+// ==================== SOCKS5 proxy runtime 测试 ====================
+TEST_F(CoreTest, DoActionRejectsSocks5NetworkWithoutProxy) {
+  Http::Request request(std::string("https://www.example.com"));
+
+  Json runtime;
+  runtime["socks5NetWork"] = "tcp";
+  runtime["connectTimeout"] = 1000L;
+  runtime["readTimeout"] = 1000L;
+
+  EXPECT_THROW(core.doAction(request, runtime), ValidateException);
+}
+
+TEST_F(CoreTest, DoActionAcceptsSocks5RuntimeOptions) {
+  Http::Request request(std::string("https://www.example.com"));
+
+  Json runtime;
+  runtime["socks5Proxy"] = "socks5://127.0.0.1:1080";
+  runtime["socks5NetWork"] = "tcp";
+  runtime["noProxy"] = "localhost";
+  runtime["connectTimeout"] = 1000L;
+  runtime["readTimeout"] = 1000L;
+
+  auto future = core.doAction(request, runtime);
+  ASSERT_EQ(future.wait_for(std::chrono::seconds(5)),
+            std::future_status::ready);
+
+  try {
+    (void)future.get();
+  } catch (const std::exception &) {
+    // Local proxy may be unavailable; configuration path was exercised.
+  }
+}
+
 // ==================== 配置类型安全测试 ====================
 TEST_F(CoreTest, MaxIdleConnsTypeSafety) {
   Json runtime;

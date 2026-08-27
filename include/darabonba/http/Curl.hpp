@@ -30,6 +30,20 @@ void setCurlRequestBody(CURL *curl, std::shared_ptr<Darabonba::IStream> body);
 
 void setCurlProxy(CURL *curl, const std::string &proxy);
 
+void setCurlSocks5Proxy(CURL *curl, const std::string &proxy,
+                        const std::string &network);
+
+void validateProxyOptions(const std::string &httpProxy,
+                          const std::string &httpsProxy,
+                          const std::string &socks5Proxy,
+                          const std::string &socks5Network);
+
+void applyCurlProxyOptions(CURL *curl, const std::string &httpProxy,
+                           const std::string &httpsProxy,
+                           const std::string &socks5Proxy,
+                           const std::string &socks5Network,
+                           const std::string &noProxy);
+
 curl_slist *setCurlHeader(CURL *curl, const Darabonba::Http::Header &header);
 
 int debugFunction(CURL *curl, curl_infotype type, char *data, size_t size,
