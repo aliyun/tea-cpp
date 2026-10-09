@@ -289,3 +289,51 @@ TEST_F(RuntimeOptionsTest, NegativeValues) {
   options.setReadTimeout(-1);
   EXPECT_EQ(options.getReadTimeout(), -1);
 }
+// ==================== ipv4Only 字段测试 ====================
+
+TEST_F(RuntimeOptionsTest, Ipv4OnlyDefaultUnset) {
+  RuntimeOptions options;
+  EXPECT_FALSE(options.hasIpv4Only());
+  EXPECT_FALSE(options.getIpv4Only());
+
+  Json j;
+  to_json(j, options);
+  EXPECT_FALSE(j.contains("ipv4Only"));
+}
+
+TEST_F(RuntimeOptionsTest, Ipv4OnlySetGetDelete) {
+  RuntimeOptions options;
+  options.setIpv4Only(true);
+  EXPECT_TRUE(options.hasIpv4Only());
+  EXPECT_TRUE(options.getIpv4Only());
+  EXPECT_FALSE(options.empty());
+
+  options.setIpv4Only(false);
+  EXPECT_TRUE(options.hasIpv4Only());
+  EXPECT_FALSE(options.getIpv4Only());
+
+  options.deleteIpv4Only();
+  EXPECT_FALSE(options.hasIpv4Only());
+  EXPECT_TRUE(options.empty());
+}
+
+TEST_F(RuntimeOptionsTest, Ipv4OnlyJsonRoundTrip) {
+  RuntimeOptions original;
+  original.setIpv4Only(true);
+  original.setKeepAlive(true);
+
+  Json j;
+  to_json(j, original);
+  EXPECT_EQ(j["ipv4Only"], true);
+
+  RuntimeOptions restored;
+  from_json(j, restored);
+  EXPECT_TRUE(restored.hasIpv4Only());
+  EXPECT_TRUE(restored.getIpv4Only());
+
+  RuntimeOptions fromMap;
+  fromMap.fromMap(Json{{"ipv4Only", false}});
+  EXPECT_TRUE(fromMap.hasIpv4Only());
+  EXPECT_FALSE(fromMap.getIpv4Only());
+  EXPECT_EQ(fromMap.toMap()["ipv4Only"], false);
+}

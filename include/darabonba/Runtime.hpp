@@ -92,6 +92,7 @@ public:
     DARABONBA_PTR_TO_JSON(socks5Proxy, socks5Proxy_);
     DARABONBA_PTR_TO_JSON(socks5NetWork, socks5NetWork_);
     DARABONBA_PTR_TO_JSON(keepAlive, keepAlive_);
+    DARABONBA_PTR_TO_JSON(ipv4Only, ipv4Only_);
     DARABONBA_PTR_TO_JSON(maxHostConnections, maxHostConnections_);
     DARABONBA_PTR_TO_JSON(extendsParameters, extendsParameters_);
     DARABONBA_PTR_TO_JSON(retryOptions, retryOptions_);
@@ -115,6 +116,7 @@ public:
     DARABONBA_PTR_FROM_JSON(socks5Proxy, socks5Proxy_);
     DARABONBA_PTR_FROM_JSON(socks5NetWork, socks5NetWork_);
     DARABONBA_PTR_FROM_JSON(keepAlive, keepAlive_);
+    DARABONBA_PTR_FROM_JSON(ipv4Only, ipv4Only_);
     DARABONBA_PTR_FROM_JSON(maxHostConnections, maxHostConnections_);
     DARABONBA_PTR_FROM_JSON(extendsParameters, extendsParameters_);
     DARABONBA_PTR_FROM_JSON(retryOptions, retryOptions_);
@@ -141,6 +143,7 @@ public:
            this->noProxy_ == nullptr && this->maxConnections_ == nullptr &&
            this->localAddr_ == nullptr && this->socks5Proxy_ == nullptr &&
            this->socks5NetWork_ == nullptr && this->keepAlive_ == nullptr &&
+           this->ipv4Only_ == nullptr &&
            this->maxHostConnections_ == nullptr &&
            this->extendsParameters_ == nullptr &&
            this->retryOptions_ == nullptr;
@@ -325,6 +328,16 @@ public:
     DARABONBA_PTR_SET_VALUE(keepAlive_, keepAlive)
   };
 
+  // ipv4Only Field Functions
+  bool hasIpv4Only() const { return this->ipv4Only_ != nullptr; };
+  void deleteIpv4Only() { this->ipv4Only_ = nullptr; };
+  inline bool getIpv4Only() const {
+    DARABONBA_PTR_GET_DEFAULT(ipv4Only_, false)
+  };
+  inline RuntimeOptions &setIpv4Only(bool ipv4Only) {
+    DARABONBA_PTR_SET_VALUE(ipv4Only_, ipv4Only)
+  };
+
   // extendsParameters Field Functions
   bool hasExtendsParameters() const {
     return this->extendsParameters_ != nullptr;
@@ -406,6 +419,8 @@ protected:
   std::shared_ptr<string> socks5NetWork_ = nullptr;
   // whether to enable keep-alive
   std::shared_ptr<bool> keepAlive_ = nullptr;
+  // resolve and connect over IPv4 only (CURL_IPRESOLVE_V4)
+  std::shared_ptr<bool> ipv4Only_ = nullptr;
   // maximum connections per host
   std::shared_ptr<int64_t> maxHostConnections_ = nullptr;
   // Extends Parameters

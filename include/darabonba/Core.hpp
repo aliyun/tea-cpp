@@ -36,10 +36,12 @@ struct ConnectionPoolConfig {
   bool pipelining = false;           // Enable HTTP pipelining
   size_t max_host_connections = 128;   // Max connections per host (CURLMOPT_MAX_HOST_CONNECTIONS)
   bool keep_alive = true;            // Enable TCP keep-alive
+  bool ipv4_only = false;            // Resolve/connect over IPv4 only (CURL_IPRESOLVE_V4); pools are never shared across values
 
   // Compare operator for map keys
   bool operator<(const ConnectionPoolConfig& other) const {
     if (host != other.host) return host < other.host;
+    if (ipv4_only != other.ipv4_only) return ipv4_only < other.ipv4_only;
     if (max_connections != other.max_connections) return max_connections < other.max_connections;
     if (connection_idle_timeout != other.connection_idle_timeout) return connection_idle_timeout < other.connection_idle_timeout;
     if (pipelining != other.pipelining) return pipelining < other.pipelining;
