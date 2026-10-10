@@ -105,6 +105,14 @@ void setCurlProxy(CURL *curl, const std::string &proxy) {
   }
 }
 
+bool setCurlIpv4Only(CURL *curl, bool ipv4Only) {
+  if (!ipv4Only || curl == nullptr) {
+    return false;
+  }
+  return curl_easy_setopt(curl, CURLOPT_IPRESOLVE,
+                          static_cast<long>(CURL_IPRESOLVE_V4)) == CURLE_OK;
+}
+
 curl_slist *setCurlHeader(CURL *curl, const Darabonba::Http::Header &header) {
   curl_slist *list = nullptr;
   for (const auto &p : header) {

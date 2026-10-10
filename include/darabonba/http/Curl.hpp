@@ -30,6 +30,14 @@ void setCurlRequestBody(CURL *curl, std::shared_ptr<Darabonba::IStream> body);
 
 void setCurlProxy(CURL *curl, const std::string &proxy);
 
+/**
+ * @brief Restrict name resolution to IPv4 (CURLOPT_IPRESOLVE =
+ * CURL_IPRESOLVE_V4) on this easy handle only. Nothing is set when ipv4Only is
+ * false, so the default curl behavior is kept.
+ * @return true if the option was set on the handle
+ */
+bool setCurlIpv4Only(CURL *curl, bool ipv4Only);
+
 curl_slist *setCurlHeader(CURL *curl, const Darabonba::Http::Header &header);
 
 int debugFunction(CURL *curl, curl_infotype type, char *data, size_t size,

@@ -403,6 +403,76 @@ TEST_F(CoreTest, ConfigUpdateOnExistingClient) {
   }
 }
 
+// ==================== ipv4Only 连接池隔离测试 ====================
+TEST_F(CoreTest, ConnectionPoolConfigIpv4OnlyDefaultFalse) {
+  ConnectionPoolConfig config;
+  EXPECT_FALSE(config.ipv4_only);
+  Http::MCurlHttpClient client;
+  EXPECT_FALSE(client.getConnectionPoolConfig().ipv4_only);
+}
+
+TEST_F(CoreTest, ConnectionPoolConfigCompareIpv4Only) {
+  ConnectionPoolConfig dualStack;
+  dualStack.host = "example.com";
+  ConnectionPoolConfig ipv4Only = dualStack;
+  ipv4Only.ipv4_only = true;
+
+  EXPECT_TRUE(dualStack < ipv4Only);
+  EXPECT_FALSE(ipv4Only < dualStack);
+
+  std::map<ConnectionPoolConfig, int> pools;
+  pools[dualStack] = 1;
+  pools[ipv4Only] = 2;
+  EXPECT_EQ(pools.size(), 2UL);
+}
+
+TEST_F(CoreTest, ClearHttpClientWithIpv4OnlyKey) {
+  Core::ClearAllHttpClients();
+
+  Json dualStack;
+  dualStack["connectTimeout"] = 200;
+  dualStack["readTimeout"] = 200;
+  Json ipv4Only = dualStack;
+  ipv4Only["ipv4Only"] = true;
+
+  Http::Request request1(std::string("http://127.0.0.1:1/"));
+  Http::Request request2(std::string("http://127.0.0.1:1/"));
+  auto f1 = core.doAction(request1, dualStack);
+  auto f2 = core.doAction(request2, ipv4Only);
+  f1.wait_for(std::chrono::seconds(5));
+  f2.wait_for(std::chrono::seconds(5));
+  EXPECT_EQ(Core::GetHttpClientCount(), 2UL);
+
+  ConnectionPoolConfig config;
+  config.host = "127.0.0.1";
+  config.ipv4_only = true;
+  Core::ClearHttpClient(config);
+  EXPECT_EQ(Core::GetHttpClientCount(), 1UL);
+
+  config.ipv4_only = false;
+  Core::ClearHttpClient(config);
+  EXPECT_EQ(Core::GetHttpClientCount(), 0UL);
+}
+
+TEST_F(CoreTest, NullIpv4OnlyIsTreatedAsDualStack) {
+  Core::ClearAllHttpClients();
+
+  Json runtime;
+  runtime["connectTimeout"] = 200;
+  runtime["readTimeout"] = 200;
+  runtime["ipv4Only"] = nullptr;
+
+  Http::Request request(std::string("http://127.0.0.1:1/"));
+  auto f = core.doAction(request, runtime);
+  f.wait_for(std::chrono::seconds(5));
+  EXPECT_EQ(Core::GetHttpClientCount(), 1UL);
+
+  ConnectionPoolConfig config;
+  config.host = "127.0.0.1";
+  Core::ClearHttpClient(config);
+  EXPECT_EQ(Core::GetHttpClientCount(), 0UL);
+}
+
 // ==================== ConnectionPoolConfig 边界测试 ====================
 TEST_F(CoreTest, ConnectionPoolConfigZeroConnections) {
   ConnectionPoolConfig config;
