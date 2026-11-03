@@ -51,7 +51,9 @@ MCurlHttpClient::makeRequest(const Request &request,
     curl_easy_setopt(easyHandle, CURLOPT_FORBID_REUSE, 1L);
   }
 
+  bool ipv4Only = config.ipv4_only;
   if (!options.is_null()) {
+    ipv4Only = ipv4Only || options.value("ipv4Only", false);
     // process the runtime options
     // ssl
     if (options.value("ignoreSSL", false)) {
@@ -88,6 +90,7 @@ MCurlHttpClient::makeRequest(const Request &request,
       curl_easy_setopt(easyHandle, CURLOPT_NOPROXY, noProxy.c_str());
     }
   }
+  Curl::setCurlIpv4Only(easyHandle, ipv4Only);
 
   if (nullptr != getenv("DEBUG")) {
     curl_easy_setopt(easyHandle, CURLOPT_VERBOSE, 1L);

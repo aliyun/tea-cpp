@@ -95,9 +95,18 @@ ConnectionPoolConfig getConnectionPoolConfig(Http::Request &request,
     if (runtime.contains("maxHostConnections")) {
       config.max_host_connections = static_cast<size_t>(runtime["maxHostConnections"].get<int64_t>());
     }
+    if (runtime.contains("ipv4Only") && runtime["ipv4Only"].is_boolean()) {
+      config.ipv4_only = runtime["ipv4Only"].get<bool>();
+    }
   }
 
   return config;
+}
+
+// IPv4-only and dual-stack requests must never share a client (and thus a
+// curl multi handle / connection cache), so ipv4Only is part of the key.
+std::string getHttpClientKey(const std::string &host, bool ipv4Only) {
+  return ipv4Only ? host + "#ipv4" : host;
 }
 
 // Helper to extract request-level config
@@ -197,23 +206,24 @@ Core::doAction(Http::Request &request, const Darabonba::Json &runtime) {
   // Extract request-level configuration from runtime (no lock needed)
   RequestConfig request_config = getRequestConfig(runtime);
 
+  // Extract connection pool configuration from runtime
+  ConnectionPoolConfig pool_config = getConnectionPoolConfig(request, runtime);
+  std::string clientKey = getHttpClientKey(hostKey, pool_config.ipv4_only);
+
   // Acquire lock only for client lookup/creation, release before makeRequest
   std::shared_ptr<Http::MCurlHttpClient> client;
   {
     std::lock_guard<std::mutex> lock(state.mutex);
 
-    // Extract connection pool configuration from runtime
-    ConnectionPoolConfig pool_config = getConnectionPoolConfig(request, runtime);
-
     // Check if we have a client for this host
-    auto it = state.http_clients.find(hostKey);
+    auto it = state.http_clients.find(clientKey);
     if (it == state.http_clients.end()) {
       // Create new client for this host
       auto newClient = std::make_shared<Http::MCurlHttpClient>();
       // Apply connection pool settings to the client
       newClient->setConnectionPoolConfig(pool_config);
       newClient->start();
-      state.http_clients[hostKey] = newClient;
+      state.http_clients[clientKey] = newClient;
       client = std::move(newClient);
     } else {
       // Update connection pool settings for existing client (thread-safe)
@@ -230,6 +240,9 @@ Core::doAction(Http::Request &request, const Darabonba::Json &runtime) {
   request_runtime["httpProxy"] = request_config.http_proxy;
   request_runtime["httpsProxy"] = request_config.https_proxy;
   request_runtime["noProxy"] = request_config.no_proxy;
+  if (pool_config.ipv4_only) {
+    request_runtime["ipv4Only"] = true;
+  }
 
   // makeRequest is now called without holding the global lock,
   // allowing concurrent requests to different hosts
@@ -241,7 +254,7 @@ void Core::ClearHttpClient(const ConnectionPoolConfig &config) {
   auto &state = GetSDKState();
   std::lock_guard<std::mutex> lock(state.mutex);
 
-  auto it = state.http_clients.find(config.host);
+  auto it = state.http_clients.find(getHttpClientKey(config.host, config.ipv4_only));
   if (it != state.http_clients.end()) {
     state.http_clients.erase(it);
   }
