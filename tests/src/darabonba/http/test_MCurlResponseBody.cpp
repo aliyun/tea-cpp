@@ -4,6 +4,7 @@
 #include <gtest/gtest.h>
 #include <thread>
 #include <chrono>
+#include <mutex>
 #include <vector>
 #include <atomic>
 
@@ -15,6 +16,7 @@ class TestableMCurlResponseBody : public MCurlResponseBody {
 public:
   using MCurlResponseBody::done_;
   using MCurlResponseBody::streamCV_;
+  using MCurlResponseBody::streamMutex_;
   using MCurlResponseBody::doneCV_;
   using MCurlResponseBody::ready_;
 };
@@ -187,8 +189,11 @@ TEST_F(MCurlResponseBodyTest, DoneFlagWithConcurrentRead) {
 
   // 稍微延迟后设置 done_
   std::this_thread::sleep_for(std::chrono::milliseconds(100));
-  body.done_ = true;
-  body.streamCV_.notify_one();
+  {
+    std::lock_guard<std::mutex> lock(body.streamMutex_);
+    body.done_ = true;
+  }
+  body.streamCV_.notify_all();
 
   readThread.join();
 
@@ -271,7 +276,6 @@ TEST_F(MCurlResponseBodyTest, StressTestReadWrite) {
   const int iterations = 100;
   std::atomic<int> totalRead{0};
   std::atomic<int> totalWritten{0};
-  std::atomic<bool> doneWriting{false};
 
   // 写线程
   std::thread writeThread([&]() {
@@ -281,9 +285,11 @@ TEST_F(MCurlResponseBodyTest, StressTestReadWrite) {
       body.write(data, strlen(data));
       totalWritten += static_cast<int>(strlen(data));
     }
-    doneWriting = true;
-    body.done_ = true;
-    body.streamCV_.notify_one();
+    {
+      std::lock_guard<std::mutex> lock(body.streamMutex_);
+      body.done_ = true;
+    }
+    body.streamCV_.notify_all();
   });
 
   // 读线程
@@ -291,8 +297,8 @@ TEST_F(MCurlResponseBodyTest, StressTestReadWrite) {
     while (true) {
       char buffer[100];
       size_t bytesRead = body.read(buffer, sizeof(buffer));
-      if (bytesRead == 0 && body.getDone()) {
-        break;
+      if (bytesRead == 0) {
+        break;  // read() returns 0 only when done_ (or stall timeout)
       }
       totalRead += static_cast<int>(bytesRead);
     }
@@ -367,8 +373,11 @@ TEST_F(MCurlResponseBodyTest, MultipleWritesNotifyMultipleReads) {
   }
 
   // 标记完成
-  body.done_ = true;
-  body.streamCV_.notify_one();
+  {
+    std::lock_guard<std::mutex> lock(body.streamMutex_);
+    body.done_ = true;
+  }
+  body.streamCV_.notify_all();
 
   readThread.join();
 
