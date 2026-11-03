@@ -213,6 +213,8 @@ void MCurlHttpClient::perform() {
         }
 
         CURLcode curlResult = msg->data.result;
+        auto body = dynamic_cast<MCurlResponseBody *>(
+            curlStorage->resp ? curlStorage->resp->getBody().get() : nullptr);
         if (curlResult != CURLE_OK) {
           if (curlStorage->promise) {
             curlStorage->promise->set_exception(
@@ -220,16 +222,21 @@ void MCurlHttpClient::perform() {
                     "NetworkError",
                     std::string("Curl error: ") + curl_easy_strerror(curlResult))));
           }
+          // Promise may already be fulfilled (headers/body started). Always
+          // unblock readers waiting on streamCV_ / doneCV_.
+          if (body) {
+            body->done_ = true;
+            body->streamCV_.notify_all();
+            body->doneCV_.notify_all();
+          }
         } else {
-          auto body = dynamic_cast<MCurlResponseBody *>(
-              curlStorage->resp->getBody().get());
           if (body) {
             if (!body->getReady()) {
               setResponseReady(curlStorage.get());
             }
             body->done_ = true;
-            body->streamCV_.notify_one();
-            body->doneCV_.notify_one();
+            body->streamCV_.notify_all();
+            body->doneCV_.notify_all();
           } else {
             // This should never happen - log as error if DEBUG is enabled
             if (nullptr != getenv("DEBUG")) {
@@ -252,6 +259,23 @@ void MCurlHttpClient::perform() {
   for (auto &p : runningCurl_) {
     if (p.second) {
       curl_slist_free_all(p.second->reqHeader);
+      // Unblock any reader waiting on in-flight bodies when the worker exits.
+      if (p.second->resp) {
+        auto body = dynamic_cast<MCurlResponseBody *>(
+            p.second->resp->getBody().get());
+        if (body) {
+          body->done_ = true;
+          body->streamCV_.notify_all();
+          body->doneCV_.notify_all();
+        }
+      }
+      if (p.second->promise) {
+        try {
+          p.second->promise->set_value(nullptr);
+        } catch (...) {
+          // already satisfied
+        }
+      }
     }
     curl_multi_remove_handle(mCurl_, p.first);
     curl_easy_cleanup(p.first);

@@ -1,6 +1,7 @@
 #include <darabonba/Type.hpp>
 #include <darabonba/http/MCurlHttpClient.hpp>
 #include <darabonba/http/MCurlResponse.hpp>
+#include <chrono>
 #include <mutex>
 #include <string>
 
@@ -22,7 +23,7 @@ void MCurlResponseBody::waitForDone() {
   easyHandle_ = nullptr;
 }
 
-  size_t MCurlResponseBody::read(char *buffer, size_t expectSize) {
+size_t MCurlResponseBody::read(char *buffer, size_t expectSize) {
   if (done_ && readableSize_ == 0)
     return 0;
   size_t realSize = 0;
@@ -33,6 +34,16 @@ void MCurlResponseBody::waitForDone() {
         std::lock_guard<Lock::SpinLock> lock(bufferlock_);
         realSize = buffer_.read(buffer, realSize);
       }
+      if (realSize == 0) {
+        // Buffer empty while readableSize_ claimed data — resync and retry.
+        readableSize_ = 0;
+        if (done_) {
+          client_ = nullptr;
+          easyHandle_ = nullptr;
+          return 0;
+        }
+        continue;
+      }
       readableSize_ -= realSize;
       return realSize;
     }
@@ -42,16 +53,25 @@ void MCurlResponseBody::waitForDone() {
       easyHandle_ = nullptr;
       return 0;
     }
-    
+
     fetch();
     std::unique_lock<std::mutex> lock(streamMutex_);
-    streamCV_.wait(
-        lock, [this]() -> bool { return done_.load() || readableSize_ > 0; });
+    // Bound wait so a missed notify / stalled transfer cannot hang CI forever.
+    if (!streamCV_.wait_for(lock, std::chrono::seconds(30), [this]() -> bool {
+          return done_.load() || readableSize_ > 0;
+        })) {
+      if (done_ && readableSize_ == 0) {
+        return 0;
+      }
+      // Treat prolonged stall as end-of-stream for the caller.
+      done_ = true;
+      return 0;
+    }
   } while (realSize == 0);
 
   return realSize;
 }
-  
+
 bool MCurlResponseBody::fetch() {
   if (!easyHandle_ || !client_)
     return false;
@@ -60,10 +80,12 @@ bool MCurlResponseBody::fetch() {
 }
 
 size_t MCurlResponseBody::write(char *buffer, size_t expectSize) {
-  std::lock_guard<Lock::SpinLock> lock(bufferlock_);
-  buffer_.write(buffer, expectSize);
-  readableSize_ += expectSize;
-  streamCV_.notify_one();  // 通知等待的消费者线程
+  {
+    std::lock_guard<Lock::SpinLock> lock(bufferlock_);
+    buffer_.write(buffer, expectSize);
+    readableSize_ += expectSize;
+  }
+  streamCV_.notify_all();  // wake all waiters (multi-reader / stress tests)
   return expectSize;
 }
 
