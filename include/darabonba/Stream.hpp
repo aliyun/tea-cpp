@@ -285,6 +285,9 @@ template <> struct adl_serializer<std::shared_ptr<Darabonba::IStream>> {
   }
 
   static std::shared_ptr<Darabonba::IStream> from_json(const json &j) {
+    if (j.is_binary()) {
+      return std::make_shared<Darabonba::ISStream>(j.get_binary());
+    }
     if (j.is_number_unsigned()) {
       Darabonba::IStream *ptr =
           reinterpret_cast<Darabonba::IStream *>(j.get<uintptr_t>());
