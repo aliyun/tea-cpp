@@ -238,6 +238,29 @@ TEST_F(StreamTest, LargeDataStream) {
   EXPECT_EQ(bytes.size(), 10000u);
 }
 
+TEST_F(StreamTest, BinaryJsonConvertsToOwnedStream) {
+  const std::string payload = "download content";
+  std::vector<uint8_t> raw(payload.begin(), payload.end());
+  Bytes bytes(raw);
+  Json response = {{"body", Json(bytes)}};
+
+  auto first = response["body"].get<std::shared_ptr<IStream>>();
+  ASSERT_NE(nullptr, first);
+  EXPECT_EQ(payload, Stream::readAsString(first));
+
+  auto second = response["body"].get<std::shared_ptr<IStream>>();
+  ASSERT_NE(nullptr, second);
+  EXPECT_EQ(payload, Stream::readAsString(second));
+}
+
+TEST_F(StreamTest, PointerJsonStillCopiesLiveStream) {
+  auto source = Stream::toReadable(std::string("live"));
+  Json pointer = source;
+  auto restored = pointer.get<std::shared_ptr<IStream>>();
+  ASSERT_NE(nullptr, restored);
+  EXPECT_EQ("live", Stream::readAsString(restored));
+}
+
 TEST_F(StreamTest, SpecialCharactersInStream) {
   std::string data = "Line1\nLine2\tTab\rCarriage";
   auto stream = Stream::toReadable(data);
