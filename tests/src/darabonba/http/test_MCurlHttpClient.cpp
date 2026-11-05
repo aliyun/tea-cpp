@@ -378,7 +378,7 @@ TEST_F(MCurlHttpClientTest, StreamResponseBody) {
   client.start();
 
   try {
-    Request request(std::string("https://www.aliyun.com"));
+    Request request(std::string("https://httpbin.org/bytes/128"));
 
     Darabonba::Json options;
     options["connectTimeout"] = 5000;
@@ -389,7 +389,7 @@ TEST_F(MCurlHttpClientTest, StreamResponseBody) {
     auto status = future.wait_for(std::chrono::seconds(15));
     if (status == std::future_status::ready) {
       auto response = future.get();
-      if (response && response->getBody()) {
+      if (response && response->getStatusCode() == 200 && response->getBody()) {
         auto body = response->getBody();
 
         // 测试流式读取（read 内置 wait_for，避免网络异常时永久阻塞）
@@ -401,7 +401,7 @@ TEST_F(MCurlHttpClientTest, StreamResponseBody) {
           totalRead += bytesRead;
         }
 
-        EXPECT_GT(totalRead, 0u);
+        EXPECT_EQ(128u, totalRead);
       }
     }
 
