@@ -253,6 +253,45 @@ TEST_F(StreamTest, BinaryJsonConvertsToOwnedStream) {
   EXPECT_EQ(payload, Stream::readAsString(second));
 }
 
+namespace {
+
+class ProbeStream : public IStream {
+public:
+  explicit ProbeStream(const std::shared_ptr<int> &alive) : alive_(alive) {
+    ++(*alive_);
+  }
+  ~ProbeStream() override { --(*alive_); }
+  size_t read(char *, size_t) override { return 0; }
+  bool isFinished() const override { return true; }
+
+private:
+  std::shared_ptr<int> alive_;
+};
+
+} // namespace
+
+TEST_F(StreamTest, DiscardedRetainReleasesTheStream) {
+  auto alive = std::make_shared<int>(0);
+  {
+    auto stream = std::make_shared<ProbeStream>(alive);
+    Json kept = Stream::retain(stream);
+    stream.reset();
+    EXPECT_EQ(1, *alive);
+  }
+  EXPECT_EQ(0, *alive);
+
+  {
+    auto stream = std::make_shared<ProbeStream>(alive);
+    Json kept = Stream::retain(stream);
+    stream.reset();
+    Json copy = kept;
+    kept = Json(nullptr);
+    EXPECT_EQ(1, *alive);
+    copy = Json(nullptr);
+    EXPECT_EQ(0, *alive);
+  }
+}
+
 TEST_F(StreamTest, RetainedStreamOutlivesItsOwner) {
   Json kept;
   {

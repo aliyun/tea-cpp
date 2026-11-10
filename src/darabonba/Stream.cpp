@@ -1,48 +1,66 @@
 #include <algorithm>
+#include <atomic>
 #include <cstdint>
+#include <cstring>
 #include <darabonba/Exception.hpp>
 #include <darabonba/Stream.hpp>
+#include <memory>
 #include <mutex>
-#include <unordered_map>
+#include <vector>
 
 namespace Darabonba {
 namespace {
 
-std::mutex &retainedStreamsMutex() {
-  static std::mutex mutex;
-  return mutex;
-}
-
-std::unordered_map<std::uint64_t, std::shared_ptr<IStream>> &retainedStreams() {
-  static std::unordered_map<std::uint64_t, std::shared_ptr<IStream>> streams;
-  return streams;
-}
+struct KeptStream {
+  std::atomic<int> refs;
+  std::mutex mutex;
+  std::shared_ptr<IStream> stream;
+};
 
 } // namespace
+
+extern "C" void darabonba_stream_keep_addref(void *keep) {
+  if (keep != nullptr) {
+    static_cast<KeptStream *>(keep)->refs.fetch_add(1, std::memory_order_relaxed);
+  }
+}
+
+extern "C" void darabonba_stream_keep_release(void *keep) {
+  if (keep == nullptr) {
+    return;
+  }
+  auto *kept = static_cast<KeptStream *>(keep);
+  if (kept->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+    delete kept;
+  }
+}
 
 Json Stream::retain(std::shared_ptr<IStream> stream) {
   if (!stream) {
     return Json(nullptr);
   }
-  std::uint64_t id = 0;
-  {
-    std::lock_guard<std::mutex> lock(retainedStreamsMutex());
-    static std::uint64_t next = 0;
-    id = ++next;
-    retainedStreams()[id] = std::move(stream);
-  }
-  return Json{{"darabonba.stream", id}};
+  std::unique_ptr<KeptStream> kept(new KeptStream);
+  kept->refs.store(1, std::memory_order_relaxed);
+  kept->stream = std::move(stream);
+
+  unsigned char raw[sizeof(std::uint64_t) + sizeof(void *)];
+  const std::uint64_t magic = StreamKeep::kMagic;
+  void *pointer = kept.get();
+  std::memcpy(raw, &magic, sizeof(magic));
+  std::memcpy(raw + sizeof(magic), &pointer, sizeof(pointer));
+  std::vector<std::uint8_t> bytes(raw, raw + sizeof(raw));
+  Json value = Json::binary(std::move(bytes), StreamKeep::kSubtype);
+  kept.release();
+  return value;
 }
 
-std::shared_ptr<IStream> Stream::claimRetained(std::uint64_t id) {
-  std::lock_guard<std::mutex> lock(retainedStreamsMutex());
-  auto found = retainedStreams().find(id);
-  if (found == retainedStreams().end()) {
+std::shared_ptr<IStream> Stream::claimRetained(void *keep) {
+  if (keep == nullptr) {
     return nullptr;
   }
-  auto stream = std::move(found->second);
-  retainedStreams().erase(found);
-  return stream;
+  auto *kept = static_cast<KeptStream *>(keep);
+  std::lock_guard<std::mutex> lock(kept->mutex);
+  return std::move(kept->stream);
 }
 
 Bytes Stream::readAsBytes(std::shared_ptr<IStream> raw) {

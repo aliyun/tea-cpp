@@ -1,6 +1,2 @@
-2026-11-10 Version: 1.0.2
-1. Retain a live response stream in JSON so a caller can keep reading after the response owner is released, and reopen JSON binary values as streams.
-2. Raise an error when a response body stalls or the transfer fails. A short read is no longer reported as a completed download.
-
 2026-11-03 Version: 1.0.1
 1. Support ipv4Only option to restrict SDK HTTP connections to IPv4 only.
