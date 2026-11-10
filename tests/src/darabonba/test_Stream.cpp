@@ -326,6 +326,21 @@ TEST_F(StreamTest, RetainedStreamOutlivesItsOwner) {
   EXPECT_EQ(nullptr, kept.get<std::shared_ptr<IStream>>());
 }
 
+TEST_F(StreamTest, DiscardedStreamCanReleaseAnotherRetainedStream) {
+  auto alive = std::make_shared<int>(0);
+  auto nested = Stream::retain(std::make_shared<ProbeStream>(alive));
+  auto stream = std::shared_ptr<IStream>(
+      new ISStream(), [nested](IStream *body) mutable {
+        nested = nullptr;
+        delete body;
+      });
+  auto kept = Stream::retain(std::move(stream));
+  nested = nullptr;
+  EXPECT_EQ(1, *alive);
+  kept = nullptr;
+  EXPECT_EQ(0, *alive);
+}
+
 TEST_F(StreamTest, PointerJsonStillCopiesLiveStream) {
   auto source = Stream::toReadable(std::string("live"));
   Json pointer = source;

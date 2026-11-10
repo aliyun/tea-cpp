@@ -612,6 +612,46 @@ TEST_F(MCurlHttpClientTest, InterruptedDownloadRaisesInsteadOfShortSuccess) {
   server.join();
 }
 
+TEST_F(MCurlHttpClientTest, DiscardingRetainedBodyCancelsTransferWithoutTimeout) {
+  std::promise<bool> peerClosed;
+  auto closed = peerClosed.get_future();
+  LocalHttpServer server;
+  ASSERT_GT(server.port(), 0);
+  server.serve([&peerClosed](socket_t socket) {
+    if (!sendAll(socket,
+                 "HTTP/1.1 200 OK\r\nContent-Length: 20000000\r\n\r\npartial")) {
+      peerClosed.set_value(false);
+      return;
+    }
+    fd_set readable;
+    FD_ZERO(&readable);
+    FD_SET(socket, &readable);
+    timeval timeout = {8, 0};
+#ifdef _WIN32
+    const int nfds = 0;
+#else
+    const int nfds = socket + 1;
+#endif
+    char byte;
+    peerClosed.set_value(
+        ::select(nfds, &readable, nullptr, nullptr, &timeout) > 0 &&
+        ::recv(socket, &byte, 1, 0) == 0);
+  });
+
+  MCurlHttpClient client;
+  ASSERT_TRUE(client.start());
+  Request request("http://127.0.0.1:" + std::to_string(server.port()) + "/file");
+  Json options = {{"connectTimeout", 2000}, {"readTimeout", 0}, {"noProxy", "*"}};
+  auto response = client.makeRequest(request, options).get();
+  ASSERT_TRUE(response);
+  auto retained = Stream::retain(response->getBody());
+  response.reset();
+  EXPECT_EQ(std::future_status::timeout, closed.wait_for(std::chrono::milliseconds(100)));
+  retained = nullptr;
+  ASSERT_EQ(std::future_status::ready, closed.wait_for(std::chrono::seconds(6)));
+  EXPECT_TRUE(closed.get());
+}
+
 TEST_F(MCurlHttpClientTest, StalledDownloadRaisesInsteadOfShortSuccess) {
   LocalHttpServer server;
   ASSERT_GT(server.port(), 0);

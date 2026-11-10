@@ -42,13 +42,14 @@ extern "C" void darabonba_stream_keep_addref(std::uint64_t id) {
 }
 
 extern "C" void darabonba_stream_keep_release(std::uint64_t id) {
-  std::lock_guard<std::mutex> lock(retainedMutex());
-  auto found = retained().find(id);
-  if (found == retained().end()) {
-    return;
-  }
-  if (--found->second->refs == 0) {
-    retained().erase(found);
+  std::unique_ptr<KeptStream> released;
+  {
+    std::lock_guard<std::mutex> lock(retainedMutex());
+    auto found = retained().find(id);
+    if (found != retained().end() && --found->second->refs == 0) {
+      released = std::move(found->second);
+      retained().erase(found);
+    }
   }
 }
 
@@ -56,12 +57,12 @@ Json Stream::retain(std::shared_ptr<IStream> stream) {
   if (!stream) {
     return Json(nullptr);
   }
+  std::unique_ptr<KeptStream> kept(new KeptStream);
+  kept->stream = std::move(stream);
   std::uint64_t id = 0;
   {
     std::lock_guard<std::mutex> lock(retainedMutex());
     id = ++nextRetainedId();
-    std::unique_ptr<KeptStream> kept(new KeptStream);
-    kept->stream = std::move(stream);
     retained()[id] = std::move(kept);
   }
 
@@ -70,8 +71,7 @@ Json Stream::retain(std::shared_ptr<IStream> stream) {
     value.get_binary().set_keep_id(id);
     return value;
   } catch (...) {
-    std::lock_guard<std::mutex> lock(retainedMutex());
-    retained().erase(id);
+    darabonba_stream_keep_release(id);
     throw;
   }
 }
@@ -80,12 +80,16 @@ bool Stream::claimRetained(std::uint64_t id, std::shared_ptr<IStream> *stream) {
   if (stream == nullptr) {
     return false;
   }
-  std::lock_guard<std::mutex> lock(retainedMutex());
-  auto found = retained().find(id);
-  if (found == retained().end()) {
-    return false;
+  std::shared_ptr<IStream> claimed;
+  {
+    std::lock_guard<std::mutex> lock(retainedMutex());
+    auto found = retained().find(id);
+    if (found == retained().end()) {
+      return false;
+    }
+    claimed = std::move(found->second->stream);
   }
-  *stream = std::move(found->second->stream);
+  *stream = std::move(claimed);
   return true;
 }
 
