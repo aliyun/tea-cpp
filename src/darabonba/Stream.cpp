@@ -1,37 +1,54 @@
 #include <algorithm>
-#include <atomic>
 #include <cstdint>
-#include <cstring>
 #include <darabonba/Exception.hpp>
 #include <darabonba/Stream.hpp>
 #include <memory>
 #include <mutex>
+#include <unordered_map>
 #include <vector>
 
 namespace Darabonba {
 namespace {
 
 struct KeptStream {
-  std::atomic<int> refs;
-  std::mutex mutex;
+  int refs = 1;
   std::shared_ptr<IStream> stream;
 };
 
-} // namespace
-
-extern "C" void darabonba_stream_keep_addref(void *keep) {
-  if (keep != nullptr) {
-    static_cast<KeptStream *>(keep)->refs.fetch_add(1, std::memory_order_relaxed);
-  }
+std::mutex &retainedMutex() {
+  static std::mutex mutex;
+  return mutex;
 }
 
-extern "C" void darabonba_stream_keep_release(void *keep) {
-  if (keep == nullptr) {
+std::unordered_map<std::uint64_t, std::unique_ptr<KeptStream>> &retained() {
+  static std::unordered_map<std::uint64_t, std::unique_ptr<KeptStream>> table;
+  return table;
+}
+
+std::uint64_t &nextRetainedId() {
+  static std::uint64_t next = 0;
+  return next;
+}
+
+} // namespace
+
+extern "C" void darabonba_stream_keep_addref(std::uint64_t id) {
+  std::lock_guard<std::mutex> lock(retainedMutex());
+  auto found = retained().find(id);
+  if (found == retained().end()) {
     return;
   }
-  auto *kept = static_cast<KeptStream *>(keep);
-  if (kept->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
-    delete kept;
+  ++found->second->refs;
+}
+
+extern "C" void darabonba_stream_keep_release(std::uint64_t id) {
+  std::lock_guard<std::mutex> lock(retainedMutex());
+  auto found = retained().find(id);
+  if (found == retained().end()) {
+    return;
+  }
+  if (--found->second->refs == 0) {
+    retained().erase(found);
   }
 }
 
@@ -39,28 +56,37 @@ Json Stream::retain(std::shared_ptr<IStream> stream) {
   if (!stream) {
     return Json(nullptr);
   }
-  std::unique_ptr<KeptStream> kept(new KeptStream);
-  kept->refs.store(1, std::memory_order_relaxed);
-  kept->stream = std::move(stream);
+  std::uint64_t id = 0;
+  {
+    std::lock_guard<std::mutex> lock(retainedMutex());
+    id = ++nextRetainedId();
+    std::unique_ptr<KeptStream> kept(new KeptStream);
+    kept->stream = std::move(stream);
+    retained()[id] = std::move(kept);
+  }
 
-  unsigned char raw[sizeof(std::uint64_t) + sizeof(void *)];
-  const std::uint64_t magic = StreamKeep::kMagic;
-  void *pointer = kept.get();
-  std::memcpy(raw, &magic, sizeof(magic));
-  std::memcpy(raw + sizeof(magic), &pointer, sizeof(pointer));
-  std::vector<std::uint8_t> bytes(raw, raw + sizeof(raw));
-  Json value = Json::binary(std::move(bytes), StreamKeep::kSubtype);
-  kept.release();
-  return value;
+  try {
+    Json value = Json::binary(std::vector<std::uint8_t>(), StreamKeep::kSubtype);
+    value.get_binary().set_keep_id(id);
+    return value;
+  } catch (...) {
+    std::lock_guard<std::mutex> lock(retainedMutex());
+    retained().erase(id);
+    throw;
+  }
 }
 
-std::shared_ptr<IStream> Stream::claimRetained(void *keep) {
-  if (keep == nullptr) {
-    return nullptr;
+bool Stream::claimRetained(std::uint64_t id, std::shared_ptr<IStream> *stream) {
+  if (stream == nullptr) {
+    return false;
   }
-  auto *kept = static_cast<KeptStream *>(keep);
-  std::lock_guard<std::mutex> lock(kept->mutex);
-  return std::move(kept->stream);
+  std::lock_guard<std::mutex> lock(retainedMutex());
+  auto found = retained().find(id);
+  if (found == retained().end()) {
+    return false;
+  }
+  *stream = std::move(found->second->stream);
+  return true;
 }
 
 Bytes Stream::readAsBytes(std::shared_ptr<IStream> raw) {

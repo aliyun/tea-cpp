@@ -6806,8 +6806,9 @@ NLOHMANN_JSON_NAMESPACE_END
 #include <tuple>   // tie
 #include <utility> // move
 
-// A retained response stream is stored as a binary value. Its copy and
-// destructor keep the stream alive with the JSON value that carries it.
+// A retained response stream is owned by the JSON object retain() returned.
+// Copy and destruction follow that object. Bytes with the same subtype are
+// ordinary binary data and are never treated as a pointer.
 #include <darabonba/StreamKeep.hpp>
 
 // #include <nlohmann/detail/abi_macros.hpp>
@@ -6856,16 +6857,17 @@ public:
 
   byte_container_with_subtype(const byte_container_with_subtype &rhs)
       : container_type(rhs), m_subtype(rhs.m_subtype),
-        m_has_subtype(rhs.m_has_subtype) {
-    if (void *keep = owned_keep()) {
-      darabonba_stream_keep_addref(keep);
+        m_has_subtype(rhs.m_has_subtype), m_keep_id(rhs.m_keep_id) {
+    if (m_keep_id != 0) {
+      darabonba_stream_keep_addref(m_keep_id);
     }
   }
 
   byte_container_with_subtype(byte_container_with_subtype &&rhs) noexcept
       : container_type(std::move(rhs)), m_subtype(rhs.m_subtype),
-        m_has_subtype(rhs.m_has_subtype) {
+        m_has_subtype(rhs.m_has_subtype), m_keep_id(rhs.m_keep_id) {
     rhs.clear_subtype();
+    rhs.m_keep_id = 0;
   }
 
   byte_container_with_subtype &
@@ -6880,28 +6882,30 @@ public:
   byte_container_with_subtype &
   operator=(byte_container_with_subtype &&rhs) noexcept {
     if (this != &rhs) {
-      if (void *keep = owned_keep()) {
-        darabonba_stream_keep_release(keep);
+      if (m_keep_id != 0) {
+        darabonba_stream_keep_release(m_keep_id);
       }
       container_type::operator=(std::move(rhs));
       m_subtype = rhs.m_subtype;
       m_has_subtype = rhs.m_has_subtype;
+      m_keep_id = rhs.m_keep_id;
       rhs.clear_subtype();
+      rhs.m_keep_id = 0;
     }
     return *this;
   }
 
   ~byte_container_with_subtype() {
-    if (void *keep = owned_keep()) {
-      darabonba_stream_keep_release(keep);
+    if (m_keep_id != 0) {
+      darabonba_stream_keep_release(m_keep_id);
     }
   }
 
   bool operator==(const byte_container_with_subtype &rhs) const {
     return std::tie(static_cast<const BinaryType &>(*this), m_subtype,
-                    m_has_subtype) ==
+                    m_has_subtype, m_keep_id) ==
            std::tie(static_cast<const BinaryType &>(rhs), rhs.m_subtype,
-                    rhs.m_has_subtype);
+                    rhs.m_has_subtype, rhs.m_keep_id);
   }
 
   bool operator!=(const byte_container_with_subtype &rhs) const {
@@ -6933,18 +6937,15 @@ public:
     m_has_subtype = false;
   }
 
-private:
-  void *owned_keep() const {
-    void *keep = nullptr;
-    if (m_has_subtype && m_subtype == Darabonba::StreamKeep::kSubtype &&
-        Darabonba::StreamKeep::decode(this->data(), this->size(), &keep)) {
-      return keep;
-    }
-    return nullptr;
-  }
+  /// Process-local retain id. Zero unless retain() set it on this object.
+  void set_keep_id(std::uint64_t id) noexcept { m_keep_id = id; }
 
+  constexpr std::uint64_t keep_id() const noexcept { return m_keep_id; }
+
+private:
   subtype_type m_subtype = 0;
   bool m_has_subtype = false;
+  std::uint64_t m_keep_id = 0;
 };
 
 NLOHMANN_JSON_NAMESPACE_END

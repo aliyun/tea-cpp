@@ -47,7 +47,8 @@ public:
   // the stream alive. Destroying the last copy releases it, even if nobody
   // calls get<shared_ptr<IStream>>(). The first conversion takes the stream.
   static Json retain(std::shared_ptr<IStream> stream);
-  static std::shared_ptr<IStream> claimRetained(void *keep);
+  // True when retain() issued this id. *stream is empty after the first claim.
+  static bool claimRetained(std::uint64_t id, std::shared_ptr<IStream> *stream);
 
   static std::shared_ptr<OStream> toWritable(const std::string &raw);
 
@@ -294,11 +295,11 @@ template <> struct adl_serializer<std::shared_ptr<Darabonba::IStream>> {
   static std::shared_ptr<Darabonba::IStream> from_json(const json &j) {
     if (j.is_binary()) {
       const auto &bin = j.get_binary();
-      void *keep = nullptr;
-      if (bin.has_subtype() &&
-          bin.subtype() == Darabonba::StreamKeep::kSubtype &&
-          Darabonba::StreamKeep::decode(bin.data(), bin.size(), &keep)) {
-        return Darabonba::Stream::claimRetained(keep);
+      if (bin.keep_id() != 0) {
+        std::shared_ptr<Darabonba::IStream> claimed;
+        if (Darabonba::Stream::claimRetained(bin.keep_id(), &claimed)) {
+          return claimed;
+        }
       }
       return std::make_shared<Darabonba::ISStream>(bin);
     }

@@ -1,3 +1,6 @@
+#include <algorithm>
+#include <cstdint>
+#include <cstring>
 #include <darabonba/Exception.hpp>
 #include <darabonba/Stream.hpp>
 #include <darabonba/Type.hpp>
@@ -269,6 +272,24 @@ private:
 };
 
 } // namespace
+
+TEST_F(StreamTest, ForgedRetainTokenStaysOrdinaryBinary) {
+  unsigned char raw[sizeof(std::uint64_t) * 2];
+  const std::uint64_t magic = StreamKeep::kMagic;
+  const std::uint64_t id = 0x1;
+  std::memcpy(raw, &magic, sizeof(magic));
+  std::memcpy(raw + sizeof(magic), &id, sizeof(id));
+  std::vector<std::uint8_t> bytes(raw, raw + sizeof(raw));
+
+  Json forged = Json::binary(bytes, StreamKeep::kSubtype);
+  Json copy = forged;
+  auto restored = forged.get<std::shared_ptr<IStream>>();
+  ASSERT_NE(nullptr, restored);
+  Bytes restoredBytes = Stream::readAsBytes(restored);
+  ASSERT_EQ(bytes.size(), restoredBytes.size());
+  EXPECT_TRUE(std::equal(bytes.begin(), bytes.end(), restoredBytes.begin()));
+  copy = Json(nullptr);
+}
 
 TEST_F(StreamTest, DiscardedRetainReleasesTheStream) {
   auto alive = std::make_shared<int>(0);
