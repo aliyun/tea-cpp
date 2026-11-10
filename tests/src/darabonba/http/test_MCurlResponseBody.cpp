@@ -1,3 +1,4 @@
+#include <darabonba/Exception.hpp>
 #include <darabonba/http/MCurlResponse.hpp>
 #include <darabonba/http/MCurlHttpClient.hpp>
 #include <darabonba/Core.hpp>
@@ -118,6 +119,53 @@ TEST_F(MCurlResponseBodyTest, IsFinished) {
   char buffer[100];
   body.read(buffer, sizeof(buffer));
   EXPECT_TRUE(body.isFinished());  // 数据已读完且 done_ 为 true
+}
+
+TEST_F(MCurlResponseBodyTest, CleanEofReturnsZero) {
+  TestableMCurlResponseBody body;
+  char data[] = "abc";
+  body.write(data, 3);
+  body.done_ = true;
+
+  char buffer[8] = {0};
+  EXPECT_EQ(3u, body.read(buffer, sizeof(buffer)));
+  EXPECT_EQ(0u, body.read(buffer, sizeof(buffer)));
+  EXPECT_TRUE(body.isFinished());
+}
+
+TEST_F(MCurlResponseBodyTest, TransportFailureThrowsAfterBufferedBytes) {
+  TestableMCurlResponseBody body;
+  char data[] = "ab";
+  body.write(data, 2);
+  body.fail("connection reset");
+
+  char buffer[8] = {0};
+  EXPECT_EQ(2u, body.read(buffer, sizeof(buffer)));
+  try {
+    body.read(buffer, sizeof(buffer));
+    FAIL() << "a failed transfer must not look like EOF";
+  } catch (const ResponseException &ex) {
+    EXPECT_EQ("NetworkError", ex.getCode());
+    EXPECT_NE(std::string::npos, ex.getMessage().find("connection reset"));
+  }
+  EXPECT_FALSE(body.isFinished());
+}
+
+TEST_F(MCurlResponseBodyTest, StallThrowsInsteadOfEof) {
+  TestableMCurlResponseBody body;
+  body.setReadWait(std::chrono::milliseconds(50));
+  char data[] = "ab";
+  body.write(data, 2);
+
+  char buffer[8] = {0};
+  EXPECT_EQ(2u, body.read(buffer, sizeof(buffer)));
+  try {
+    body.read(buffer, sizeof(buffer));
+    FAIL() << "a stalled body must not look like EOF";
+  } catch (const ResponseException &ex) {
+    EXPECT_EQ("Timeout", ex.getCode());
+  }
+  EXPECT_FALSE(body.isFinished());
 }
 
 // ==================== 并发测试 ====================

@@ -1,8 +1,49 @@
 #include <algorithm>
+#include <cstdint>
 #include <darabonba/Exception.hpp>
 #include <darabonba/Stream.hpp>
+#include <mutex>
+#include <unordered_map>
 
 namespace Darabonba {
+namespace {
+
+std::mutex &retainedStreamsMutex() {
+  static std::mutex mutex;
+  return mutex;
+}
+
+std::unordered_map<std::uint64_t, std::shared_ptr<IStream>> &retainedStreams() {
+  static std::unordered_map<std::uint64_t, std::shared_ptr<IStream>> streams;
+  return streams;
+}
+
+} // namespace
+
+Json Stream::retain(std::shared_ptr<IStream> stream) {
+  if (!stream) {
+    return Json(nullptr);
+  }
+  std::uint64_t id = 0;
+  {
+    std::lock_guard<std::mutex> lock(retainedStreamsMutex());
+    static std::uint64_t next = 0;
+    id = ++next;
+    retainedStreams()[id] = std::move(stream);
+  }
+  return Json{{"darabonba.stream", id}};
+}
+
+std::shared_ptr<IStream> Stream::claimRetained(std::uint64_t id) {
+  std::lock_guard<std::mutex> lock(retainedStreamsMutex());
+  auto found = retainedStreams().find(id);
+  if (found == retainedStreams().end()) {
+    return nullptr;
+  }
+  auto stream = std::move(found->second);
+  retainedStreams().erase(found);
+  return stream;
+}
 
 Bytes Stream::readAsBytes(std::shared_ptr<IStream> raw) {
   if (!raw)

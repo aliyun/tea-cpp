@@ -1,11 +1,31 @@
+#include <darabonba/Exception.hpp>
 #include <darabonba/http/MCurlHttpClient.hpp>
 #include <darabonba/http/Request.hpp>
 #include <darabonba/Core.hpp>
 #include <darabonba/Runtime.hpp>
 #include <gtest/gtest.h>
-#include <thread>
+#include <atomic>
 #include <chrono>
+#include <cstring>
+#include <functional>
 #include <memory>
+#include <string>
+#include <thread>
+
+#ifdef _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#pragma comment(lib, "ws2_32.lib")
+using socket_t = SOCKET;
+static const socket_t kInvalidSocket = INVALID_SOCKET;
+#else
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <unistd.h>
+using socket_t = int;
+static const socket_t kInvalidSocket = -1;
+#endif
 
 using namespace Darabonba;
 using namespace Darabonba::Http;
@@ -410,6 +430,215 @@ TEST_F(MCurlHttpClientTest, StreamResponseBody) {
   }
 
   client.stop();
+}
+
+namespace {
+
+void closeSocket(socket_t fd) {
+  if (fd == kInvalidSocket) {
+    return;
+  }
+#ifdef _WIN32
+  closesocket(fd);
+#else
+  ::close(fd);
+#endif
+}
+
+bool sendAll(socket_t fd, const std::string &data) {
+  size_t sent = 0;
+  while (sent < data.size()) {
+#ifdef _WIN32
+    int wrote = ::send(fd, data.data() + sent, static_cast<int>(data.size() - sent), 0);
+#else
+    ssize_t wrote = ::send(fd, data.data() + sent, data.size() - sent, 0);
+#endif
+    if (wrote <= 0) {
+      return false;
+    }
+    sent += static_cast<size_t>(wrote);
+  }
+  return true;
+}
+
+void readHttpRequest(socket_t fd) {
+  std::string request;
+  char buffer[512];
+  while (request.find("\r\n\r\n") == std::string::npos && request.size() < 8192) {
+#ifdef _WIN32
+    int got = ::recv(fd, buffer, sizeof(buffer), 0);
+#else
+    ssize_t got = ::recv(fd, buffer, sizeof(buffer), 0);
+#endif
+    if (got <= 0) {
+      return;
+    }
+    request.append(buffer, static_cast<size_t>(got));
+  }
+}
+
+class LocalHttpServer {
+public:
+  LocalHttpServer() {
+#ifdef _WIN32
+    WSADATA data;
+    WSAStartup(MAKEWORD(2, 2), &data);
+#endif
+    listenFd_ = ::socket(AF_INET, SOCK_STREAM, 0);
+    int enabled = 1;
+    setsockopt(listenFd_, SOL_SOCKET, SO_REUSEADDR,
+               reinterpret_cast<char *>(&enabled), sizeof(enabled));
+    sockaddr_in address;
+    std::memset(&address, 0, sizeof(address));
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    address.sin_port = 0;
+    if (::bind(listenFd_, reinterpret_cast<sockaddr *>(&address), sizeof(address)) != 0) {
+      return;
+    }
+    if (::listen(listenFd_, 1) != 0) {
+      return;
+    }
+    socklen_t length = sizeof(address);
+    if (::getsockname(listenFd_, reinterpret_cast<sockaddr *>(&address), &length) == 0) {
+      port_ = ntohs(address.sin_port);
+    }
+  }
+
+  ~LocalHttpServer() {
+    closeSocket(listenFd_);
+    listenFd_ = kInvalidSocket;
+    join();
+  }
+
+  int port() const { return port_; }
+
+  void serve(const std::function<void(socket_t)> &writeResponse) {
+    worker_ = std::thread([this, writeResponse]() {
+      socket_t client = ::accept(listenFd_, nullptr, nullptr);
+      if (client == kInvalidSocket) {
+        return;
+      }
+      readHttpRequest(client);
+      writeResponse(client);
+      closeSocket(client);
+    });
+  }
+
+  void join() {
+    if (worker_.joinable()) {
+      worker_.join();
+    }
+  }
+
+private:
+  socket_t listenFd_ = kInvalidSocket;
+  int port_ = 0;
+  std::thread worker_;
+};
+
+std::string readUntilEnd(const std::shared_ptr<MCurlResponseBody> &body, bool *failed) {
+  std::string payload;
+  char buffer[64];
+  *failed = false;
+  try {
+    for (;;) {
+      size_t count = body->read(buffer, sizeof(buffer));
+      if (count == 0) {
+        break;
+      }
+      payload.append(buffer, count);
+    }
+  } catch (const ResponseException &) {
+    *failed = true;
+  }
+  return payload;
+}
+
+} // namespace
+
+TEST_F(MCurlHttpClientTest, ChunkedDownloadCompletesFromLocalServer) {
+  LocalHttpServer server;
+  ASSERT_GT(server.port(), 0);
+  server.serve([](socket_t client) {
+    sendAll(client,
+            "HTTP/1.1 200 OK\r\n"
+            "Transfer-Encoding: chunked\r\n"
+            "Connection: close\r\n"
+            "\r\n"
+            "5\r\nhello\r\n"
+            "6\r\n world\r\n"
+            "0\r\n\r\n");
+  });
+
+  MCurlHttpClient client;
+  client.start();
+  Request request("http://127.0.0.1:" + std::to_string(server.port()) + "/file");
+  Json options = {{"connectTimeout", 2000}, {"readTimeout", 5000}, {"noProxy", "*"}};
+  auto response = client.makeRequest(request, options).get();
+  ASSERT_TRUE(response);
+  EXPECT_EQ(200, response->getStatusCode());
+  bool failed = false;
+  EXPECT_EQ("hello world", readUntilEnd(response->getBody(), &failed));
+  EXPECT_FALSE(failed);
+  client.stop();
+  server.join();
+}
+
+TEST_F(MCurlHttpClientTest, InterruptedDownloadRaisesInsteadOfShortSuccess) {
+  LocalHttpServer server;
+  ASSERT_GT(server.port(), 0);
+  server.serve([](socket_t client) {
+    sendAll(client,
+            "HTTP/1.1 200 OK\r\n"
+            "Content-Length: 100\r\n"
+            "Connection: close\r\n"
+            "\r\n"
+            "partial");
+  });
+
+  MCurlHttpClient client;
+  client.start();
+  Request request("http://127.0.0.1:" + std::to_string(server.port()) + "/file");
+  Json options = {{"connectTimeout", 2000}, {"readTimeout", 5000}, {"noProxy", "*"}};
+  auto response = client.makeRequest(request, options).get();
+  ASSERT_TRUE(response);
+  EXPECT_EQ(200, response->getStatusCode());
+  bool failed = false;
+  std::string payload = readUntilEnd(response->getBody(), &failed);
+  EXPECT_TRUE(failed);
+  EXPECT_LT(payload.size(), 100u);
+  client.stop();
+  server.join();
+}
+
+TEST_F(MCurlHttpClientTest, StalledDownloadRaisesInsteadOfShortSuccess) {
+  LocalHttpServer server;
+  ASSERT_GT(server.port(), 0);
+  server.serve([](socket_t client) {
+    sendAll(client,
+            "HTTP/1.1 200 OK\r\n"
+            "Content-Length: 100\r\n"
+            "Connection: close\r\n"
+            "\r\n"
+            "partial");
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+  });
+
+  MCurlHttpClient client;
+  client.start();
+  Request request("http://127.0.0.1:" + std::to_string(server.port()) + "/file");
+  Json options = {{"connectTimeout", 2000}, {"readTimeout", 5000}, {"noProxy", "*"}};
+  auto response = client.makeRequest(request, options).get();
+  ASSERT_TRUE(response);
+  EXPECT_EQ(200, response->getStatusCode());
+  response->getBody()->setReadWait(std::chrono::milliseconds(200));
+  bool failed = false;
+  std::string payload = readUntilEnd(response->getBody(), &failed);
+  EXPECT_TRUE(failed);
+  EXPECT_EQ("partial", payload);
+  client.stop();
+  server.join();
 }
 
 // ==================== 响应体并发读取测试 ====================

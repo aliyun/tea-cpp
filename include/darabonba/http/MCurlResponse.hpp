@@ -1,6 +1,7 @@
 #ifndef DARABONBA_HTTP_MCULRESPONSE_H_
 #define DARABONBA_HTTP_MCULRESPONSE_H_
 #include <atomic>
+#include <chrono>
 #include <condition_variable>
 #include <curl/curl.h>
 #include <darabonba/Stream.hpp>
@@ -10,6 +11,7 @@
 #include <darabonba/lock/SpinLock.hpp>
 #include <memory>
 #include <mutex>
+#include <string>
 
 namespace Darabonba {
 namespace Http {
@@ -39,11 +41,14 @@ public:
   virtual size_t read(char *buffer, size_t expectSize) override;
 
   virtual bool isFinished() const override {
-    if (done_ && readableSize_ == 0) {
-      return true;
-    }
-    return false;
-  };
+    return done_ && !failed_ && readableSize_ == 0;
+  }
+
+  // Record a transport failure. Buffered bytes can still be read; the next
+  // read after the buffer is empty throws instead of reporting EOF.
+  void fail(const std::string &message);
+
+  void setReadWait(std::chrono::milliseconds wait) { readWait_ = wait; }
 
   /**
    * @brief This method is thread safe.
@@ -76,7 +81,11 @@ protected:
    */
   std::atomic<size_t> maxSize_ = {MAX_SIZE};
   std::atomic<bool> done_ = {false};
+  std::atomic<bool> failed_ = {false};
   std::atomic<bool> ready_ = {false};
+  std::chrono::milliseconds readWait_{30000};
+  std::mutex errorMutex_;
+  std::string errorMessage_;
 
   // 用于等待整个数据接受完毕
   mutable std::mutex doneMutex_;

@@ -216,18 +216,16 @@ void MCurlHttpClient::perform() {
         auto body = dynamic_cast<MCurlResponseBody *>(
             curlStorage->resp ? curlStorage->resp->getBody().get() : nullptr);
         if (curlResult != CURLE_OK) {
+          std::string message =
+              std::string("Curl error: ") + curl_easy_strerror(curlResult);
           if (curlStorage->promise) {
-            curlStorage->promise->set_exception(
-                std::make_exception_ptr(Darabonba::ResponseException(
-                    "NetworkError",
-                    std::string("Curl error: ") + curl_easy_strerror(curlResult))));
+            curlStorage->promise->set_exception(std::make_exception_ptr(
+                Darabonba::ResponseException("NetworkError", message)));
           }
-          // Promise may already be fulfilled (headers/body started). Always
-          // unblock readers waiting on streamCV_ / doneCV_.
+          // Headers may already have been delivered with status 200. Keep any
+          // buffered bytes readable, then fail the next read instead of EOF.
           if (body) {
-            body->done_ = true;
-            body->streamCV_.notify_all();
-            body->doneCV_.notify_all();
+            body->fail(message);
           }
         } else {
           if (body) {
@@ -263,10 +261,8 @@ void MCurlHttpClient::perform() {
       if (p.second->resp) {
         auto body = dynamic_cast<MCurlResponseBody *>(
             p.second->resp->getBody().get());
-        if (body) {
-          body->done_ = true;
-          body->streamCV_.notify_all();
-          body->doneCV_.notify_all();
+        if (body && !body->getDone()) {
+          body->fail("HTTP client stopped before the response body finished");
         }
       }
       if (p.second->promise) {

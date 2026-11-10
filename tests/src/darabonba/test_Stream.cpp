@@ -253,6 +253,19 @@ TEST_F(StreamTest, BinaryJsonConvertsToOwnedStream) {
   EXPECT_EQ(payload, Stream::readAsString(second));
 }
 
+TEST_F(StreamTest, RetainedStreamOutlivesItsOwner) {
+  Json kept;
+  {
+    auto source = Stream::toReadable(std::string("download content"));
+    kept = Stream::retain(source);
+  }
+
+  auto restored = kept.get<std::shared_ptr<IStream>>();
+  ASSERT_NE(nullptr, restored);
+  EXPECT_EQ("download content", Stream::readAsString(restored));
+  EXPECT_EQ(nullptr, kept.get<std::shared_ptr<IStream>>());
+}
+
 TEST_F(StreamTest, PointerJsonStillCopiesLiveStream) {
   auto source = Stream::toReadable(std::string("live"));
   Json pointer = source;

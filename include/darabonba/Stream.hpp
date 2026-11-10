@@ -42,6 +42,12 @@ public:
 
   static std::shared_ptr<IStream> toReadable(const Json &raw);
 
+  // Keep stream alive inside a JSON value. The product model restores it with
+  // get<shared_ptr<IStream>>() after the original owner is destroyed.
+  // The first conversion takes ownership; the bytes are not copied.
+  static Json retain(std::shared_ptr<IStream> stream);
+  static std::shared_ptr<IStream> claimRetained(std::uint64_t id);
+
   static std::shared_ptr<OStream> toWritable(const std::string &raw);
 
   static std::shared_ptr<OStream> toWritable(const Bytes &raw);
@@ -287,6 +293,11 @@ template <> struct adl_serializer<std::shared_ptr<Darabonba::IStream>> {
   static std::shared_ptr<Darabonba::IStream> from_json(const json &j) {
     if (j.is_binary()) {
       return std::make_shared<Darabonba::ISStream>(j.get_binary());
+    }
+    if (j.is_object() && j.contains("darabonba.stream") &&
+        j["darabonba.stream"].is_number_unsigned()) {
+      return Darabonba::Stream::claimRetained(
+          j["darabonba.stream"].get<std::uint64_t>());
     }
     if (j.is_number_unsigned()) {
       Darabonba::IStream *ptr =
