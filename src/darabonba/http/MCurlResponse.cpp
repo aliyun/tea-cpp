@@ -32,7 +32,16 @@ void MCurlResponseBody::fail(const std::string &message) {
     }
   }
   failed_.store(true, std::memory_order_release);
-  done_.store(true);
+  finish();
+}
+
+void MCurlResponseBody::finish() {
+  {
+    // Both wait predicates observe done_; publish it under their locks.
+    std::lock_guard<std::mutex> doneLock(doneMutex_);
+    std::lock_guard<std::mutex> streamLock(streamMutex_);
+    done_.store(true);
+  }
   streamCV_.notify_all();
   doneCV_.notify_all();
 }

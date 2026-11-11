@@ -74,6 +74,8 @@ public:
   bool fetch();
 
 protected:
+  void finish();
+
   enum { MAX_SIZE = 10 * 1024 * 1024 };  // 10MB, 支持大响应体
 
   /**

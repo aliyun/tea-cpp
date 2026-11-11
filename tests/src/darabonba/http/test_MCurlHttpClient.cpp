@@ -605,6 +605,7 @@ TEST_F(MCurlHttpClientTest, InterruptedDownloadRaisesInsteadOfShortSuccess) {
   ASSERT_TRUE(response);
   EXPECT_EQ(200, response->getStatusCode());
   bool failed = false;
+  response->getBody()->waitForDone();
   std::string payload = readUntilEnd(response->getBody(), &failed);
   EXPECT_TRUE(failed);
   EXPECT_LT(payload.size(), 100u);

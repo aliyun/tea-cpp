@@ -232,9 +232,7 @@ void MCurlHttpClient::perform() {
             if (!body->getReady()) {
               setResponseReady(curlStorage.get());
             }
-            body->done_ = true;
-            body->streamCV_.notify_all();
-            body->doneCV_.notify_all();
+            body->finish();
           } else {
             // This should never happen - log as error if DEBUG is enabled
             if (nullptr != getenv("DEBUG")) {
