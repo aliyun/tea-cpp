@@ -216,27 +216,23 @@ void MCurlHttpClient::perform() {
         auto body = dynamic_cast<MCurlResponseBody *>(
             curlStorage->resp ? curlStorage->resp->getBody().get() : nullptr);
         if (curlResult != CURLE_OK) {
+          std::string message =
+              std::string("Curl error: ") + curl_easy_strerror(curlResult);
           if (curlStorage->promise) {
-            curlStorage->promise->set_exception(
-                std::make_exception_ptr(Darabonba::ResponseException(
-                    "NetworkError",
-                    std::string("Curl error: ") + curl_easy_strerror(curlResult))));
+            curlStorage->promise->set_exception(std::make_exception_ptr(
+                Darabonba::ResponseException("NetworkError", message)));
           }
-          // Promise may already be fulfilled (headers/body started). Always
-          // unblock readers waiting on streamCV_ / doneCV_.
+          // Headers may already have been delivered with status 200. Keep any
+          // buffered bytes readable, then fail the next read instead of EOF.
           if (body) {
-            body->done_ = true;
-            body->streamCV_.notify_all();
-            body->doneCV_.notify_all();
+            body->fail(message);
           }
         } else {
           if (body) {
             if (!body->getReady()) {
               setResponseReady(curlStorage.get());
             }
-            body->done_ = true;
-            body->streamCV_.notify_all();
-            body->doneCV_.notify_all();
+            body->finish();
           } else {
             // This should never happen - log as error if DEBUG is enabled
             if (nullptr != getenv("DEBUG")) {
@@ -254,6 +250,23 @@ void MCurlHttpClient::perform() {
         // TODO: handle other case
       }
     }
+    // Once the promise has delivered the response, the worker can cancel a
+    // transfer if it is the only remaining owner of both response and body.
+    // This also handles paused downloads with no configured Curl timeout.
+    for (auto it = runningCurl_.begin(); it != runningCurl_.end();) {
+      auto &storage = *it->second;
+      if (!storage.promise && storage.resp.use_count() == 1) {
+        auto body = storage.resp->getBody();
+        if (body && body.use_count() == 2) {
+          auto handle = it->first;
+          curl_multi_remove_handle(mCurl_, handle);
+          curl_easy_cleanup(handle);
+          it = runningCurl_.erase(it);
+          continue;
+        }
+      }
+      ++it;
+    }
   }
   // close the existing network connections.
   for (auto &p : runningCurl_) {
@@ -263,10 +276,8 @@ void MCurlHttpClient::perform() {
       if (p.second->resp) {
         auto body = dynamic_cast<MCurlResponseBody *>(
             p.second->resp->getBody().get());
-        if (body) {
-          body->done_ = true;
-          body->streamCV_.notify_all();
-          body->doneCV_.notify_all();
+        if (body && !body->getDone()) {
+          body->fail("HTTP client stopped before the response body finished");
         }
       }
       if (p.second->promise) {

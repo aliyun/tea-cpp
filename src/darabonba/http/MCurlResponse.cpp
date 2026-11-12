@@ -1,3 +1,4 @@
+#include <darabonba/Exception.hpp>
 #include <darabonba/Type.hpp>
 #include <darabonba/http/MCurlHttpClient.hpp>
 #include <darabonba/http/MCurlResponse.hpp>
@@ -23,25 +24,62 @@ void MCurlResponseBody::waitForDone() {
   easyHandle_ = nullptr;
 }
 
+void MCurlResponseBody::fail(const std::string &message) {
+  {
+    std::lock_guard<std::mutex> lock(errorMutex_);
+    if (errorMessage_.empty()) {
+      errorMessage_ = message;
+    }
+  }
+  failed_.store(true, std::memory_order_release);
+  finish();
+}
+
+void MCurlResponseBody::finish() {
+  {
+    // Both wait predicates observe done_; publish it under their locks.
+    std::lock_guard<std::mutex> doneLock(doneMutex_);
+    std::lock_guard<std::mutex> streamLock(streamMutex_);
+    done_.store(true);
+  }
+  streamCV_.notify_all();
+  doneCV_.notify_all();
+}
+
 size_t MCurlResponseBody::read(char *buffer, size_t expectSize) {
-  if (done_ && readableSize_ == 0)
-    return 0;
-  size_t realSize = 0;
-  do {
-    realSize = (std::min)({expectSize, readableSize_.load(), maxSize_.load()});
+  auto raiseIfFailed = [this]() {
+    if (!failed_.load(std::memory_order_acquire)) {
+      return;
+    }
+    std::string message;
+    {
+      std::lock_guard<std::mutex> lock(errorMutex_);
+      message = errorMessage_;
+    }
+    client_ = nullptr;
+    easyHandle_ = nullptr;
+    throw Darabonba::ResponseException(
+        "NetworkError",
+        message.empty() ? "response body failed" : message);
+  };
+
+  for (;;) {
+    if (done_ && readableSize_ == 0) {
+      raiseIfFailed();
+      client_ = nullptr;
+      easyHandle_ = nullptr;
+      return 0;
+    }
+
+    size_t realSize =
+        (std::min)({expectSize, readableSize_.load(), maxSize_.load()});
     if (realSize != 0) {
       {
         std::lock_guard<Lock::SpinLock> lock(bufferlock_);
         realSize = buffer_.read(buffer, realSize);
       }
       if (realSize == 0) {
-        // Buffer empty while readableSize_ claimed data — resync and retry.
         readableSize_ = 0;
-        if (done_) {
-          client_ = nullptr;
-          easyHandle_ = nullptr;
-          return 0;
-        }
         continue;
       }
       readableSize_ -= realSize;
@@ -49,27 +87,31 @@ size_t MCurlResponseBody::read(char *buffer, size_t expectSize) {
     }
 
     if (done_) {
+      raiseIfFailed();
       client_ = nullptr;
       easyHandle_ = nullptr;
       return 0;
     }
 
     fetch();
-    std::unique_lock<std::mutex> lock(streamMutex_);
-    // Bound wait so a missed notify / stalled transfer cannot hang CI forever.
-    if (!streamCV_.wait_for(lock, std::chrono::seconds(30), [this]() -> bool {
-          return done_.load() || readableSize_ > 0;
-        })) {
+    bool ready = false;
+    {
+      std::unique_lock<std::mutex> lock(streamMutex_);
+      ready = streamCV_.wait_for(lock, readWait_, [this]() -> bool {
+        return done_.load() || failed_.load() || readableSize_.load() > 0;
+      });
+    }
+    if (!ready) {
+      raiseIfFailed();
       if (done_ && readableSize_ == 0) {
+        client_ = nullptr;
+        easyHandle_ = nullptr;
         return 0;
       }
-      // Treat prolonged stall as end-of-stream for the caller.
-      done_ = true;
-      return 0;
+      throw Darabonba::ResponseException(
+          "Timeout", "response body stalled before the transfer finished");
     }
-  } while (realSize == 0);
-
-  return realSize;
+  }
 }
 
 bool MCurlResponseBody::fetch() {
@@ -81,7 +123,9 @@ bool MCurlResponseBody::fetch() {
 
 size_t MCurlResponseBody::write(char *buffer, size_t expectSize) {
   {
-    std::lock_guard<Lock::SpinLock> lock(bufferlock_);
+    // Publish readable data under the mutex used by the wait predicate.
+    std::lock_guard<std::mutex> streamLock(streamMutex_);
+    std::lock_guard<Lock::SpinLock> bufferLock(bufferlock_);
     buffer_.write(buffer, expectSize);
     readableSize_ += expectSize;
   }
