@@ -16,13 +16,15 @@ struct KeptStream {
 };
 
 std::mutex &retainedMutex() {
-  static std::mutex mutex;
-  return mutex;
+  // Static JSON values can release retained streams during process shutdown.
+  static auto *const mutex = new std::mutex;
+  return *mutex;
 }
 
 std::unordered_map<std::uint64_t, std::unique_ptr<KeptStream>> &retained() {
-  static std::unordered_map<std::uint64_t, std::unique_ptr<KeptStream>> table;
-  return table;
+  static auto *const table =
+      new std::unordered_map<std::uint64_t, std::unique_ptr<KeptStream>>;
+  return *table;
 }
 
 std::uint64_t &nextRetainedId() {
