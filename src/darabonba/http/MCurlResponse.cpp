@@ -123,7 +123,9 @@ bool MCurlResponseBody::fetch() {
 
 size_t MCurlResponseBody::write(char *buffer, size_t expectSize) {
   {
-    std::lock_guard<Lock::SpinLock> lock(bufferlock_);
+    // Publish readable data under the mutex used by the wait predicate.
+    std::lock_guard<std::mutex> streamLock(streamMutex_);
+    std::lock_guard<Lock::SpinLock> bufferLock(bufferlock_);
     buffer_.write(buffer, expectSize);
     readableSize_ += expectSize;
   }
