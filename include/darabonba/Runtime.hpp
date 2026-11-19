@@ -92,6 +92,7 @@ public:
     DARABONBA_PTR_TO_JSON(socks5Proxy, socks5Proxy_);
     DARABONBA_PTR_TO_JSON(socks5NetWork, socks5NetWork_);
     DARABONBA_PTR_TO_JSON(keepAlive, keepAlive_);
+    DARABONBA_PTR_TO_JSON(ossPrivateUrl, ossPrivateUrl_);
     DARABONBA_PTR_TO_JSON(maxHostConnections, maxHostConnections_);
     DARABONBA_PTR_TO_JSON(extendsParameters, extendsParameters_);
     DARABONBA_PTR_TO_JSON(retryOptions, retryOptions_);
@@ -115,6 +116,7 @@ public:
     DARABONBA_PTR_FROM_JSON(socks5Proxy, socks5Proxy_);
     DARABONBA_PTR_FROM_JSON(socks5NetWork, socks5NetWork_);
     DARABONBA_PTR_FROM_JSON(keepAlive, keepAlive_);
+    DARABONBA_PTR_FROM_JSON(ossPrivateUrl, ossPrivateUrl_);
     DARABONBA_PTR_FROM_JSON(maxHostConnections, maxHostConnections_);
     DARABONBA_PTR_FROM_JSON(extendsParameters, extendsParameters_);
     DARABONBA_PTR_FROM_JSON(retryOptions, retryOptions_);
@@ -142,9 +144,26 @@ public:
            this->localAddr_ == nullptr && this->socks5Proxy_ == nullptr &&
            this->socks5NetWork_ == nullptr && this->keepAlive_ == nullptr &&
            this->maxHostConnections_ == nullptr &&
+           this->ossPrivateUrl_ == nullptr &&
            this->extendsParameters_ == nullptr &&
            this->retryOptions_ == nullptr;
   };
+  // OSS PrivateLink 上传地址，非空时优先于 Config。
+  bool hasOssPrivateUrl() const { return this->ossPrivateUrl_ != nullptr; };
+  void deleteOssPrivateUrl() { this->ossPrivateUrl_ = nullptr; };
+  inline const string &getOssPrivateUrl() const {
+    DARABONBA_PTR_GET_CONST(ossPrivateUrl_, string)
+  };
+  inline string getOssPrivateUrl() {
+    DARABONBA_PTR_GET(ossPrivateUrl_, string)
+  };
+  inline RuntimeOptions &setOssPrivateUrl(const string &value) {
+    DARABONBA_PTR_SET_VALUE(ossPrivateUrl_, value)
+  };
+  inline RuntimeOptions &setOssPrivateUrl(string &&value) {
+    DARABONBA_PTR_SET_RVALUE(ossPrivateUrl_, value)
+  };
+
   // autoretry Field Functions
   bool hasAutoretry() const { return this->autoretry_ != nullptr; };
   void deleteAutoretry() { this->autoretry_ = nullptr; };
@@ -406,6 +425,7 @@ protected:
   std::shared_ptr<string> socks5NetWork_ = nullptr;
   // whether to enable keep-alive
   std::shared_ptr<bool> keepAlive_ = nullptr;
+  std::shared_ptr<string> ossPrivateUrl_ = nullptr;
   // maximum connections per host
   std::shared_ptr<int64_t> maxHostConnections_ = nullptr;
   // Extends Parameters
