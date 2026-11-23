@@ -11,6 +11,44 @@ protected:
   virtual void TearDown() override {}
 };
 
+// ==================== OSS PrivateLink 字段测试 ====================
+
+TEST_F(RuntimeOptionsTest, OssPrivateUrlDefaultAndDelete) {
+  RuntimeOptions options;
+  EXPECT_FALSE(options.hasOssPrivateUrl());
+  EXPECT_TRUE(options.getOssPrivateUrl().empty());
+  EXPECT_TRUE(options.empty());
+  Json initial;
+  to_json(initial, options);
+  EXPECT_EQ(initial.count("ossPrivateUrl"), 0U);
+
+  options.setOssPrivateUrl("http://localhost:8080/prefix");
+  EXPECT_TRUE(options.hasOssPrivateUrl());
+  EXPECT_FALSE(options.empty());
+  options.deleteOssPrivateUrl();
+  EXPECT_FALSE(options.hasOssPrivateUrl());
+  EXPECT_TRUE(options.getOssPrivateUrl().empty());
+  EXPECT_TRUE(options.empty());
+}
+
+TEST_F(RuntimeOptionsTest, OssPrivateUrlRoundTrip) {
+  for (const std::string &endpoint : {std::string(""),
+       std::string("http://localhost:8080/prefix"),
+       std::string("https://oss.example.test")}) {
+    RuntimeOptions original;
+    original.setOssPrivateUrl(endpoint);
+    original.setReadTimeout(2000);
+    Json json;
+    to_json(json, original);
+    EXPECT_EQ(json["ossPrivateUrl"], endpoint);
+    RuntimeOptions restored;
+    from_json(json, restored);
+    EXPECT_TRUE(restored.hasOssPrivateUrl());
+    EXPECT_EQ(restored.getOssPrivateUrl(), endpoint);
+    EXPECT_EQ(restored.getReadTimeout(), 2000);
+  }
+}
+
 // ==================== maxIdleConns 字段测试 ====================
 // 测试新增的 maxIdleConns getter/setter
 
