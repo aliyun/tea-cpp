@@ -1,3 +1,6 @@
+#include <algorithm>
+#include <cstdint>
+#include <cstring>
 #include <darabonba/Exception.hpp>
 #include <darabonba/Stream.hpp>
 #include <darabonba/Type.hpp>
@@ -236,6 +239,114 @@ TEST_F(StreamTest, LargeDataStream) {
   Bytes bytes = Stream::readAsBytes(stream);
 
   EXPECT_EQ(bytes.size(), 10000u);
+}
+
+TEST_F(StreamTest, BinaryJsonConvertsToOwnedStream) {
+  const std::string payload = "download content";
+  std::vector<uint8_t> raw(payload.begin(), payload.end());
+  Bytes bytes(raw);
+  Json response = {{"body", Json(bytes)}};
+
+  auto first = response["body"].get<std::shared_ptr<IStream>>();
+  ASSERT_NE(nullptr, first);
+  EXPECT_EQ(payload, Stream::readAsString(first));
+
+  auto second = response["body"].get<std::shared_ptr<IStream>>();
+  ASSERT_NE(nullptr, second);
+  EXPECT_EQ(payload, Stream::readAsString(second));
+}
+
+namespace {
+
+class ProbeStream : public IStream {
+public:
+  explicit ProbeStream(const std::shared_ptr<int> &alive) : alive_(alive) {
+    ++(*alive_);
+  }
+  ~ProbeStream() override { --(*alive_); }
+  size_t read(char *, size_t) override { return 0; }
+  bool isFinished() const override { return true; }
+
+private:
+  std::shared_ptr<int> alive_;
+};
+
+} // namespace
+
+TEST_F(StreamTest, ForgedRetainTokenStaysOrdinaryBinary) {
+  unsigned char raw[sizeof(std::uint64_t) * 2];
+  const std::uint64_t magic = StreamKeep::kMagic;
+  const std::uint64_t id = 0x1;
+  std::memcpy(raw, &magic, sizeof(magic));
+  std::memcpy(raw + sizeof(magic), &id, sizeof(id));
+  std::vector<std::uint8_t> bytes(raw, raw + sizeof(raw));
+
+  Json forged = Json::binary(bytes, StreamKeep::kSubtype);
+  Json copy = forged;
+  auto restored = forged.get<std::shared_ptr<IStream>>();
+  ASSERT_NE(nullptr, restored);
+  Bytes restoredBytes = Stream::readAsBytes(restored);
+  ASSERT_EQ(bytes.size(), restoredBytes.size());
+  EXPECT_TRUE(std::equal(bytes.begin(), bytes.end(), restoredBytes.begin()));
+  copy = Json(nullptr);
+}
+
+TEST_F(StreamTest, DiscardedRetainReleasesTheStream) {
+  auto alive = std::make_shared<int>(0);
+  {
+    auto stream = std::make_shared<ProbeStream>(alive);
+    Json kept = Stream::retain(stream);
+    stream.reset();
+    EXPECT_EQ(1, *alive);
+  }
+  EXPECT_EQ(0, *alive);
+
+  {
+    auto stream = std::make_shared<ProbeStream>(alive);
+    Json kept = Stream::retain(stream);
+    stream.reset();
+    Json copy = kept;
+    kept = Json(nullptr);
+    EXPECT_EQ(1, *alive);
+    copy = Json(nullptr);
+    EXPECT_EQ(0, *alive);
+  }
+}
+
+TEST_F(StreamTest, RetainedStreamOutlivesItsOwner) {
+  Json kept;
+  {
+    auto source = Stream::toReadable(std::string("download content"));
+    kept = Stream::retain(source);
+  }
+
+  auto restored = kept.get<std::shared_ptr<IStream>>();
+  ASSERT_NE(nullptr, restored);
+  EXPECT_EQ("download content", Stream::readAsString(restored));
+  EXPECT_EQ(nullptr, kept.get<std::shared_ptr<IStream>>());
+}
+
+TEST_F(StreamTest, DiscardedStreamCanReleaseAnotherRetainedStream) {
+  auto alive = std::make_shared<int>(0);
+  auto nested = Stream::retain(std::make_shared<ProbeStream>(alive));
+  auto stream = std::shared_ptr<IStream>(
+      new ISStream(), [nested](IStream *body) mutable {
+        nested = nullptr;
+        delete body;
+      });
+  auto kept = Stream::retain(std::move(stream));
+  nested = nullptr;
+  EXPECT_EQ(1, *alive);
+  kept = nullptr;
+  EXPECT_EQ(0, *alive);
+}
+
+TEST_F(StreamTest, PointerJsonStillCopiesLiveStream) {
+  auto source = Stream::toReadable(std::string("live"));
+  Json pointer = source;
+  auto restored = pointer.get<std::shared_ptr<IStream>>();
+  ASSERT_NE(nullptr, restored);
+  EXPECT_EQ("live", Stream::readAsString(restored));
 }
 
 TEST_F(StreamTest, SpecialCharactersInStream) {

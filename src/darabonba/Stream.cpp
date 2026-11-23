@@ -1,8 +1,99 @@
 #include <algorithm>
+#include <cstdint>
 #include <darabonba/Exception.hpp>
 #include <darabonba/Stream.hpp>
+#include <memory>
+#include <mutex>
+#include <unordered_map>
+#include <vector>
 
 namespace Darabonba {
+namespace {
+
+struct KeptStream {
+  int refs = 1;
+  std::shared_ptr<IStream> stream;
+};
+
+std::mutex &retainedMutex() {
+  // Static JSON values can release retained streams during process shutdown.
+  static auto *const mutex = new std::mutex;
+  return *mutex;
+}
+
+std::unordered_map<std::uint64_t, std::unique_ptr<KeptStream>> &retained() {
+  static auto *const table =
+      new std::unordered_map<std::uint64_t, std::unique_ptr<KeptStream>>;
+  return *table;
+}
+
+std::uint64_t &nextRetainedId() {
+  static std::uint64_t next = 0;
+  return next;
+}
+
+} // namespace
+
+extern "C" void darabonba_stream_keep_addref(std::uint64_t id) {
+  std::lock_guard<std::mutex> lock(retainedMutex());
+  auto found = retained().find(id);
+  if (found == retained().end()) {
+    return;
+  }
+  ++found->second->refs;
+}
+
+extern "C" void darabonba_stream_keep_release(std::uint64_t id) {
+  std::unique_ptr<KeptStream> released;
+  {
+    std::lock_guard<std::mutex> lock(retainedMutex());
+    auto found = retained().find(id);
+    if (found != retained().end() && --found->second->refs == 0) {
+      released = std::move(found->second);
+      retained().erase(found);
+    }
+  }
+}
+
+Json Stream::retain(std::shared_ptr<IStream> stream) {
+  if (!stream) {
+    return Json(nullptr);
+  }
+  std::unique_ptr<KeptStream> kept(new KeptStream);
+  kept->stream = std::move(stream);
+  std::uint64_t id = 0;
+  {
+    std::lock_guard<std::mutex> lock(retainedMutex());
+    id = ++nextRetainedId();
+    retained()[id] = std::move(kept);
+  }
+
+  try {
+    Json value = Json::binary(std::vector<std::uint8_t>(), StreamKeep::kSubtype);
+    value.get_binary().set_keep_id(id);
+    return value;
+  } catch (...) {
+    darabonba_stream_keep_release(id);
+    throw;
+  }
+}
+
+bool Stream::claimRetained(std::uint64_t id, std::shared_ptr<IStream> *stream) {
+  if (stream == nullptr) {
+    return false;
+  }
+  std::shared_ptr<IStream> claimed;
+  {
+    std::lock_guard<std::mutex> lock(retainedMutex());
+    auto found = retained().find(id);
+    if (found == retained().end()) {
+      return false;
+    }
+    claimed = std::move(found->second->stream);
+  }
+  *stream = std::move(claimed);
+  return true;
+}
 
 Bytes Stream::readAsBytes(std::shared_ptr<IStream> raw) {
   if (!raw)

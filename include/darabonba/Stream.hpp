@@ -2,6 +2,7 @@
 #define DARABONBA_STREAM_H_
 
 #include <cstdint>
+#include <darabonba/StreamKeep.hpp>
 #include <darabonba/Type.hpp>
 #include <fstream>
 #include <iostream>
@@ -41,6 +42,13 @@ public:
   static std::shared_ptr<IStream> toReadable(const Bytes &raw);
 
   static std::shared_ptr<IStream> toReadable(const Json &raw);
+
+  // Keep stream alive inside the returned JSON value. Copying that value keeps
+  // the stream alive. Destroying the last copy releases it, even if nobody
+  // calls get<shared_ptr<IStream>>(). The first conversion takes the stream.
+  static Json retain(std::shared_ptr<IStream> stream);
+  // True when retain() issued this id. *stream is empty after the first claim.
+  static bool claimRetained(std::uint64_t id, std::shared_ptr<IStream> *stream);
 
   static std::shared_ptr<OStream> toWritable(const std::string &raw);
 
@@ -285,6 +293,16 @@ template <> struct adl_serializer<std::shared_ptr<Darabonba::IStream>> {
   }
 
   static std::shared_ptr<Darabonba::IStream> from_json(const json &j) {
+    if (j.is_binary()) {
+      const auto &bin = j.get_binary();
+      if (bin.keep_id() != 0) {
+        std::shared_ptr<Darabonba::IStream> claimed;
+        if (Darabonba::Stream::claimRetained(bin.keep_id(), &claimed)) {
+          return claimed;
+        }
+      }
+      return std::make_shared<Darabonba::ISStream>(bin);
+    }
     if (j.is_number_unsigned()) {
       Darabonba::IStream *ptr =
           reinterpret_cast<Darabonba::IStream *>(j.get<uintptr_t>());
